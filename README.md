@@ -1,5 +1,7 @@
 # sunshreesuntec.com – website and society accounts
 
+> How it works: [DOCUMENTATION.md](DOCUMENTATION.md). What changed: [CHANGELOG.md](CHANGELOG.md).
+
 Website and maintenance accounting for **Sunshree Suntec Co-op. Hsg. Soc. Ltd.**, NIBM Road, Kondhwa Khurd, Pune 411048.
 
 - **Website (public):** Home, About, Maintenance dues, Notices, Committee, Contact. Dues update by themselves whenever a bill, payment or correction is saved.

@@ -37,6 +37,12 @@
   <main id="main" class="wrap page">
     <p id="gate" class="lede">Loading…</p>
 
+    <div class="callout" id="no-units" hidden>
+      <h2>The units aren’t in the accounts yet</h2>
+      <p>The 65 flats, offices and shops from the member list (with names and balances as on 30 September 2026) are added with one click under <strong>Settings → Import opening balances</strong>. Until then there are no units to choose in Payments, Bills, Units or Lift.</p>
+      <div class="form-actions"><a class="btn btn-primary" href="#settings" id="no-units-go">Go to the import</a></div>
+    </div>
+
     <form id="admin-login" class="form" hidden novalidate>
       <h1>Committee sign in</h1>
       <label>Email<input type="email" name="email" autocomplete="email" required></label>
@@ -360,6 +366,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
+    <p class="muted mt" id="version-note">Software version 2.4.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

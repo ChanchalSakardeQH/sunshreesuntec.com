@@ -36,9 +36,11 @@ async function busy(btn, fn) {
   try { return await fn(); } finally { btn.disabled = false; }
 }
 const blockName = (id) => dues.blocks.find((b) => b.id === id)?.name || id;
-const unitOptions = (withBalance) => dues.blocks.map((b) => `<optgroup label="${esc(b.name)}">${
+const unitOptions = (withBalance) => (!units.length
+  ? '<option value="" disabled>No units yet: import them in Settings</option>'
+  : dues.blocks.map((b) => `<optgroup label="${esc(b.name)}">${
   units.filter((u) => u.block === b.id).map((u) => `<option value="${esc(u.id)}">${esc(u.unit)}${u.name ? ' – ' + esc(u.name) : ''}${withBalance ? ` (₹ ${fmt(u.balance)})` : ''}</option>`).join('')
-}</optgroup>`).join('');
+}</optgroup>`).join(''));
 
 const noRates = () => (billing.method === 'mmc'
   ? !(billing.mmc?.expenses || []).some((e) => Number(e.monthly) > 0 && e.id !== 'education')
@@ -102,6 +104,8 @@ function route() {
   $$('.tab').forEach((t) => (t.hidden = t.dataset.tab !== id));
   $$('#admin-nav a').forEach((a) => (a.getAttribute('href') === '#' + id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   $('#admin-nav').classList.remove('open');
+  $('#no-units').hidden = units.length > 0 || id === 'settings';
+  if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
   const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
@@ -864,7 +868,12 @@ function wireSettings() {
         msg.className = 'form-msg ok';
         msg.textContent = `${units.length} units created. The website now shows balances from the accounts.`;
         $('#import-box').hidden = true;
-      } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+        $('#no-units').hidden = true;
+      } catch (err) {
+        msg.className = 'form-msg';
+        msg.textContent = errorText(err) + (err?.code === 'permission-denied'
+          ? ' Check that firestore.rules is published in Firebase and that your User UID is in the admins collection.' : '');
+      }
     });
   });
 
