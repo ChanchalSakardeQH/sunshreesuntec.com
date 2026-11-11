@@ -1,4 +1,4 @@
-# sunshreesuntec.com – website and society accounts
+# sunshreesuntec.com – website with accounting online software and society accounts public display
 
 Website and maintenance accounting for **Sunshree Suntec Co-op. Hsg. Soc. Ltd.**, NIBM Road, Kondhwa Khurd, Pune 411048.
 
