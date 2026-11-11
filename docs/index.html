@@ -152,11 +152,17 @@
     <section class="tab" data-tab="member" hidden aria-labelledby="member-title">
       <div class="wrap narrow page">
         <h1 id="member-title">Member access</h1>
-        <p>Registered members can see the full maintenance account for their own unit. Register with your mobile number and email; the committee checks each request against the member register before approving it.</p>
+        <p>Registered members can see the full maintenance account for their own unit. Continue with Google, or register with email and password; then add your unit and mobile number. The committee checks each request against the member register before approving it.</p>
 
         <p class="callout" id="member-unavailable" hidden>Member login isn’t switched on yet. Please check back soon.</p>
 
         <div id="auth-panels" hidden>
+          <div class="google-box" id="google-box">
+            <button class="btn btn-google" type="button" id="member-google"><span aria-hidden="true" class="g-logo">G</span> Continue with Google</button>
+            <p class="muted small-note">Sign in or register with your Google account: no password needed. New members then add their unit and mobile number and wait for committee approval.</p>
+            <p class="form-msg" role="alert"></p>
+            <p class="or-line"><span>or with email and password</span></p>
+          </div>
           <div class="switcher" role="group" aria-label="Sign in or register">
             <button type="button" class="switch-btn" data-panel="login" aria-pressed="true">Sign in</button>
             <button type="button" class="switch-btn" data-panel="register" aria-pressed="false">Register</button>

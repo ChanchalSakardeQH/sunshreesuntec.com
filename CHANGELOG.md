@@ -6,6 +6,26 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [2.5.0] – 2026-11-11 – Google sign-in, staff roles and agreement
+
+### Added
+- **Continue with Google** for members (website → Member login) and for committee / staff (admin.html). Members signing in with Google still add their name, unit and 10-digit mobile number and wait for committee approval; the Members tab marks these requests “Google”.
+- **Staff** tab (committee only): invite an Accountant, Society Manager or Office Assistant by Gmail address with a role and a chosen set of permissions; edit access, suspend, or remove; cancel unused invitations.
+- **Permissions** (each can be given or withheld per person): view accounts; record payments and issue receipts; cancel receipts; generate monthly bills; add corrections; edit unit details (not amounts); record lift expenses; approve member logins; publish notices and contact details. Committee-only: Settings, opening import, staff management, agreement.
+- Default access by role – Accountant: view, payments, cancel receipts, bills, corrections, lift expenses. Society Manager: view, payments, unit details, lift expenses, member approvals, website. Office Assistant: view, payments.
+- **Commitment, Confidentiality and Work Responsibilities Agreement**: shown to each staff member at first sign-in with their name, role, the exact access given, role responsibilities and general commitments (confidentiality, data protection, accurate same-day entries, no back-dating, cash deposit by next working day, conflict of interest, handover). Staff must tick acceptance and type their full name; access starts only after acceptance.
+- Agreement editor with versioning: publishing a new version requires every staff member to accept again. Permanent **acceptance record** (name signed, email, role, access, version, date and time, device).
+- **My profile** page for everyone: role, sign-in email, what they can access and update, and (for staff) the accepted agreement.
+- Last sign-in time shown for each committee member and staff.
+
+### Changed – security rules (`firestore.rules`, must be re-published)
+- Every operation now checks a specific permission instead of “is admin”. Staff permissions apply only after they accept the current agreement; suspended accounts have no access.
+- Unit records: money operations may change only balance fields; unit editors may change only name, type, status, area, inlets, vehicles and lift. Rates, charge category, per-unit amounts, BPM, construction cost and billing on/off stay committee-only.
+- **Ledger entries and bills can no longer be changed or deleted by anyone** from the website (corrections are new entries). Receipts can only be marked cancelled. Settings: bill generators may update only the last-billed month.
+- Committee records are `admins` documents without `kind: 'staff'` (existing committee entries keep full access, no change needed).
+
+---
+
 ## [2.4.0] – 2026-11-11
 
 ### Added

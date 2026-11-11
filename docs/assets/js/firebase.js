@@ -26,6 +26,22 @@ export function currentUser(fb) {
   });
 }
 
+/** Sign in with Google: popup, or full-page redirect where popups are blocked (some phones). */
+export async function googleSignIn(fb) {
+  const provider = new fb.A.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  try {
+    return await fb.A.signInWithPopup(fb.auth, provider);
+  } catch (err) {
+    if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') return null;
+    if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-environment') {
+      await fb.A.signInWithRedirect(fb.auth, provider);
+      return null;
+    }
+    throw err;
+  }
+}
+
 export function errorText(err) {
   const code = err?.code || '';
   const map = {
@@ -37,6 +53,9 @@ export function errorText(err) {
     'auth/weak-password': 'Use a password of at least 8 characters.',
     'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
     'auth/network-request-failed': 'No internet connection. Check your connection and try again.',
+    'auth/operation-not-allowed': 'Google sign-in isn’t switched on yet. In Firebase: Authentication → Sign-in method → Google → Enable.',
+    'auth/unauthorized-domain': 'This website address isn’t authorised for sign-in. Add it in Firebase: Authentication → Settings → Authorized domains.',
+    'auth/account-exists-with-different-credential': 'This email is already registered with a password. Sign in with your email and password.',
     'permission-denied': 'This action isn’t allowed for your account.',
     'unavailable': 'The database can’t be reached. Check your connection and try again.'
   };

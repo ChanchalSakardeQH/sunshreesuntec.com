@@ -21,14 +21,16 @@
       </a>
       <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="admin-nav">Menu</button>
       <nav id="admin-nav" class="site-nav" aria-label="Accounts" hidden>
-        <a href="#dashboard">Dashboard</a>
-        <a href="#bills">Bills</a>
-        <a href="#payments">Payments</a>
-        <a href="#units">Units</a>
-        <a href="#lift">Lift</a>
-        <a href="#members">Members</a>
-        <a href="#website">Website</a>
-        <a href="#settings">Settings</a>
+        <a href="#dashboard" data-need="view">Dashboard</a>
+        <a href="#bills" data-need="view">Bills</a>
+        <a href="#payments" data-need="view">Payments</a>
+        <a href="#units" data-need="view">Units</a>
+        <a href="#lift" data-need="view">Lift</a>
+        <a href="#members" data-need="members">Members</a>
+        <a href="#website" data-need="website">Website</a>
+        <a href="#staff" data-need="committee">Staff</a>
+        <a href="#settings" data-need="committee">Settings</a>
+        <a href="#profile">My profile</a>
         <button class="btn btn-small" type="button" id="signout">Sign out</button>
       </nav>
     </div>
@@ -37,6 +39,21 @@
   <main id="main" class="wrap page">
     <p id="gate" class="lede">Loading…</p>
 
+    <!-- STAFF AGREEMENT (shown to staff until they accept the current version) -->
+    <section id="agreement-screen" hidden>
+      <article class="agreement" id="agreement-doc"></article>
+      <form id="agreement-form" class="form" novalidate>
+        <label class="check"><input type="checkbox" name="agree"> I have read and understood this agreement, the access given to me and my responsibilities, and I accept them.</label>
+        <label>Type your full name as your signature<input type="text" name="sign" autocomplete="name" required></label>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">I accept</button>
+          <button class="btn" type="button" onclick="window.print()">Print</button>
+          <button class="btn" type="button" id="agreement-decline">Decline and sign out</button>
+        </div>
+      </form>
+    </section>
+
     <div class="callout" id="no-units" hidden>
       <h2>The units aren’t in the accounts yet</h2>
       <p>The 65 flats, offices and shops from the member list (with names and balances as on 30 September 2026) are added with one click under <strong>Settings → Import opening balances</strong>. Until then there are no units to choose in Payments, Bills, Units or Lift.</p>
@@ -44,7 +61,10 @@
     </div>
 
     <form id="admin-login" class="form" hidden novalidate>
-      <h1>Committee sign in</h1>
+      <h1>Committee and staff sign in</h1>
+      <button class="btn btn-google" type="button" id="admin-google"><span aria-hidden="true" class="g-logo">G</span> Continue with Google</button>
+      <p class="muted small-note">Staff invited by the committee: sign in with Google using the Gmail address you were invited with.</p>
+      <p class="or-line"><span>or with email and password</span></p>
       <label>Email<input type="email" name="email" autocomplete="email" required></label>
       <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
       <p class="form-msg" role="alert"></p>
@@ -73,7 +93,7 @@
     <section class="tab" data-tab="bills" hidden>
       <h1>Bills</h1>
       <p class="muted">Bills are created once per unit per month. Running it again for the same month only adds bills for units that don’t have one yet. On the 1st of every month GitHub creates them automatically.</p>
-      <form id="gen-form" class="form entry-form" novalidate>
+      <form id="gen-form" class="form entry-form" data-perm="generateBills" novalidate>
         <label>Month<input type="month" name="month" required></label>
         <label>Bill date<input type="date" name="billDate" required></label>
         <label>Due date<input type="date" name="dueDate" required></label>
@@ -115,7 +135,7 @@
     <!-- PAYMENTS -->
     <section class="tab" data-tab="payments" hidden>
       <h1>Payments and receipts</h1>
-      <form id="pay-form" class="form entry-form" novalidate>
+      <form id="pay-form" class="form entry-form" data-perm="recordPayments" novalidate>
         <label class="wide">Unit<select name="unitId" id="pay-unit" required><option value="">Choose unit</option></select></label>
         <p class="wide pay-info muted" id="pay-info"></p>
         <label>Payment date<input type="date" name="date" required></label>
@@ -148,7 +168,7 @@
       <h1>Units</h1>
       <div class="account-head">
         <label class="search"><span class="visually-hidden">Search units</span><input type="search" id="units-search" placeholder="Search name or unit"></label>
-        <button class="btn" type="button" id="measure-toggle">Enter area, inlets and parking for all units</button>
+        <button class="btn" type="button" id="measure-toggle" data-perm="editUnits">Enter area, inlets and parking for all units</button>
       </div>
       <form id="measure-form" class="mt-sm" hidden novalidate>
         <p class="muted">Used by the Monthly Maintenance Calculation: carpet area for sinking, repairs, property tax, insurance and major repairs; water inlets (taps) for water charges; vehicles for parking.</p>
@@ -191,7 +211,7 @@
           <label class="check"><input type="checkbox" name="active"> Bill this unit every month</label>
           <p class="form-msg" role="alert"></p>
           <div class="form-actions">
-            <button class="btn btn-primary" type="submit" value="save">Save unit</button>
+            <button class="btn btn-primary" type="submit" value="save" data-perm="editUnits">Save unit</button>
             <button class="btn" type="button" data-close>Close</button>
           </div>
         </form>
@@ -200,7 +220,7 @@
           <thead><tr><th>Date</th><th>Particulars</th><th>Receipt</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead>
           <tbody id="unit-ledger"></tbody>
         </table></div>
-        <form id="adj-form" class="form entry-form" novalidate>
+        <form id="adj-form" class="form entry-form" data-perm="corrections" novalidate>
           <h3 class="wide">Add a correction</h3>
           <label>Date<input type="date" name="date" required></label>
           <label class="wide">Particulars<input type="text" name="particulars" placeholder="e.g. Opening balance verified from receipts" required></label>
@@ -218,7 +238,7 @@
       <h1>Lift expenses</h1>
       <p class="muted">Record each lift expense other than the yearly lift charge (AMC invoice, repair, wear and tear, parts, licence). It is divided equally among the units served by that lift and added to their bills as “Lift AMC / Repairs (shared)”, in one month or spread over several months. Each bill lists the expense it includes.</p>
       <p class="callout" id="lift-served"></p>
-      <form id="lift-form" class="form entry-form" novalidate>
+      <form id="lift-form" class="form entry-form" data-perm="liftExpenses" novalidate>
         <label>Date of expense<input type="date" name="date" required></label>
         <label>Lift<select name="lift"><option value="C">C wing lift</option><option value="D">D wing lift</option><option value="CD">Both lifts (one contract)</option></select></label>
         <label>Type<select name="kind"></select></label>
@@ -280,6 +300,82 @@
         <p class="form-msg" role="alert"></p>
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save contact details</button></div>
       </form>
+    </section>
+
+    <!-- STAFF -->
+    <section class="tab" data-tab="staff" hidden>
+      <h1>Staff and access</h1>
+      <p class="muted">Give an Accountant, Society Manager or other staff member their own login with only the access they need. Before they can work, they must accept the Commitment, Confidentiality and Work Responsibilities Agreement; their acceptance is recorded with name, date and time. Everything they do is recorded in the accounts under their account.</p>
+
+      <h2>Add staff</h2>
+      <form id="invite-form" class="form entry-form" novalidate>
+        <label>Full name<input type="text" name="name" required></label>
+        <label>Gmail address (used to sign in)<input type="email" name="email" required></label>
+        <label>Mobile<input type="tel" name="mobile" inputmode="numeric" maxlength="10"></label>
+        <label>Role<select name="role" id="invite-role"></select></label>
+        <fieldset class="charges wide-all"><legend>Access</legend><div class="perm-grid" id="invite-perms"></div></fieldset>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Invite</button></div>
+      </form>
+      <p class="muted small-note">They then open sunshreesuntec.com/admin.html, choose <strong>Continue with Google</strong> with that Gmail, read and accept the agreement, and start work.</p>
+
+      <h2 class="mt">Committee and staff</h2>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Name</th><th>Role</th><th>Access</th><th>Agreement</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead>
+        <tbody id="staff-rows"></tbody>
+      </table></div>
+
+      <h2 class="mt">Invitations not yet used</h2>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Invited</th><th></th></tr></thead>
+        <tbody id="invite-rows"></tbody>
+      </table></div>
+
+      <h2 class="mt">Agreement</h2>
+      <p id="agreement-status" class="muted"></p>
+      <details class="glossary">
+        <summary>Edit the agreement</summary>
+        <form id="agreement-edit" class="form wide-form" novalidate>
+          <label>Title<input type="text" name="title"></label>
+          <label>Introduction<textarea name="intro" rows="3"></textarea></label>
+          <label>Commitments for all staff (one per line)<textarea name="common" rows="10"></textarea></label>
+          <div id="role-texts"></div>
+          <label>Closing<textarea name="closing" rows="3"></textarea></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Publish as new version</button></div>
+          <p class="muted small-note">Publishing a new version asks every staff member to read and accept it again at their next sign-in.</p>
+        </form>
+      </details>
+
+      <h2 class="mt">Acceptance record</h2>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Accepted on</th><th>Name signed</th><th>Email</th><th>Role</th><th>Version</th></tr></thead>
+        <tbody id="acceptance-rows"></tbody>
+      </table></div>
+
+      <dialog id="staff-dialog">
+        <form id="staff-form" class="form" method="dialog" novalidate>
+          <h2 id="staff-title">Staff</h2>
+          <label>Role<select name="role" id="staff-role"></select></label>
+          <fieldset class="charges"><legend>Access</legend><div class="perm-grid" id="staff-perms"></div></fieldset>
+          <label class="check"><input type="checkbox" name="active"> Access active (untick to suspend)</label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Save</button>
+            <button class="btn" type="button" data-close>Close</button>
+            <button class="btn btn-danger" type="button" id="staff-remove">Remove access</button>
+          </div>
+        </form>
+      </dialog>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="tab" data-tab="profile" hidden>
+      <h1>My profile</h1>
+      <dl class="facts" id="profile-facts"></dl>
+      <h2>What I can access and update</h2>
+      <div class="table-scroll"><table><thead><tr><th>Access</th><th>Allowed</th></tr></thead><tbody id="profile-perms"></tbody></table></div>
+      <div id="profile-agreement" class="mt"></div>
     </section>
 
     <!-- SETTINGS -->
@@ -366,7 +462,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 2.4.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
+    <p class="muted mt" id="version-note">Software version 2.5.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

@@ -283,3 +283,10 @@ tfoot td { font-weight: 700; border-bottom: 0; background: var(--paper); }
 main { min-height: 65vh; }
 .mt-sm { margin-top: 1.75rem; }
 #member-account h3 { margin-top: 1.75rem; }
+.btn-google { gap: .6rem; width: 100%; max-width: 460px; }
+.g-logo { font-weight: 800; color: #4285F4; font-size: 1.1rem; }
+.google-box { max-width: 460px; margin: 1rem 0 .5rem; display: grid; gap: .6rem; }
+.google-box .form-msg:empty { display: none; }
+.or-line { display: flex; align-items: center; gap: .75rem; color: var(--muted); font-size: .9rem; margin: .25rem 0 0; }
+.or-line::before, .or-line::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.small-note { font-size: .88rem; margin: 0; }

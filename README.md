@@ -37,7 +37,7 @@ To try it on your PC first: `cd docs` then `python -m http.server 8000` and open
 ## 2. Firebase (database and logins)
 
 1. https://console.firebase.google.com → **Add project**.
-2. **Authentication → Get started → Email/Password → Enable.**
+2. **Authentication → Get started → Email/Password → Enable**, and **Google → Enable** (members and staff can then use Continue with Google).
 3. **Authentication → Settings → Authorized domains:** add `sunshreesuntec.com`, `www.sunshreesuntec.com`, `chanchalsakardeqh.github.io` (and `localhost` is already there).
 4. **Firestore Database → Create database** → production mode → location `asia-south1 (Mumbai)`.
 5. **Firestore → Rules:** paste the whole of `firestore.rules` → **Publish**. Do this again whenever the file changes.
@@ -121,6 +121,7 @@ GitHub pauses scheduled workflows in a repo with no commits for 60 days. If that
 | One-off charge for a month (e.g. repairs levy) | **Bills** → Extra one-off charge + amount, for all units or one block, before generating. |
 | New notice on the website | **Website → Notices**. |
 | Approve a member's login request | **Members**. |
+| Give an Accountant / Society Manager access | **Staff** → Add staff (Gmail, role, access). They sign in with Google and accept the agreement before working. |
 
 Every bill, payment, cancellation and correction updates the unit's ledger, its balance and the public dues page together in one database transaction.
 

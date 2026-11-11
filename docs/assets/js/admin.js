@@ -1,5 +1,6 @@
 // Committee accounts: dashboard, monthly bills, payments + receipts, unit ledgers, member access, website content, settings.
-import { initFirebase, errorText } from './firebase.js';
+import { initFirebase, errorText, googleSignIn } from './firebase.js';
+import { PERMS, PERM_LABEL, COMMITTEE_ONLY, STAFF_ROLES, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT } from './staff.js';
 import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
   updateUnitDetails, importOpening, rebuildPublicDues,
@@ -11,12 +12,17 @@ import {
   PARTICULARS, buildContext, mmcRates, computeBill, prepareExtras, extrasForUnit, constructionCostOf,
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
-import { DEFAULT_SITE, MMC_TEMPLATE } from './defaults.js';
+import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING } from './defaults.js';
 import { getDues, getNotices, fmt, esc, fmtDate } from './data.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'lift', 'members', 'website', 'settings'];
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'lift', 'members', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+
+let me = null;          // this person's admins record (committee or staff)
+let agreement = null;   // current staff agreement
+const canDo = (p) => (!p ? true : p === 'committee' ? isCommitteeRecord(me) : can(me, p));
 
 let fb, uid, units = [], billing, site, dues;
 
@@ -49,7 +55,16 @@ const catName = (u) => (billing.categories || []).find((c) => c.id === categoryI
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 async function refreshCore() {
-  [units, billing, site] = await Promise.all([loadUnits(fb), loadBilling(fb), loadSite(fb)]);
+  [units, billing, site] = await Promise.all([
+    canDo('view') ? loadUnits(fb) : Promise.resolve([]),
+    canDo('view') ? loadBilling(fb) : Promise.resolve(structuredClone(DEFAULT_BILLING)),
+    loadSite(fb)
+  ]);
+}
+
+function applyAccess() {
+  $$('#admin-nav [data-need]').forEach((a) => (a.hidden = !canDo(a.dataset.need)));
+  $$('[data-perm]').forEach((el) => (el.hidden = !canDo(el.dataset.perm)));
 }
 
 /* ---------------- start ---------------- */
@@ -64,49 +79,157 @@ async function main() {
   $('#admin-login').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget, fd = new FormData(form);
-    await busy($('button', form), async () => {
+    await busy($('button[type=submit]', form), async () => {
       try { await fb.A.signInWithEmailAndPassword(fb.auth, String(fd.get('email')).trim(), String(fd.get('password'))); }
       catch (err) { setMsg(form, errorText(err)); }
     });
   });
+  $('#admin-google').addEventListener('click', async (e) => {
+    await busy(e.currentTarget, async () => {
+      try { await googleSignIn(fb); } catch (err) { setMsg($('#admin-login'), esc(errorText(err))); }
+    });
+  });
+  fb.A.getRedirectResult(fb.auth).catch((err) => setMsg($('#admin-login'), esc(errorText(err))));
   $('#signout').addEventListener('click', () => fb.A.signOut(fb.auth));
   $('.nav-toggle').addEventListener('click', (e) => {
     const nav = $('#admin-nav');
     const open = nav.classList.toggle('open');
     e.currentTarget.setAttribute('aria-expanded', String(open));
   });
+  wireAgreement();
 
-  fb.A.onAuthStateChanged(fb.auth, async (user) => {
-    $$('.tab').forEach((t) => (t.hidden = true));
-    $('#admin-nav').hidden = true;
-    if (!user) { $('#gate').hidden = true; $('#admin-login').hidden = false; return; }
-    $('#admin-login').hidden = true;
-    const adminSnap = await fb.F.getDoc(fb.F.doc(fb.db, 'admins', user.uid)).catch(() => null);
-    if (!adminSnap?.exists()) {
-      $('#gate').hidden = false;
-      $('#gate').innerHTML = `${esc(user.email)} isn’t a committee account. <button class="btn btn-small" type="button" id="gate-out">Sign out</button>`;
-      $('#gate-out').onclick = () => fb.A.signOut(fb.auth);
+  fb.A.onAuthStateChanged(fb.auth, (user) => startSession(user).catch((err) => gate(esc(errorText(err)), true)));
+  window.addEventListener('hashchange', () => uid && route());
+}
+
+function gate(html, withSignOut) {
+  $('#gate').hidden = false;
+  $('#gate').innerHTML = `${html}${withSignOut ? ' <button class="btn btn-small" type="button" id="gate-out">Sign out</button>' : ''}`;
+  if (withSignOut) $('#gate-out').onclick = () => fb.A.signOut(fb.auth);
+}
+
+async function loadAgreement() {
+  const snap = await fb.F.getDoc(fb.F.doc(fb.db, 'settings', 'staffAgreement')).catch(() => null);
+  return snap?.exists() ? snap.data() : null;
+}
+
+/** Decides what a signed-in person sees: committee, staff (after agreement), invitation to claim, or nothing. */
+async function startSession(user) {
+  const { F, db } = fb;
+  uid = null; me = null;
+  $$('.tab').forEach((t) => (t.hidden = true));
+  $('#admin-nav').hidden = true;
+  $('#agreement-screen').hidden = true;
+  $('#no-units').hidden = true;
+  if (!user) { $('#gate').hidden = true; $('#admin-login').hidden = false; return; }
+  $('#admin-login').hidden = true;
+  gate('Checking your access…');
+
+  let snap = await F.getDoc(F.doc(db, 'admins', user.uid)).catch(() => null);
+  if (!snap?.exists()) {
+    const inv = user.email ? await F.getDoc(F.doc(db, 'staffInvites', user.email)).catch(() => null) : null;
+    if (!inv?.exists()) {
+      gate(`${esc(user.email || 'This account')} isn’t a committee or staff account. If the committee has invited you, sign in with the exact Gmail address they invited.`, true);
       return;
     }
-    uid = user.uid;
-    $('#gate').hidden = true;
-    $('#admin-nav').hidden = false;
-    await refreshCore();
-    wireOnce();
-    route();
+    if (!user.emailVerified) {
+      gate(`Confirm your email address first: <button class="btn btn-small" type="button" id="gate-verify">Send confirmation link to ${esc(user.email)}</button> <button class="btn btn-small" type="button" id="gate-recheck">I’ve confirmed it</button>`, true);
+      $('#gate-verify').onclick = () => fb.A.sendEmailVerification(user).then(() => alert('Link sent. Open it, then click “I’ve confirmed it”.'));
+      $('#gate-recheck').onclick = async () => { await user.reload(); await user.getIdToken(true); startSession(fb.auth.currentUser); };
+      return;
+    }
+    const d = inv.data();
+    await F.setDoc(F.doc(db, 'admins', user.uid), {
+      kind: 'staff', role: d.role, perms: d.perms, name: d.name || user.displayName || '', email: user.email,
+      mobile: d.mobile || '', active: true, createdAt: F.serverTimestamp(), invitedBy: d.invitedBy || ''
+    });
+    snap = await F.getDoc(F.doc(db, 'admins', user.uid));
+  }
+
+  me = { uid: user.uid, email: user.email, ...snap.data() };
+  if (me.active === false) { gate('Your access has been suspended by the committee.', true); return; }
+
+  agreement = await loadAgreement();
+  if (me.kind === 'staff') {
+    if (!agreement) { gate('The committee hasn’t published the staff agreement yet. Please try again later.', true); return; }
+    if (me.agreementVersion !== agreement.version) { showAgreement(); return; }
+  }
+  F.updateDoc(F.doc(db, 'admins', user.uid), { lastLoginAt: F.serverTimestamp() }).catch(() => {});
+
+  uid = user.uid;
+  $('#gate').hidden = true;
+  $('#admin-nav').hidden = false;
+  applyAccess();
+  await refreshCore();
+  wireOnce();
+  route();
+}
+
+/* ---------------- staff agreement ---------------- */
+
+function agreementHTML(ag, rec, accepted) {
+  const role = rec.role || '';
+  const roleLines = ag.roles?.[role] || [];
+  const permRows = PERMS.map(([k, label]) => `<tr><td>${esc(label)}</td><td>${can(rec, k) ? '<span class="pill-ok">Yes</span>' : '<span class="pill-no">No</span>'}</td></tr>`).join('');
+  return `<h1>${esc(ag.title)}</h1>
+    <p class="meta-line">Sunshree Suntec Co-operative Housing Society Ltd., Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13. Version ${ag.version}.</p>
+    <p>${esc(ag.intro)}</p>
+    <h2>Staff member</h2>
+    <p><strong>${esc(rec.name || '')}</strong>, ${esc(role)}<br>${esc(rec.email || '')}${rec.mobile ? `, +91 ${esc(rec.mobile)}` : ''}</p>
+    <h2>Access given</h2>
+    <div class="table-scroll"><table><thead><tr><th>Access</th><th>Given</th></tr></thead><tbody>${permRows}
+      ${COMMITTEE_ONLY.map((c) => `<tr><td>${esc(c)}</td><td><span class="pill-no">Committee only</span></td></tr>`).join('')}</tbody></table></div>
+    ${roleLines.length ? `<h2>My responsibilities as ${esc(role)}</h2><ol>${roleLines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''}
+    <h2>My commitments</h2>
+    <ol>${(ag.common || []).map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
+    <p>${esc(ag.closing)}</p>
+    ${accepted ? `<p class="meta-line"><strong>Accepted</strong> by ${esc(accepted.name)} (${esc(rec.email || '')}) on ${esc(accepted.when)}, version ${accepted.version}.</p>` : ''}`;
+}
+
+function showAgreement() {
+  $('#gate').hidden = true;
+  $('#agreement-doc').innerHTML = agreementHTML(agreement, me);
+  const f = $('#agreement-form');
+  f.reset();
+  f.sign.value = '';
+  setMsg(f, '');
+  $('#agreement-screen').hidden = false;
+}
+
+function wireAgreement() {
+  const f = $('#agreement-form');
+  $('#agreement-decline').addEventListener('click', () => fb.A.signOut(fb.auth));
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(f);
+    const signed = String(fd.get('sign')).trim().replace(/\s+/g, ' ');
+    if (!fd.get('agree')) return setMsg(f, 'Tick the box to confirm you have read and accept the agreement.');
+    if (signed.length < 3) return setMsg(f, 'Type your full name as your signature.');
+    const { F, db } = fb;
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        await F.addDoc(F.collection(db, 'staffAgreements'), {
+          uid: me.uid, email: me.email, name: me.name || '', signedName: signed, role: me.role || '', perms: me.perms || {},
+          version: agreement.version, title: agreement.title, acceptedAt: F.serverTimestamp(),
+          device: navigator.userAgent.slice(0, 180)
+        });
+        await F.updateDoc(F.doc(db, 'admins', me.uid), { agreementVersion: agreement.version, agreementAcceptedAt: F.serverTimestamp(), agreementName: signed });
+        await startSession(fb.auth.currentUser);
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
   });
-  window.addEventListener('hashchange', () => uid && route());
 }
 
 function route() {
   let id = location.hash.slice(1);
   if (!TABS.includes(id)) id = 'dashboard';
+  if (!canDo(TAB_NEED[id])) id = TABS.find((t) => canDo(TAB_NEED[t]) && t !== 'profile') || 'profile';
   $$('.tab').forEach((t) => (t.hidden = t.dataset.tab !== id));
   $$('#admin-nav a').forEach((a) => (a.getAttribute('href') === '#' + id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   $('#admin-nav').classList.remove('open');
-  $('#no-units').hidden = units.length > 0 || id === 'settings';
+  $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -118,6 +241,7 @@ function wireOnce() {
   wirePayments();
   wireUnits();
   wireLift();
+  wireStaff();
   wireMembers();
   wireWebsite();
   wireSettings();
@@ -335,7 +459,7 @@ async function listPayments(month) {
     <td class="unit">${esc(p.unit)}</td><td>${esc(p.name)}</td>
     <td>${esc(p.mode)}${p.reference ? ' ' + esc(p.reference) : ''}</td>
     <td class="num">${fmt(p.amount)}</td>
-    <td>${p.status === 'cancelled' ? '' : `<button class="btn btn-small btn-danger" type="button" data-cancel="${p.id}">Cancel</button>`}</td></tr>`).join('')
+    <td>${p.status === 'cancelled' || !canDo('cancelReceipts') ? '' : `<button class="btn btn-small btn-danger" type="button" data-cancel="${p.id}">Cancel</button>`}</td></tr>`).join('')
     || '<tr><td colspan="7" class="empty">No receipts this month.</td></tr>';
   const total = lastPayments.filter((p) => p.status !== 'cancelled').reduce((s, p) => s + p.amount, 0);
   $('#pay-foot').innerHTML = lastPayments.length ? `<tr><td colspan="5">Total received in ${monthLabel(month)}</td><td class="num">${fmt(total)}</td><td></td></tr>` : '';
@@ -414,14 +538,18 @@ function wireUnits() {
     for (const [c] of UNIT_OVERRIDES) { const v = fd.get('ch_' + c); if (v !== '') charges[c] = round(v); }
     await busy($('button[type=submit]', form), async () => {
       try {
-        await updateUnitDetails(fb, editing, {
+        const full = {
           name: String(fd.get('name')).trim(), type: fd.get('type'), status: fd.get('status'),
           category: fd.get('category'), liftGroup: String(fd.get('liftGroup')),
           constructionCost: fd.get('constructionCost') === '' ? null : round(fd.get('constructionCost')),
           carpetArea: fd.get('carpetArea') === '' ? null : Number(fd.get('carpetArea')),
           inlets: round(fd.get('inlets')), twoWheelers: round(fd.get('twoWheelers')), fourWheelers: round(fd.get('fourWheelers')),
           bpm: fd.get('bpm') === '' ? null : round(fd.get('bpm')), charges, active: Boolean(fd.get('active'))
-        });
+        };
+        // Staff who may edit units change only descriptive details; rates and amounts stay with the committee.
+        const STAFF_UNIT_FIELDS = ['name', 'type', 'status', 'carpetArea', 'inlets', 'twoWheelers', 'fourWheelers', 'liftGroup'];
+        const patch = canDo('committee') ? full : Object.fromEntries(STAFF_UNIT_FIELDS.map((k) => [k, full[k]]));
+        await updateUnitDetails(fb, editing, patch);
         await rebuildPublicDues(fb, dues.blocks);
         await refreshCore();
         renderUnits();
@@ -470,6 +598,10 @@ async function openUnit(id) {
   form.bpm.value = u.bpm ?? '';
   form.active.checked = u.active !== false;
   for (const [c] of UNIT_OVERRIDES) form['ch_' + c].value = u.charges?.[c] ?? '';
+  // Committee-only fields are read-only for staff.
+  const committee = canDo('committee');
+  for (const el of [form.category, form.constructionCost, form.bpm, form.active, ...$$('#unit-charges input')]) el.disabled = !committee;
+  for (const el of $$('input, select', form)) if (!canDo('editUnits')) el.disabled = true;
   setMsg(form, '');
   setMsg($('#adj-form'), '');
   $('#adj-form').date.value = todayIST();
@@ -522,7 +654,7 @@ async function loadLift() {
       <td>${esc(e.description)}${e.vendor ? `<br><span class="muted">${esc(e.vendor)}${e.invoiceNo ? ', inv. ' + esc(e.invoiceNo) : ''}</span>` : ''}</td>
       <td class="num">${fmt(e.amount)}</td><td class="num">${e.unitIds.length}</td><td class="num">${fmt(Math.round(e.amount / e.unitIds.length))}</td>
       <td>${billed}${e.instalments > 1 ? ` <span class="muted">(${e.instalments} instalments)</span>` : ''}</td>
-      <td>${e.startMonth > lb ? `<button class="btn btn-small btn-danger" type="button" data-del-lift="${e.id}">Delete</button>` : ''}</td></tr>`;
+      <td>${e.startMonth > lb && canDo('liftExpenses') ? `<button class="btn btn-small btn-danger" type="button" data-del-lift="${e.id}">Delete</button>` : ''}</td></tr>`;
   }).join('') || '<tr><td colspan="9" class="empty">No lift expenses recorded yet.</td></tr>';
   const fy = (iso) => (Number(iso.slice(5, 7)) >= 4 ? Number(iso.slice(0, 4)) : Number(iso.slice(0, 4)) - 1);
   const thisFy = fy(todayIST());
@@ -586,7 +718,7 @@ async function loadMembers() {
   $('#pending-rows').innerHTML = pend.docs.map((d) => {
     const p = d.data(), dup = approvedByUnit[p.unit];
     return `<tr><td class="unit">${esc(label(p.unit))}${dup ? `<span class="dup-warning">Already approved: ${esc(dup.join(', '))}</span>` : ''}</td>
-      <td>${esc(p.name)}</td>${contact(p)}<td>${when(p.createdAt)}</td>
+      <td>${esc(p.name)}${p.provider === 'google' ? ' <span class="status-pill">Google</span>' : ''}</td>${contact(p)}<td>${when(p.createdAt)}</td>
       <td><div class="row-actions"><button class="btn btn-small btn-primary" type="button" data-act="approved" data-uid="${d.id}">Approve</button>
       <button class="btn btn-small btn-danger" type="button" data-act="rejected" data-uid="${d.id}" data-confirm="Reject this request?">Reject</button></div></td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No requests waiting.</td></tr>';
@@ -918,4 +1050,184 @@ function wireSettings() {
       catch (err) { setMsg(sf, esc(errorText(err))); }
     });
   });
+}
+
+/* ---------------- staff (committee only) ---------------- */
+
+async function ensureAgreement() {
+  const { F, db } = fb;
+  const ref = F.doc(db, 'settings', 'staffAgreement');
+  const snap = await F.getDoc(ref);
+  if (snap.exists()) return snap.data();
+  const ag = { ...structuredClone(DEFAULT_AGREEMENT), publishedAt: F.serverTimestamp(), publishedBy: uid };
+  await F.setDoc(ref, ag);
+  return (await F.getDoc(ref)).data();
+}
+
+const tsText = (ts) => {
+  const d = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : null;
+  return d ? d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+};
+const accessSummary = (rec) => (isCommitteeRecord(rec) ? 'Full access' : PERMS.filter(([k]) => rec.perms?.[k]).map(([k]) => k).length + ' of ' + PERMS.length);
+const permChecks = (perms) => PERMS.map(([k, label]) => `<label><input type="checkbox" name="p_${k}" ${perms?.[k] ? 'checked' : ''}> ${esc(label)}</label>`).join('');
+const readPerms = (fd) => Object.fromEntries(PERMS.map(([k]) => [k, Boolean(fd.get('p_' + k))]));
+let staffList = [];
+
+async function loadStaff() {
+  const { F, db } = fb;
+  agreement = await ensureAgreement();
+  const [adm, inv, acc] = await Promise.all([
+    F.getDocs(F.collection(db, 'admins')),
+    F.getDocs(F.collection(db, 'staffInvites')),
+    F.getDocs(F.collection(db, 'staffAgreements'))
+  ]);
+  staffList = adm.docs.map((d) => ({ uid: d.id, ...d.data() }));
+  const claimed = new Set(staffList.map((x) => (x.email || '').toLowerCase()));
+
+  $('#staff-rows').innerHTML = staffList.sort((a, b) => (isCommitteeRecord(b) - isCommitteeRecord(a)) || (a.name || '').localeCompare(b.name || '')).map((x) => {
+    const committee = x.kind !== 'staff';
+    const agr = committee ? '<span class="muted">Not required</span>'
+      : x.agreementVersion === agreement.version ? `<span class="pill-ok">v${x.agreementVersion} accepted</span><br><span class="muted">${esc(tsText(x.agreementAcceptedAt))}</span>`
+      : `<span class="warn">${x.agreementVersion ? `Accepted v${x.agreementVersion}; v${agreement.version} pending` : 'Not yet accepted'}</span>`;
+    return `<tr><td><strong>${esc(x.name || x.email || x.uid)}</strong><br><span class="muted">${esc(x.email || '')}</span></td>
+      <td>${esc(committee ? `Committee${x.role ? ' – ' + x.role : ''}` : x.role)}</td>
+      <td>${esc(accessSummary(x))}</td><td>${agr}</td><td>${esc(tsText(x.lastLoginAt))}</td>
+      <td>${x.active === false ? '<span class="warn">Suspended</span>' : 'Active'}</td>
+      <td>${committee || x.uid === uid ? '' : `<button class="btn btn-small" type="button" data-edit-staff="${esc(x.uid)}">Edit</button>`}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">No one yet.</td></tr>';
+
+  const invites = inv.docs.map((d) => ({ id: d.id, ...d.data() })).filter((i) => !claimed.has(i.id.toLowerCase()));
+  $('#invite-rows').innerHTML = invites.map((i) => `<tr><td>${esc(i.name)}</td><td>${esc(i.id)}</td><td>${esc(i.role)}</td><td>${esc(tsText(i.invitedAt))}</td>
+    <td><button class="btn btn-small btn-danger" type="button" data-revoke="${esc(i.id)}">Cancel invitation</button></td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">None.</td></tr>';
+
+  const accepted = acc.docs.map((d) => d.data()).sort((a, b) => (b.acceptedAt?.seconds || 0) - (a.acceptedAt?.seconds || 0));
+  $('#acceptance-rows').innerHTML = accepted.map((a) => `<tr><td>${esc(tsText(a.acceptedAt))}</td><td>${esc(a.signedName)}</td><td>${esc(a.email)}</td><td>${esc(a.role)}</td><td>${a.version}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">No acceptances yet.</td></tr>';
+
+  const staffOnly = staffList.filter((x) => x.kind === 'staff' && x.active !== false);
+  const done = staffOnly.filter((x) => x.agreementVersion === agreement.version).length;
+  $('#agreement-status').textContent = `Current agreement: version ${agreement.version}${agreement.publishedAt ? `, published ${tsText(agreement.publishedAt)}` : ''}. ${done} of ${staffOnly.length} active staff have accepted it.`;
+
+  const ef = $('#agreement-edit');
+  ef.title.value = agreement.title || '';
+  ef.intro.value = agreement.intro || '';
+  ef.common.value = (agreement.common || []).join('\n');
+  ef.closing.value = agreement.closing || '';
+  const roles = [...new Set([...Object.keys(STAFF_ROLES), ...Object.keys(agreement.roles || {})])];
+  $('#role-texts').innerHTML = roles.map((r) => `<label>Responsibilities of ${esc(r)} (one per line)<textarea name="role_${esc(r)}" rows="6">${esc((agreement.roles?.[r] || []).join('\n'))}</textarea></label>`).join('');
+}
+
+function wireStaff() {
+  const roleOptions = Object.keys(STAFF_ROLES).map((r) => `<option>${esc(r)}</option>`).join('');
+  const f = $('#invite-form');
+  $('#invite-role').innerHTML = roleOptions;
+  const fillInvitePerms = () => { $('#invite-perms').innerHTML = permChecks(permsFor(f.role.value)); };
+  f.role.addEventListener('change', fillInvitePerms);
+  fillInvitePerms();
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(f);
+    const email = String(fd.get('email')).trim().toLowerCase();
+    const name = String(fd.get('name')).trim();
+    const mobile = String(fd.get('mobile')).replace(/\D/g, '').slice(-10);
+    if (name.length < 3) return setMsg(f, 'Enter the staff member’s full name.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setMsg(f, 'Enter the email address they will sign in with.');
+    const perms = readPerms(fd);
+    if (!Object.values(perms).some(Boolean)) return setMsg(f, 'Give at least one kind of access.');
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        await ensureAgreement();
+        await fb.F.setDoc(fb.F.doc(fb.db, 'staffInvites', email), {
+          name, mobile, role: String(fd.get('role')), perms, invitedBy: uid, invitedAt: fb.F.serverTimestamp()
+        });
+        f.reset(); fillInvitePerms();
+        setMsg(f, `Invited ${esc(name)}. Ask them to open sunshreesuntec.com/admin.html and choose Continue with Google with ${esc(email)}.`, true);
+        await loadStaff();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+
+  $('#invite-rows').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-revoke]');
+    if (!b || !confirm('Cancel this invitation?')) return;
+    await fb.F.deleteDoc(fb.F.doc(fb.db, 'staffInvites', b.dataset.revoke)).catch((err) => alert(errorText(err)));
+    await loadStaff();
+  });
+
+  const sf = $('#staff-form');
+  $('#staff-role').innerHTML = roleOptions;
+  let editingStaff = null;
+  $('#staff-rows').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-edit-staff]');
+    if (!b) return;
+    editingStaff = staffList.find((x) => x.uid === b.dataset.editStaff);
+    $('#staff-title').textContent = `${editingStaff.name || editingStaff.email}`;
+    sf.role.value = editingStaff.role;
+    $('#staff-perms').innerHTML = permChecks(editingStaff.perms);
+    sf.active.checked = editingStaff.active !== false;
+    setMsg(sf, '');
+    $('#staff-dialog').showModal();
+  });
+  sf.role.addEventListener('change', () => { $('#staff-perms').innerHTML = permChecks(permsFor(sf.role.value)); });
+  $('[data-close]', sf).addEventListener('click', () => $('#staff-dialog').close());
+  sf.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(sf);
+    await busy($('button[type=submit]', sf), async () => {
+      try {
+        await fb.F.updateDoc(fb.F.doc(fb.db, 'admins', editingStaff.uid), { role: String(fd.get('role')), perms: readPerms(fd), active: Boolean(fd.get('active')) });
+        $('#staff-dialog').close();
+        await loadStaff();
+      } catch (err) { setMsg(sf, esc(errorText(err))); }
+    });
+  });
+  $('#staff-remove').addEventListener('click', async () => {
+    if (!editingStaff || !confirm(`Remove all access for ${editingStaff.name || editingStaff.email}? Their past entries and agreement record stay.`)) return;
+    try {
+      await fb.F.deleteDoc(fb.F.doc(fb.db, 'admins', editingStaff.uid));
+      if (editingStaff.email) await fb.F.deleteDoc(fb.F.doc(fb.db, 'staffInvites', editingStaff.email.toLowerCase())).catch(() => {});
+      $('#staff-dialog').close();
+      await loadStaff();
+    } catch (err) { alert(errorText(err)); }
+  });
+
+  const ef = $('#agreement-edit');
+  ef.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(ef);
+    const lines = (v) => String(v || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const roles = {};
+    for (const [k, v] of fd.entries()) if (k.startsWith('role_')) roles[k.slice(5)] = lines(v);
+    const next = { title: String(fd.get('title')).trim(), intro: String(fd.get('intro')).trim(), common: lines(fd.get('common')),
+      roles, closing: String(fd.get('closing')).trim(), version: (agreement?.version || 0) + 1,
+      publishedAt: fb.F.serverTimestamp(), publishedBy: uid };
+    if (!next.common.length) return setMsg(ef, 'Add at least one commitment.');
+    if (!confirm(`Publish version ${next.version}? Every staff member must accept it again before they can work.`)) return;
+    await busy($('button[type=submit]', ef), async () => {
+      try {
+        await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'staffAgreement'), next);
+        setMsg(ef, `Version ${next.version} published.`, true);
+        await loadStaff();
+      } catch (err) { setMsg(ef, esc(errorText(err))); }
+    });
+  });
+}
+
+/* ---------------- my profile (everyone) ---------------- */
+
+async function loadProfile() {
+  const committee = isCommitteeRecord(me);
+  $('#profile-facts').innerHTML = `
+    <div><dt>Name</dt><dd>${esc(me.name || '—')}</dd></div>
+    <div><dt>Sign-in email</dt><dd>${esc(me.email || '')}</dd></div>
+    <div><dt>Role</dt><dd>${esc(committee ? `Managing Committee${me.role ? ' – ' + me.role : ''}` : me.role)}</dd></div>
+    ${me.mobile ? `<div><dt>Mobile</dt><dd>+91 ${esc(me.mobile)}</dd></div>` : ''}
+    <div><dt>Agreement</dt><dd>${committee ? 'Not required for committee members'
+      : `Version ${me.agreementVersion} accepted as “${esc(me.agreementName || '')}” on ${esc(tsText(me.agreementAcceptedAt))}`}</dd></div>`;
+  $('#profile-perms').innerHTML = PERMS.map(([k, label]) => `<tr><td>${esc(label)}</td><td>${can(me, k) ? '<span class="pill-ok">Yes</span>' : '<span class="pill-no">No</span>'}</td></tr>`).join('')
+    + COMMITTEE_ONLY.map((c) => `<tr><td>${esc(c)}</td><td>${committee ? '<span class="pill-ok">Yes</span>' : '<span class="pill-no">Committee only</span>'}</td></tr>`).join('');
+  $('#profile-agreement').innerHTML = committee || !agreement ? ''
+    : `<details class="glossary"><summary>Read my accepted agreement</summary><article class="agreement mt-sm">${agreementHTML(agreement, me,
+      { name: me.agreementName || '', when: tsText(me.agreementAcceptedAt), version: me.agreementVersion })}</article></details>`;
 }

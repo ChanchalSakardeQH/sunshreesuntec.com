@@ -1,26 +1,43 @@
 rules_version = '2';
 
-// Sunshree Suntec CHS – access rules
-//   public/dues, public/site        anyone can read (the website); committee writes
-//   admins/{uid}                    committee accounts (create by hand in the Firebase console)
+// Sunshree Suntec CHS – access rules (version 2.5)
+//
+//   public/dues, public/site        anyone can read (the website)
+//   admins/{uid}                    committee members (no "kind") and staff (kind: 'staff', role, perms)
+//   staffInvites/{email}            staff invited by the committee; claimed on first sign-in
+//   staffAgreements/{id}            permanent log of staff accepting the agreement
+//   settings/staffAgreement         current agreement text and version
 //   users/{uid}                     member access requests: pending → approved / rejected
-//   units/{unitId} (+ /ledger)      unit accounts: committee, or the approved member of that unit
-//   bills/{id}, payments/{id}       bills and receipts: committee, or the approved member of that unit
-//   liftExpenses/*                  lift AMC / repair expenses shared by units (committee only; shown on bills)
-//   settings/*, counters/*          committee only
+//   units/{unitId} (+ /ledger)      unit accounts: staff with permission, or the approved member of that unit
+//   bills, payments                 bills and receipts: as above; never deleted
+//   liftExpenses, settings, counters
+//
+// Committee = an admins record without kind 'staff'. Staff act only within their perms and only after
+// accepting the current agreement version.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
-
-    function isAdmin() {
-      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    function adminPath() { return /databases/$(database)/documents/admins/$(request.auth.uid); }
+    function isTeam() { return signedIn() && exists(adminPath()); }
+    function me() { return get(adminPath()).data; }
+    function active() { return me().get('active', true) == true; }
+    function isCommittee() { return isTeam() && me().get('kind', 'committee') != 'staff' && active(); }
+    function agreementOk() {
+      return me().get('agreementVersion', 0)
+        == get(/databases/$(database)/documents/settings/staffAgreement).data.version;
+    }
+    // Committee: everything. Staff: only the permissions given to them, after accepting the agreement.
+    function perm(p) {
+      return isCommittee()
+        || (isTeam() && active() && me().get('kind', '') == 'staff'
+            && me().get('perms', {}).get(p, false) == true && agreementOk());
+    }
+    function moneyPerm() {
+      return perm('generateBills') || perm('recordPayments') || perm('cancelReceipts') || perm('corrections');
     }
 
-    function profile() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function approvedFor(unitId) {
       return signedIn()
         && request.auth.token.email_verified == true
@@ -28,62 +45,112 @@ service cloud.firestore {
         && profile().status == 'approved'
         && profile().unit == unitId;
     }
+    function changes() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
+    // ---------- website ----------
     match /public/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isCommittee()
+        || (docId == 'dues' && (moneyPerm() || perm('editUnits')))
+        || (docId == 'site' && perm('website'));
     }
 
+    // ---------- committee and staff ----------
     match /admins/{uid} {
-      allow read: if signedIn() && request.auth.uid == uid;
-      allow write: if false;
+      allow read: if (signedIn() && request.auth.uid == uid) || isCommittee();
+      // A staff member claims their invitation on first sign-in, with exactly the role and access invited.
+      allow create: if isCommittee()
+        || (signedIn() && request.auth.uid == uid
+            && request.auth.token.email_verified == true
+            && exists(/databases/$(database)/documents/staffInvites/$(request.auth.token.email))
+            && request.resource.data.keys().hasOnly(['kind', 'role', 'perms', 'name', 'email', 'mobile', 'active', 'createdAt', 'invitedBy'])
+            && request.resource.data.kind == 'staff'
+            && request.resource.data.active == true
+            && request.resource.data.email == request.auth.token.email
+            && request.resource.data.role == get(/databases/$(database)/documents/staffInvites/$(request.auth.token.email)).data.role
+            && request.resource.data.perms == get(/databases/$(database)/documents/staffInvites/$(request.auth.token.email)).data.perms);
+      // Staff may only record their own agreement acceptance and last sign-in.
+      allow update: if isCommittee()
+        || (signedIn() && request.auth.uid == uid
+            && changes().hasOnly(['agreementVersion', 'agreementAcceptedAt', 'agreementName', 'lastLoginAt']));
+      allow delete: if isCommittee();
     }
 
+    match /staffInvites/{email} {
+      allow read: if isCommittee() || (signedIn() && request.auth.token.email == email);
+      allow write: if isCommittee();
+    }
+
+    match /staffAgreements/{id} {
+      allow create: if signedIn() && isTeam()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.acceptedAt == request.time;
+      allow read: if isCommittee() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    // ---------- members ----------
     match /users/{uid} {
       allow create: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['name', 'unit', 'mobile', 'email', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'unit', 'mobile', 'email', 'status', 'createdAt', 'provider'])
         && request.resource.data.status == 'pending'
         && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 120
         && request.resource.data.unit is string && request.resource.data.unit.size() <= 12
         && request.resource.data.mobile is string && request.resource.data.mobile.matches('^[6-9][0-9]{9}$')
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.createdAt == request.time;
-      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
-      allow update, delete: if isAdmin();
+      allow read: if (signedIn() && request.auth.uid == uid) || perm('members');
+      allow update: if perm('members');
+      allow delete: if isCommittee();
     }
 
+    // ---------- accounts ----------
     match /units/{unitId} {
-      allow read: if isAdmin() || approvedFor(unitId);
-      allow write: if isAdmin();
+      allow read: if perm('view') || approvedFor(unitId);
+      allow create, delete: if isCommittee();
+      // Money operations may change only the balance fields; unit editors only descriptive fields.
+      // Rates, charge category, per-unit amounts, BPM and billing on/off stay with the committee.
+      allow update: if isCommittee()
+        || (moneyPerm() && changes().hasOnly(['balance', 'interestDue', 'lastBillId', 'unverified', 'updatedAt']))
+        || (perm('editUnits') && changes().hasOnly(['name', 'type', 'status', 'carpetArea', 'inlets',
+                                                    'twoWheelers', 'fourWheelers', 'liftGroup', 'updatedAt']));
       match /ledger/{entryId} {
-        allow read: if isAdmin() || approvedFor(unitId);
-        allow write: if isAdmin();
+        allow read: if perm('view') || approvedFor(unitId);
+        allow create: if moneyPerm();
+        allow update, delete: if false;   // ledger entries are permanent; mistakes are corrected by new entries
       }
     }
 
     match /bills/{billId} {
-      allow read: if isAdmin() || approvedFor(resource.data.unitId);
-      allow write: if isAdmin();
+      allow read: if perm('view') || approvedFor(resource.data.unitId);
+      allow create: if perm('generateBills');
+      allow update, delete: if false;     // a bill stays exactly as issued
     }
 
     match /payments/{paymentId} {
-      allow read: if isAdmin() || approvedFor(resource.data.unitId);
-      // Receipts are never deleted; a wrong one is marked cancelled.
-      allow create, update: if isAdmin();
-      allow delete: if false;
-    }
-
-    match /liftExpenses/{expenseId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /settings/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if perm('view') || approvedFor(resource.data.unitId);
+      allow create: if perm('recordPayments');
+      allow update: if perm('cancelReceipts')
+        && changes().hasOnly(['status', 'cancelReason', 'cancelledAt', 'cancelledBy'])
+        && request.resource.data.status == 'cancelled';
+      allow delete: if false;             // receipts are never deleted
     }
 
     match /counters/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if perm('recordPayments');
+    }
+
+    match /liftExpenses/{expenseId} {
+      allow read: if perm('view');
+      allow create, delete: if perm('liftExpenses');
+      allow update: if isCommittee();
+    }
+
+    match /settings/{docId} {
+      allow read: if perm('view') || (docId == 'staffAgreement' && isTeam());
+      allow write: if isCommittee()
+        || (docId == 'billing' && perm('generateBills') && changes().hasOnly(['lastRun', 'lastBilledMonth']));
     }
   }
 }

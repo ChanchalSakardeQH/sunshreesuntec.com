@@ -1,6 +1,6 @@
 // Member access: register (mobile + email) → committee approves in admin.html → member sees own unit's
 // balance, bills, receipts and account entries. Enforced by firestore.rules.
-import { initFirebase, errorText } from './firebase.js';
+import { initFirebase, errorText, googleSignIn } from './firebase.js';
 import { getDues, fmt, esc, ownerCell } from './data.js';
 import { ddmmyyyy, monthLabel, money } from './billing-core.js';
 
@@ -72,6 +72,7 @@ function switchAuthPanel(name) {
 function setRegisterMode(completing) {
   $$('#register-form .reg-only').forEach((l) => { l.hidden = completing; $('input', l).required = !completing; });
   $('.switcher').hidden = completing;
+  $('#google-box').hidden = completing;
 }
 
 /* ---------- auth state ---------- */
@@ -109,7 +110,10 @@ async function onUser(user) {
     setRegisterMode(true);
     switchAuthPanel('register');
     showPanel('auth');
-    setMsg($('#register-form'), 'Finish your request: add your name, unit and mobile number.', true);
+    const rf = $('#register-form');
+    if (!rf.name.value && user.displayName) rf.name.value = user.displayName;
+    const viaGoogle = user.providerData.some((p) => p.providerId === 'google.com');
+    setMsg(rf, `${viaGoogle ? `Signed in with Google as ${user.email}. ` : ''}Finish your request: add your name, unit and mobile number.`, true);
     return;
   }
 
@@ -141,6 +145,13 @@ function renderStatus(user) {
 function wireForms() {
   const { A, F, auth, db } = fb;
   $('#auth-panels').hidden = false;
+  $('#member-google').addEventListener('click', async (e) => {
+    setMsg($('#google-box'), '');
+    await busy(e.currentTarget, async () => {
+      try { await googleSignIn(fb); } catch (err) { setMsg($('#google-box'), errorText(err)); }
+    });
+  });
+  A.getRedirectResult(auth).catch((err) => setMsg($('#google-box'), errorText(err)));
   $$('.switch-btn').forEach((b) => b.addEventListener('click', () => switchAuthPanel(b.dataset.panel)));
 
   $('#login-form').addEventListener('submit', async (e) => {
@@ -189,7 +200,8 @@ function wireForms() {
           user = (await A.createUserWithEmailAndPassword(auth, email, password)).user;
           await A.sendEmailVerification(user);
         }
-        await F.setDoc(F.doc(db, 'users', user.uid), { name, unit, mobile, email: user.email, status: 'pending', createdAt: F.serverTimestamp() });
+        const provider = user.providerData.some((p) => p.providerId === 'google.com') ? 'google' : 'password';
+        await F.setDoc(F.doc(db, 'users', user.uid), { name, unit, mobile, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
         form.reset();
       } catch (err) { setMsg(form, errorText(err)); }
       finally {

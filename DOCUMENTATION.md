@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 2.4.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 2.5.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -23,6 +23,7 @@ This document explains what the system does, where the data lives, how every amo
 10. Corrections and opening balances
 11. The public dues page
 12. Member access
+12A. Staff: roles, access and agreement
 13. Monthly and yearly procedures
 14. Audit trail and records
 15. Backups and exports
@@ -53,8 +54,9 @@ Everything that changes money (a bill, a payment, a cancelled receipt, a correct
 | Role | How they get access | What they can do |
 |---|---|---|
 | Visitor | Nobody needs to log in | See dues by name and amount, notices, committee, contact |
-| Member | Registers on the website (name, unit, mobile, email), confirms email, committee approves | See their own unit's balance, bills, receipts and ledger; download PDFs |
-| Committee (admin) | Firebase account whose User UID is listed in the `admins` collection | Everything in admin.html |
+| Member | Registers on the website with Google or email and password, adds name, unit and mobile; committee approves | See their own unit's balance, bills, receipts and ledger; download PDFs |
+| Committee | Firebase account whose User UID is in the `admins` collection (record without `kind: 'staff'`) | Everything in admin.html |
+| Staff (Accountant, Society Manager, Office Assistant) | Invited by the committee in the Staff tab; signs in with Google; accepts the agreement | Only the permissions given to them (section 12A) |
 | GitHub Actions | Service account key stored as repository secret `FIREBASE_SERVICE_ACCOUNT` | Creates the month's bills at 06:00 IST on the 1st |
 
 ---
@@ -113,7 +115,10 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `public/dues` | Names and balances shown on the public dues page | Committee, GitHub Action |
 | `public/site` | Society and bank details, committee, contact, notices, basis-of-charges text | Committee |
 | `users/{uid}` | Member access requests: name, unit, mobile, email, status (pending / approved / rejected) | Member (create), Committee (decide) |
-| `admins/{uid}` | Committee accounts | Firebase console only |
+| `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation. Committee: Staff tab |
+| `staffInvites/{email}` | Invitations: name, mobile, role, permissions, who invited, when | Committee |
+| `staffAgreements/{id}` | Permanent acceptance record: name signed, email, role, permissions, agreement version and title, date-time, device | Staff member (create only; never changed or deleted) |
+| `settings/staffAgreement` | Current agreement: title, introduction, role responsibilities, commitments, closing, version, published by / on | Committee |
 
 Unit IDs: `A-100`, `C-402`, `D-101A`, `GF-05`, `B-01` and so on. 65 units: A wing 4, C wing 16, D wing 4, Upper Ground Floor shops 20, Lower Basement shops 21.
 
@@ -121,18 +126,24 @@ Unit IDs: `A-100`, `C-402`, `D-101A`, `GF-05`, `B-01` and so on. 65 units: A win
 
 ## 5. Security: who can read and change what
 
-Enforced by `firestore.rules` on Google's servers, not just by the web pages.
+Enforced by `firestore.rules` on Google's servers, not just by the web pages. Committee members have every permission. Staff have only the permissions given to them, and only after accepting the current agreement; a suspended account has none.
 
-| Data | Read | Write |
+| Data | Read | Create / change |
 |---|---|---|
-| `public/*` | Anyone | Committee |
-| `units`, ledgers, `bills`, `payments` | Committee; an approved member with a confirmed email, **only for their own unit** | Committee |
-| `payments` | as above | Create / update by committee; **delete not allowed by anyone** |
-| `liftExpenses`, `settings`, `counters` | Committee | Committee |
-| `users/{uid}` | That user; committee | User may create their own request only as *pending* with a valid 10-digit mobile and their login email; only committee can approve / reject |
-| `admins` | That admin | Nobody from the website (Firebase console only) |
-
----
+| `public/dues` | Anyone | Committee; staff with a money permission or *edit units* |
+| `public/site` | Anyone | Committee; staff with *website* |
+| `units` | *view* permission; approved member (own unit, confirmed email) | Committee: all fields. Money permissions: balance fields only. *Edit units*: name, type, status, area, inlets, vehicles, lift only |
+| `units/…/ledger` | *view*; approved member (own unit) | Created by money operations; **never changed or deleted** |
+| `bills` | *view*; approved member (own unit) | Created with *generate bills*; **never changed or deleted** |
+| `payments` | *view*; approved member (own unit) | Created with *record payments*; only marked cancelled with *cancel receipts*; **never deleted** |
+| `counters` | *record payments* | *record payments* (inside the payment) |
+| `liftExpenses` | *view* | Added / deleted (before billing) with *lift expenses* |
+| `settings/billing` | *view* | Committee; *generate bills* may update only the last-billed month |
+| `settings/staffAgreement` | Committee and staff | Committee |
+| `users` (member requests) | The member; *approve members* | Member creates own request (pending, valid mobile, own email); *approve members* decides |
+| `admins` | Self; committee | Committee; a staff member may create their own record only from a matching invitation (same role and permissions, confirmed email) and may update only their agreement acceptance and last sign-in |
+| `staffInvites` | Committee; the invited email | Committee |
+| `staffAgreements` | Committee; the staff member's own record | The staff member, once per acceptance; **never changed or deleted** |
 
 ## 6. Bills: heads and numbering
 
@@ -291,14 +302,45 @@ Units → Open → Add a correction: debit (adds to dues) or credit (reduces due
 
 ## 12. Member access
 
-1. Member registers: full name, unit, 10-digit mobile, email, password; confirms they own or represent the unit.
-2. Member confirms the email link.
-3. Committee approves in Members (warning if someone is already approved for that unit).
+1. Member opens Member login and either chooses **Continue with Google** or registers with email and password.
+2. Member enters full name, unit, 10-digit mobile number and confirms they own or represent the unit. (Google sign-in fills the name and the email is already confirmed; email-and-password members confirm the email link.)
+3. Committee (or staff with *approve members*) approves in Members after checking the member register. Requests made with Google are marked “Google”. A warning shows if someone is already approved for that unit.
 4. Member sees their balance, bills, receipts and ledger, and can download PDFs.
 
-Rejected or removed members lose access immediately.
+Rejected or removed members lose access immediately. Google sign-in requires **Authentication → Sign-in method → Google** to be enabled in Firebase.
 
----
+## 12A. Staff: roles, access and agreement
+
+### Adding staff (committee)
+Accounts → **Staff** → Add staff: full name, Gmail address, mobile, role, and access (pre-ticked by role, can be changed). The person opens sunshreesuntec.com/admin.html, chooses **Continue with Google** with that Gmail, reads the agreement, ticks acceptance, types their full name, and starts work.
+
+### Permissions
+
+| Permission | Allows | Accountant | Society Manager | Office Assistant |
+|---|---|---|---|---|
+| View accounts | Dashboard, units, bills, receipts, ledgers, lift expenses | Yes | Yes | Yes |
+| Record payments | Save payments, issue receipts | Yes | Yes | Yes |
+| Cancel receipts | Mark a receipt cancelled with reason | Yes | – | – |
+| Generate bills | Create the month's bills | Yes | – | – |
+| Corrections | Debit / credit entries on a unit | Yes | – | – |
+| Edit units | Name, type, status, area, inlets, vehicles, lift (not amounts) | – | Yes | – |
+| Lift expenses | Record lift AMC / repair expenses | Yes | Yes | – |
+| Approve members | Approve / remove member logins | – | Yes | – |
+| Website | Notices, committee and contact details | – | Yes | – |
+| Committee only | Settings (rates, charge basis, society / bank details), opening import, staff, agreement | – | – | – |
+
+Defaults are pre-ticked when inviting; the committee may give or withhold any permission per person.
+
+### The agreement
+The **Commitment, Confidentiality and Work Responsibilities Agreement** shows the staff member's name, role, contact, the exact access given (and what is committee-only), the responsibilities of the role, and the general commitments: use only for assigned work; own login only; confidentiality of member data, including under the Digital Personal Data Protection Act, 2023; no copying or forwarding of member data; true, complete, same-day entries backed by documents; no altering or back-dating (mistakes corrected by new entries); cash and cheques receipted immediately and deposited by the next working day; declaring personal interest; following bye-laws, resolutions and committee instructions; reporting errors or misuse; awareness that every action is recorded and access can be withdrawn; handover on leaving.
+
+- Access starts only after acceptance. The acceptance is stored permanently (name signed, email, role, permissions, version, date-time, device) and listed in Staff → Acceptance record.
+- The committee can edit the text and **Publish as new version**; every staff member must accept the new version at their next sign-in.
+- Staff can read their accepted agreement and their access any time under **My profile**.
+- The agreement text is a starting draft; the committee should review it (and take legal advice if needed) before relying on it.
+
+### Changing or ending access
+Staff → Edit: change role or permissions, untick **Access active** to suspend, or **Remove access** (removes the login's access and the invitation; their past entries and agreement record remain).
 
 ## 13. Monthly and yearly procedures
 
@@ -363,6 +405,11 @@ See `README.md` for step-by-step instructions. Summary:
 | Member says they can't see their account | Not approved, or email not confirmed | Members tab; ask them to click the email link and “I've confirmed my email” |
 | GitHub monthly run failed | Missing or wrong secret, or workflow paused after 60 days without commits | Actions tab → read the log; re-add secret; Enable workflow; or generate from Bills |
 | Website shows old README instead of site | Pages source not set to `/docs` | Settings → Pages → folder `/docs` |
+| “Google sign-in isn't switched on yet” | Google provider disabled | Firebase → Authentication → Sign-in method → Google → Enable |
+| “This website address isn't authorised for sign-in” | Domain missing | Firebase → Authentication → Settings → Authorized domains |
+| Staff member: “isn't a committee or staff account” | Signed in with a different Gmail than invited, or invitation cancelled | Sign in with the invited Gmail; check Staff → Invitations |
+| Staff member stuck on the agreement | New version published | Read, tick, sign, accept |
+| Staff member gets “This action isn't allowed” | That permission isn't given, or access suspended | Staff → Edit |
 
 ---
 
@@ -380,7 +427,9 @@ See `README.md` for step-by-step instructions. Summary:
 
 **What is BPM?** Builder Pending Maintenance from the builder period, shown separately and not added to the member's balance.
 
-**Who can see my mobile number and email?** Only the committee. The public page shows names and amounts only.
+**Who can see my mobile number and email?** The committee, and staff the committee has allowed to approve member logins, under a written confidentiality agreement. The public page shows names and amounts only.
+
+**Who changed my account?** Every bill, payment, cancellation and correction is stored with the user who made it and the time, and none can be deleted; ask the committee for the entry details.
 
 **What happens if my cheque bounces?** The receipt is cancelled (kept on record), the amount goes back on your account, and Cheque Return Charges may be added as fixed by the General Body.
 
