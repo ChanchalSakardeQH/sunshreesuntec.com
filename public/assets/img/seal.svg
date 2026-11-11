@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Sunshree Suntec Co-op. Hsg. Soc. Ltd. seal">
+  <defs>
+    <path id="ring" d="M100,100 m-79,0 a79,79 0 1,1 158,0 a79,79 0 1,1 -158,0"/>
+  </defs>
+  <g fill="none" stroke="#2D3E9A">
+    <circle cx="100" cy="100" r="96" stroke-width="4"/>
+    <circle cx="100" cy="100" r="64" stroke-width="2"/>
+  </g>
+  <text fill="#2D3E9A" font-family="'Public Sans', Arial, sans-serif" font-size="14" font-weight="700">
+    <textPath href="#ring" textLength="490" lengthAdjust="spacingAndGlyphs">SUNSHREE SUNTEC CO-OP. HSG. SOC. LTD. ★ KONDHWA, PUNE 48 ★</textPath>
+  </text>
+  <g fill="#2D3E9A" font-family="'Public Sans', Arial, sans-serif" text-anchor="middle" font-weight="600">
+    <text x="100" y="80" font-size="11">Reg. No.</text>
+    <text x="100" y="97" font-size="11.5">PNA/PNA(4)/</text>
+    <text x="100" y="112" font-size="11.5">HSG/(TC)/</text>
+    <text x="100" y="127" font-size="11.5">12471/2012-13</text>
+    <text x="100" y="142" font-size="10">Dt. 30/10/12</text>
+  </g>
+</svg>

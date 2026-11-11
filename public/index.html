@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sunshree Suntec Co-operative Housing Society Ltd., Kondhwa, Pune</title>
+  <meta name="description" content="Notices, committee details and unit-wise maintenance accounts for Sunshree Suntec Co-operative Housing Society Ltd., NIBM Road, Kondhwa Khurd, Pune.">
+  <link rel="icon" href="assets/img/seal.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#home">
+        <img src="assets/img/seal.svg" alt="" width="40" height="40">
+        <span class="brand-text">
+          <strong>Sunshree Suntec</strong>
+          <span>Co-op. Housing Society Ltd.</span>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+      <nav id="site-nav" class="site-nav" aria-label="Main">
+        <a href="#home">Home</a>
+        <a href="#about">About</a>
+        <a href="#dues">Maintenance dues</a>
+        <a href="#notices">Notices</a>
+        <a href="#committee">Committee</a>
+        <a href="#contact">Contact</a>
+        <a href="#member" class="nav-member">Member login</a>
+        <a href="#admin" class="nav-admin" hidden>Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+
+    <!-- HOME -->
+    <section class="tab" data-tab="home" aria-labelledby="home-title">
+      <div class="hero">
+        <div class="wrap hero-inner">
+          <img class="hero-seal" src="assets/img/seal.svg" alt="Society seal, Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/12" width="220" height="220">
+          <div class="hero-text">
+            <h1 id="home-title">Sunshree Suntec Co&#8209;operative Housing Society Ltd.</h1>
+            <p class="address">Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048</p>
+            <p class="hero-lede">Notices, committee contacts and the maintenance account of every flat, office and shop in the society, in one place.</p>
+            <div class="actions">
+              <a class="btn btn-primary" href="#dues">See maintenance dues</a>
+              <a class="btn" href="#member">Member login</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap home-grid">
+        <section aria-labelledby="blocks-title">
+          <h2 id="blocks-title">Buildings and shops</h2>
+          <ul class="block-list" id="block-list"></ul>
+        </section>
+
+        <section aria-labelledby="latest-title">
+          <h2 id="latest-title">Latest notice</h2>
+          <div id="latest-notice" class="latest-notice"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="tab" data-tab="about" hidden aria-labelledby="about-title">
+      <div class="wrap narrow page">
+        <h1 id="about-title">About the society</h1>
+        <p>Sunshree Suntec Co-operative Housing Society Ltd. is a registered co-operative housing society on NIBM Road, Kondhwa Khurd, Pune. The premises has residential flats, commercial offices, a hotel terrace, ground-floor shops and basement shops.</p>
+        <dl class="facts">
+          <div><dt>Registration number</dt><dd>PNA/PNA(4)/HSG/(TC)/12471/2012-13</dd></div>
+          <div><dt>Registered on</dt><dd>30 October 2012</dd></div>
+          <div><dt>Address</dt><dd>Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048</dd></div>
+          <div><dt>Premises</dt><dd id="about-premises">A, C and D Wing buildings, Upper Ground Floor shops and Lower Basement shops</dd></div>
+        </dl>
+        <h2>How maintenance is billed</h2>
+        <p>Maintenance is billed to each unit holder as per the Society’s bye-laws and General Body resolutions. Balances on this website are taken from the Society’s accounts and are updated after each statement.</p>
+      </div>
+    </section>
+
+    <!-- DUES -->
+    <section class="tab" data-tab="dues" hidden aria-labelledby="dues-title">
+      <div class="wrap page">
+        <h1 id="dues-title">Maintenance dues</h1>
+        <p class="lede" id="dues-lede">Loading the latest statement…</p>
+
+        <div class="dues-tools">
+          <div class="segmented" id="block-filter" role="group" aria-label="Show block"></div>
+          <label class="search">
+            <span class="visually-hidden">Search by name or unit number</span>
+            <input type="search" id="dues-search" placeholder="Search name or unit, e.g. C 402" autocomplete="off">
+          </label>
+        </div>
+
+        <dl class="dues-summary" id="dues-summary" aria-live="polite"></dl>
+        <div id="dues-tables"></div>
+
+        <div class="callout">
+          <h2>Think a figure is wrong?</h2>
+          <p>Give the Society office a written note with copies of your maintenance receipts. The accounts will be checked and corrected where the receipts show a payment that isn’t reflected here.</p>
+          <p>Registered members can sign in to see the full account for their own unit. <a href="#member">Request member access</a></p>
+        </div>
+
+        <details class="glossary">
+          <summary>What the columns mean</summary>
+          <dl>
+            <dt>Member outstanding</dt>
+            <dd>The closing balance against the unit holder in the Society’s accounts. “Cr” means the Society owes the member (an advance or excess payment).</dd>
+            <dt>Builder pending maintenance (BPM)</dt>
+            <dd>Maintenance from the builder period, kept separate from the member’s own balance.</dd>
+            <dt>Not listed</dt>
+            <dd>No individual balance was found for this unit in the statement. It does not mean the unit has no dues.</dd>
+          </dl>
+        </details>
+      </div>
+    </section>
+
+    <!-- NOTICES -->
+    <section class="tab" data-tab="notices" hidden aria-labelledby="notices-title">
+      <div class="wrap narrow page">
+        <h1 id="notices-title">Notices</h1>
+        <div id="notice-list"></div>
+      </div>
+    </section>
+
+    <!-- COMMITTEE -->
+    <section class="tab" data-tab="committee" hidden aria-labelledby="committee-title">
+      <div class="wrap narrow page">
+        <h1 id="committee-title">Managing committee</h1>
+        <p>Contact the committee for maintenance, membership transfer, NOCs and repairs.</p>
+        <ul class="people">
+          <li><span class="role">Chairman</span><span class="who">Name to be added</span></li>
+          <li><span class="role">Secretary</span><span class="who">Name to be added</span></li>
+          <li><span class="role">Treasurer</span><span class="who">Name to be added</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="tab" data-tab="contact" hidden aria-labelledby="contact-title">
+      <div class="wrap narrow page">
+        <h1 id="contact-title">Contact</h1>
+        <dl class="facts">
+          <div><dt>Society office</dt><dd>Sunshree Suntec CHS Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048</dd></div>
+          <div><dt>Email</dt><dd><a href="mailto:office@sunshreesuntec.com">office@sunshreesuntec.com</a></dd></div>
+          <div><dt>Office hours</dt><dd>To be added</dd></div>
+        </dl>
+        <p>For a dispute about your maintenance balance, bring copies of your payment receipts to the office or email them with your unit number in the subject line.</p>
+      </div>
+    </section>
+
+    <!-- MEMBER -->
+    <section class="tab" data-tab="member" hidden aria-labelledby="member-title">
+      <div class="wrap narrow page">
+        <h1 id="member-title">Member access</h1>
+        <p>Registered members can see the full maintenance account for their own unit. Register with your mobile number and email; the committee checks each request against the member register before approving it.</p>
+
+        <p class="callout" id="member-unavailable" hidden>Member login isn’t switched on yet. Please check back soon.</p>
+
+        <div id="auth-panels" hidden>
+          <div class="switcher" role="group" aria-label="Sign in or register">
+            <button type="button" class="switch-btn" data-panel="login" aria-pressed="true">Sign in</button>
+            <button type="button" class="switch-btn" data-panel="register" aria-pressed="false">Register</button>
+          </div>
+
+          <form id="login-form" class="form" novalidate>
+            <label>Email<input type="email" name="email" autocomplete="email" required></label>
+            <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+            <p class="form-msg" role="alert"></p>
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit">Sign in</button>
+              <button class="btn-link" type="button" id="forgot-btn">Forgot password?</button>
+            </div>
+          </form>
+
+          <form id="register-form" class="form" hidden novalidate>
+            <label>Full name (as in the member register)<input type="text" name="name" autocomplete="name" required></label>
+            <label>Unit / flat / shop number
+              <select name="unit" id="register-unit" required><option value="">Choose your unit</option></select>
+            </label>
+            <label>Mobile number
+              <span class="input-prefix"><span>+91</span><input type="tel" name="mobile" inputmode="numeric" autocomplete="tel-national" placeholder="98XXXXXXXX" maxlength="10" required></span>
+            </label>
+            <label class="reg-only">Email<input type="email" name="email" autocomplete="email" required></label>
+            <label class="reg-only">Password (at least 8 characters)<input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+            <label class="reg-only">Confirm password<input type="password" name="confirm" autocomplete="new-password" minlength="8" required></label>
+            <label class="check"><input type="checkbox" name="declare" required> I am the owner or authorised representative of this unit.</label>
+            <p class="form-msg" role="alert"></p>
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit">Send request</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="member-status" class="status-card" hidden></div>
+
+        <div id="member-account" hidden>
+          <div class="account-head">
+            <div>
+              <h2 id="account-unit"></h2>
+              <p id="account-name" class="muted"></p>
+            </div>
+            <button class="btn" type="button" data-signout>Sign out</button>
+          </div>
+          <dl class="dues-summary" id="account-summary"></dl>
+          <h3>Account entries</h3>
+          <div class="table-scroll">
+            <table class="ledger">
+              <thead><tr><th scope="col">Date</th><th scope="col">Particulars</th><th scope="col">Receipt no.</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th><th scope="col" class="num">Balance</th></tr></thead>
+              <tbody id="account-ledger"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section class="tab" data-tab="admin" hidden aria-labelledby="admin-title">
+      <div class="wrap page">
+        <div class="account-head">
+          <h1 id="admin-title">Admin</h1>
+          <button class="btn" type="button" data-signout>Sign out</button>
+        </div>
+        <p id="admin-denied" class="callout" hidden>Sign in with a committee account to use this page.</p>
+
+        <div id="admin-panel" hidden>
+          <section aria-labelledby="pending-title">
+            <h2 id="pending-title">Access requests</h2>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th scope="col">Unit</th><th scope="col">Name</th><th scope="col">Mobile</th><th scope="col">Email</th><th scope="col">Requested</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+                <tbody id="pending-rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section aria-labelledby="approved-title">
+            <h2 id="approved-title">Approved members</h2>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th scope="col">Unit</th><th scope="col">Name</th><th scope="col">Mobile</th><th scope="col">Email</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+                <tbody id="approved-rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section aria-labelledby="ledger-title">
+            <h2 id="ledger-title">Unit account entries</h2>
+            <p class="muted">Entries added here are visible only to the approved member of that unit and to committee accounts.</p>
+            <label class="inline-label">Unit
+              <select id="admin-unit"><option value="">Choose a unit</option></select>
+            </label>
+            <form id="entry-form" class="form entry-form" hidden novalidate>
+              <label>Date<input type="date" name="date" required></label>
+              <label class="wide">Particulars<input type="text" name="particulars" placeholder="e.g. Maintenance Apr–Jun 2026" required></label>
+              <label>Receipt no.<input type="text" name="receipt"></label>
+              <label>Debit (₹)<input type="number" name="debit" min="0" step="1" inputmode="numeric"></label>
+              <label>Credit (₹)<input type="number" name="credit" min="0" step="1" inputmode="numeric"></label>
+              <p class="form-msg" role="alert"></p>
+              <div class="form-actions"><button class="btn btn-primary" type="submit">Add entry</button></div>
+            </form>
+            <div class="table-scroll">
+              <table class="ledger">
+                <thead><tr><th scope="col">Date</th><th scope="col">Particulars</th><th scope="col">Receipt no.</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th><th scope="col" class="num">Balance</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+                <tbody id="admin-ledger"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Sunshree Suntec Co-operative Housing Society Ltd.<br>Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13</p>
+      <p class="muted">Balances are reproduced from the Society’s accounts. The Society’s official ledger prevails over this website.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="assets/js/app.js"></script>
+  <script type="module" src="assets/js/member.js"></script>
+</body>
+</html>

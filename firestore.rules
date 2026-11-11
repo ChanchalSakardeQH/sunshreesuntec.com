@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// Sunshree Suntec CHS – access rules
+//  admins/{uid}                 committee accounts (create these by hand in the Firebase console)
+//  users/{uid}                  member access requests: pending → approved / rejected (admins only)
+//  units/{unitId}/ledger/{id}   detailed account entries, readable by admins and the approved member of that unit
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function approvedFor(unitId) {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().status == 'approved'
+        && profile().unit == unitId;
+    }
+
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /users/{uid} {
+      // A member can file one request for themselves, always as "pending".
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'unit', 'mobile', 'email', 'status', 'createdAt'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 120
+        && request.resource.data.unit is string && request.resource.data.unit.size() <= 12
+        && request.resource.data.mobile is string && request.resource.data.mobile.matches('^[6-9][0-9]{9}$')
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /units/{unitId} {
+      allow read: if isAdmin() || approvedFor(unitId);
+      allow write: if isAdmin();
+
+      match /ledger/{entryId} {
+        allow read: if isAdmin() || approvedFor(unitId);
+        allow write: if isAdmin();
+      }
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
