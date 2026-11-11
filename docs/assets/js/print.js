@@ -3,7 +3,7 @@
 // print.html?receipt=<id>     one receipt
 import { initFirebase, currentUser, errorText } from './firebase.js';
 import { loadSite } from './accounts.js';
-import { PARTICULARS, STATUSES, money, amountInWords, ddmmyyyy, longDate, monthLabel } from './billing-core.js';
+import { PARTICULARS, OPTIONAL, STATUSES, LIFT_GROUPS, money, amountInWords, ddmmyyyy, longDate, monthLabel } from './billing-core.js';
 import { esc } from './data.js';
 
 const $ = (s) => document.querySelector(s);
@@ -92,7 +92,11 @@ function signBlock(site) {
 
 function billHTML(b, site) {
   const amounts = Object.fromEntries((b.lines || []).map((l) => [l.code, l.amount]));
-  const rows = PARTICULARS.map(([code, label], i) => {
+  // Older bills may carry heads from before the bill format changed; show them under their own label.
+  const known = new Set(PARTICULARS.map(([c]) => c));
+  const legacy = (b.lines || []).filter((l) => !known.has(l.code)).map((l) => [l.code, l.label]);
+  const heads = [...PARTICULARS.filter(([code]) => !OPTIONAL.has(code) || amounts[code]), ...legacy];
+  const rows = heads.map(([code, label], i) => {
     let val = '';
     if (code === 'arrears') {
       val = b.arrears ? money(b.arrears) : (b.unverified ? 'Not verified' : '');
@@ -106,7 +110,7 @@ function billHTML(b, site) {
   const total = b.total;
   const words = total < 0 ? `Credit balance of ${amountInWords(-total)}` : amountInWords(total);
   const rate = site.interestRatePA;
-  const interestNote = rate ? `Interest @${rate}% p.a. will be Charged on Outstanding Dues.`
+  const interestNote = rate ? `Simple interest @${rate}% p.a. will be Charged on Outstanding Dues.`
     : 'Interest on outstanding dues will be charged at the rate fixed by the General Body.';
   const contactNo = site.society.contactNo || '__________________';
 
@@ -130,6 +134,9 @@ function billHTML(b, site) {
         <tr class="total"><td></td><td>TOTAL</td><td class="fill">${money(total)}</td></tr>
       </tbody>
     </table>
+    ${(b.liftNotes || []).length ? `<div class="basis"><b>Lift AMC / repairs shared equally by the units served by the lift:</b> ${b.liftNotes.map((n) =>
+      `${esc(n.lift === 'CD' ? 'C & D wing lifts' : LIFT_GROUPS[n.lift] || n.lift)} – ${esc(n.kind)}: ${esc(n.description)}${n.invoiceNo ? ` (inv. ${esc(n.invoiceNo)}, ${ddmmyyyy(n.date)})` : ''}, ₹ ${money(n.amount, { slash: false })} ÷ ${n.units} units${n.instalment !== '1/1' ? `, instalment ${n.instalment}` : ''} = ₹ ${money(n.share, { slash: false })}`).join('; ')}</div>` : ''}
+    ${site.chargesBasis ? `<div class="basis">${esc(site.chargesBasis)}</div>` : ''}
     <div class="words"><b>Rs. In words</b><span class="fill">${words}${b.unverified ? ' <span class="flag">Opening balance to be verified.</span>' : ''}</span></div>
     <div class="notes">
       <div class="left">

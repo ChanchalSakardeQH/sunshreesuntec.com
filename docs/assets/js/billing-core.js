@@ -1,31 +1,49 @@
 // Billing rules shared by the admin pages (browser) and scripts/generate-bills.mjs (GitHub Actions).
 // No Firebase code here: only calculations, numbering and wording.
 
-/** The 15 lines of the Society's printed bill, in order. */
+/**
+ * Bill heads, in printed order. Heads follow the composition of charges in Model Bye-laws 65–67 and
+ * Rule 106C (MCS Rules, 1961 as amended in 2026): service charges, funds, water, lift, parking,
+ * non-occupancy, interest and other charges approved by the General Body.
+ * optional: printed only when the bill has an amount under that head.
+ */
 export const PARTICULARS = [
-  ['maintenance', 'Maintenance Charges'],
+  ['maintenance', 'Maintenance / Service Charges'],
   ['sinking', 'Sinking Fund'],
   ['repairs', 'Repairs & Maintenance Fund'],
   ['nonOccupancy', 'Non - Occupancy Charges'],
   ['arrears', 'Arrears'],
   ['interest', 'Penal Interest On Arrears'],
-  ['water', 'Water / Wastage Penalty / Charges'],
+  ['water', 'Water Charges'],
+  ['lift', 'Lift Charges'],
+  ['liftRepairs', 'Lift AMC / Repairs (shared)', true],
   ['parking', 'Vehicle Parking Charges'],
   ['transferPremium', 'Transfer Premium'],
   ['transferFee', 'Transfer Fee'],
   ['entranceFee', 'Entrance Fee'],
-  ['education', 'Education Fund'],
+  ['education', 'Education & Training Fund'],
   ['federation', 'Co-op Federation Fund'],
   ['chequeReturn', 'Cheque Return Charges'],
-  ['others', 'Any Others Charges']
+  ['penalty', 'Penalty / Other Charges'],
+  ['others', 'Any Others Charges'],
+  ['propertyTax', 'Property Tax', true],
+  ['insurance', 'Insurance Charges', true],
+  ['election', 'Election Fund', true],
+  ['majorRepairs', 'Major Repairs Fund', true],
+  ['loan', 'Loan Instalment & Interest', true],
+  ['leaseRent', 'Lease Rent / N.A. Tax', true]
 ];
-export const LABEL = Object.fromEntries(PARTICULARS);
+export const LABEL = Object.fromEntries(PARTICULARS.map(([c, l]) => [c, l]));
+export const OPTIONAL = new Set(PARTICULARS.filter((p) => p[2]).map((p) => p[0]));
 
-/** Charges billed every month from the rate table (Settings) or a unit's own override. */
-export const RECURRING = ['maintenance', 'sinking', 'repairs', 'nonOccupancy', 'water', 'parking', 'education', 'federation'];
+/** Monthly amounts set per charge category in Settings (and overridable per unit). */
+export const CATEGORY_MONTHLY = ['maintenance', 'water', 'parking', 'education', 'federation', 'election'];
+/** Lift is fixed per year by the AGM and charged only to units in a building with a lift. */
+export const CATEGORY_FIELDS = [...CATEGORY_MONTHLY, 'liftYearly'];
 
 /** One-off charges the committee can add to a month's bills. */
-export const ONE_OFF = ['transferPremium', 'transferFee', 'entranceFee', 'chequeReturn', 'others', 'water'];
+export const ONE_OFF = ['penalty', 'others', 'water', 'lift', 'liftRepairs', 'transferPremium', 'transferFee', 'entranceFee',
+  'chequeReturn', 'propertyTax', 'insurance', 'election', 'majorRepairs', 'loan', 'leaseRent'];
 
 export const PREMISES_TYPES = [
   'Residential Flat',
@@ -37,6 +55,8 @@ export const PREMISES_TYPES = [
 ];
 
 export const STATUSES = ['Own Occupied', 'Rented', 'Tenant', 'Commercial'];
+/** Statuses that attract non-occupancy charges (premises let out). */
+export const LET_OUT = new Set(['Rented', 'Tenant']);
 export const PAYMENT_MODES = ['NEFT', 'IMPS', 'UPI', 'Cheque', 'Cash', 'Demand Draft'];
 
 /* ---------- dates (all in India time) ---------- */
@@ -108,32 +128,124 @@ export function money(n, { slash = true } = {}) {
   return inr.format(n) + (slash ? '/-' : '');
 }
 
-/** Monthly recurring charges for a unit: its own override first, else the rate for its premises type. */
-export function chargesFor(unit, settings) {
-  const typeRates = settings?.rates?.[unit.type] || {};
-  const override = unit.charges || {};
+/** Charge category of a unit: the one set on the unit, else a best guess from its type and wing. */
+/** Units whose AGM category isn't obvious from their premises type. */
+export const UNIT_CATEGORY = { 'D-101A': 'DCLINIC', 'D-101B': 'DCLINIC', 'D-201': 'DCOM', 'D-202': 'DCOM' };
+
+export function categoryIdFor(unit) {
+  if (unit.category) return unit.category;
+  if (UNIT_CATEGORY[unit.id]) return UNIT_CATEGORY[unit.id];
+  const t = unit.type || '';
+  if (t === 'Residential Flat') return 'RES';
+  if (t === 'Residential, using as Commercial') return 'RESCOM';
+  if (t === 'Commercial Office') return unit.block === 'D' ? 'DCOM' : 'RESCOM';
+  if (t === 'Hotel Terrace') return 'DCOM';
+  if (/Shop/.test(t)) return 'SHOP_DRY';
+  return 'RES';
+}
+
+/** Lifts in the society. Each unit is served by at most one. */
+export const LIFT_GROUPS = { C: 'C wing lift', D: 'D wing lift' };
+export const LIFT_KINDS = ['AMC', 'Repair', 'Wear & tear / parts', 'Licence / inspection', 'Electricity', 'Other'];
+
+/** Which lift serves a unit: set on the unit, else C wing → C lift, D wing → D lift, others none. */
+export function liftGroupFor(unit) {
+  if (unit.liftGroup !== undefined && unit.liftGroup !== null) return unit.liftGroup;
+  if (unit.block === 'C') return unit.hasLift === false ? '' : 'C';
+  if (unit.block === 'D') return 'D';
+  return '';
+}
+export const hasLift = (unit) => Boolean(liftGroupFor(unit));
+
+/* ---------- month arithmetic ---------- */
+export function addMonths(key, n) {
+  const [y, m] = key.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+export function monthDiff(from, to) {
+  const [y1, m1] = from.split('-').map(Number), [y2, m2] = to.split('-').map(Number);
+  return (y2 - y1) * 12 + (m2 - m1);
+}
+
+/**
+ * A lift expense (AMC, repair, wear & tear …) is shared equally among the units served by that lift
+ * (Rule 106C: lift expenses divided equally among units in the building where the lift is provided),
+ * recovered through the bills in one or more monthly instalments.
+ * exp = { amount, unitIds: [...], startMonth: 'YYYY-MM', instalments }
+ */
+export function liftExpenseShare(exp, unitId, monthKey) {
+  if (!exp || exp.status === 'deleted' || !exp.unitIds?.includes(unitId)) return 0;
+  const n = Math.max(1, Number(exp.instalments) || 1);
+  const idx = monthDiff(exp.startMonth, monthKey);
+  if (idx < 0 || idx >= n) return 0;
+  const share = Math.round(exp.amount / exp.unitIds.length);
+  const per = Math.floor(share / n);
+  return idx === n - 1 ? share - per * (n - 1) : per;
+}
+
+export const liftExpenseEndMonth = (exp) => addMonths(exp.startMonth, Math.max(1, Number(exp.instalments) || 1) - 1);
+
+/**
+ * Monthly charges for one unit and month, before arrears and interest.
+ * Order of precedence for every head: amount set on the unit > its charge category > 0.
+ */
+export function chargesFor(unit, settings, monthKey) {
+  const cats = settings?.categories || [];
+  const cat = cats.find((c) => c.id === categoryIdFor(unit)) || {};
+  const own = unit.charges || {};
+  const pick = (code) => round(own[code] ?? cat[code] ?? 0);
   const out = {};
-  for (const code of RECURRING) {
-    const v = override[code] ?? typeRates[code] ?? 0;
-    out[code] = round(v);
+  for (const code of CATEGORY_MONTHLY) out[code] = pick(code);
+
+  // Lift: yearly amount, billed in the chosen month (April by default) or spread monthly.
+  const liftYearly = hasLift(unit) ? round(own.liftYearly ?? cat.liftYearly ?? 0) : 0;
+  if (liftYearly) {
+    if (settings?.liftBilling === 'monthly') out.lift = round(liftYearly / 12);
+    else if (monthKey && Number(monthKey.slice(5, 7)) === Number(settings?.liftBillMonth || 4)) out.lift = liftYearly;
   }
+
+  // Sinking fund and repairs fund: % per year of the architect-certified construction cost, billed monthly.
+  const cost = Number(unit.constructionCost) || 0;
+  out.sinking = own.sinking ?? (cost ? round((cost * (Number(settings?.sinkingPct) || 0)) / 100 / 12) : 0);
+  out.repairs = own.repairs ?? (cost ? round((cost * (Number(settings?.repairsPct) || 0)) / 100 / 12) : 0);
+
+  // Non-occupancy: % of service charges for premises that are let out.
+  const nonOccPct = Number(settings?.nonOccupancyPct) || 0;
+  out.nonOccupancy = own.nonOccupancy ?? (LET_OUT.has(unit.status) && nonOccPct ? round((out.maintenance * nonOccPct) / 100) : 0);
   return out;
 }
 
 /**
  * Builds one month's bill for a unit.
- * arrears = the unit's running balance before this bill (negative = credit).
- * extras  = one-off lines for this month: [{ code, amount }]
+ * arrears     = the unit's running balance before this bill (negative = credit).
+ * interestDue = penal interest already billed and not yet paid (excluded from the interest base,
+ *               so interest stays simple, never interest-on-interest).
+ * extras      = one-off lines for this month: [{ code, amount }]
  */
-export function computeBill({ unit, settings, extras = [] }) {
+export function computeBill({ unit, settings, monthKey, extras = [], liftExpenses = [] }) {
   const arrears = round(unit.balance);
-  const rate = Number(settings?.interestRatePA) || 0;
-  const interest = rate > 0 && arrears > 0 ? round((arrears * rate) / 100 / 12) : 0;
+  const rate = Math.min(Number(settings?.interestRatePA) || 0, MAX_INTEREST_PA);
+  const base = Math.max(0, arrears - Math.max(0, round(unit.interestDue)));
+  const interest = rate > 0 && base > 0 ? round((base * rate) / 100 / 12) : 0;
 
-  const amounts = { ...chargesFor(unit, settings), interest };
+  const amounts = { ...chargesFor(unit, settings, monthKey), interest };
   for (const x of extras) {
     if (!x || !x.code || x.code === 'arrears') continue;
     amounts[x.code] = (amounts[x.code] || 0) + round(x.amount);
+  }
+
+  // Shared lift expenses due from this unit this month, with a note for the bill.
+  const liftNotes = [];
+  for (const exp of liftExpenses) {
+    const share = liftExpenseShare(exp, unit.id, monthKey);
+    if (!share) continue;
+    amounts.liftRepairs = (amounts.liftRepairs || 0) + share;
+    liftNotes.push({
+      id: exp.id, lift: exp.lift, kind: exp.kind, description: exp.description || '', invoiceNo: exp.invoiceNo || '',
+      date: exp.date, amount: exp.amount, units: exp.unitIds.length,
+      instalment: `${monthDiff(exp.startMonth, monthKey) + 1}/${Math.max(1, Number(exp.instalments) || 1)}`, share
+    });
   }
 
   const lines = PARTICULARS
@@ -142,8 +254,11 @@ export function computeBill({ unit, settings, extras = [] }) {
     .filter((l) => l.amount !== 0);
 
   const current = lines.reduce((s, l) => s + l.amount, 0);
-  return { arrears, lines, current, total: arrears + current };
+  return { arrears, lines, interest, current, total: arrears + current, liftNotes };
 }
+
+/** Ceiling on penal interest: 12% simple p.a. under the MCS (Amendment) Rules, 2026. */
+export const MAX_INTEREST_PA = 12;
 
 /* ---------- amount in words (Indian system) ---------- */
 

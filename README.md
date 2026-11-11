@@ -1,4 +1,4 @@
-# sunshreesuntec.com – website with accounting online software and society accounts public display
+# sunshreesuntec.com – website and society accounts
 
 Website and maintenance accounting for **Sunshree Suntec Co-op. Hsg. Soc. Ltd.**, NIBM Road, Kondhwa Khurd, Pune 411048.
 
@@ -50,10 +50,23 @@ To try it on your PC first: `cd docs` then `python -m http.server 8000` and open
 
 1. **Settings → Import opening balances.** Creates the 65 units with their balance as on 30 Sep 2026 and posts the October 2026 bill (arrears + ₹6,500 any other charges) with the same bill numbers that were sent (`A101/01102026` …). Runs once.
    - A 100, C 100 and D 202 had no balance in the statement. They start at ₹6,500 and show "Under verification" until you add a correction with **Opening balance is now verified** ticked (Units → Open → Add a correction).
-2. **Settings → Monthly charges.** Enter the per-month amounts fixed by the General Body for each premises type. Education Fund starts at ₹10 per unit per month as per the bye-laws; everything else starts at ₹0. A unit with different charges (parking, non-occupancy) can have its own amounts under **Units → Open**.
-3. **Settings → Penal interest.** 0 means no interest line on bills. If the General Body has fixed a rate, enter it; it's charged monthly on positive arrears and printed on the bill.
-4. **Website → Committee and contact.** Fill in Secretary and Treasurer names and the contact number printed on bills.
-5. **Bills → Generate bills** for November 2026 (the current month), then **Print all bills** to save one PDF for everyone.
+2. **Settings → Charge categories and rates.** Pre-filled with the AGM rates of 25 Jan 2015 as amended on 07 Jul 2015:
+
+   | Category | Maintenance | Water | Lift (per year) |
+   |---|---|---|---|
+   | Residential flat (A & C wing) | 1,300 | – | 1,000 |
+   | Residential flat used as commercial (A & C wing) | 2,000 | 300 | 2,000 |
+   | Commercial D wing (Gym D 201) | 2,000 | 500 | – |
+   | Commercial D wing clinic (D 101 A & B) | 2,000 | 500 | – |
+   | Shop without water | 1,000 | – | – |
+   | Shop with only water tap | 1,000 | 300 | – |
+   | Shop: beauty parlour / pet shop / clinic / food shop / chicken centre | 1,000 | 500 | – |
+
+   Education & Training Fund is ₹10 per unit per month. Change any figure when the General Body revises it.
+3. **Units → Open** for each unit: check the **charge category** (all shops start as "without water"; move the ones with a tap or heavy use), choose **Served by lift** (C wing units start on the C wing lift, D wing units on the D wing lift, A wing and shops on none), set **status** (Rented / Tenant adds non-occupancy charges at 10% of service charges) and, once adopted, the **construction cost certified by the architect** (sinking fund 0.25% and repairs fund 0.75% per year are then billed monthly).
+4. **Settings → Penal interest** stays 0 until the General Body fixes a rate (maximum 12% simple per year). Lift is billed once a year in April by default; you can switch to monthly.
+5. **Website → Committee and contact.** Fill in Secretary and Treasurer names and the contact number printed on bills.
+6. **Bills → Generate bills** for November 2026 (the current month), then **Print all bills** to save one PDF for everyone.
 
 ## 4. Monthly bills on GitHub (automatic)
 
@@ -77,6 +90,7 @@ GitHub pauses scheduled workflows in a repo with no commits for 60 days. If that
 | Cheque bounced / wrong entry | **Payments → Cancel** on that receipt. It stays in the register marked Cancelled and the amount goes back on the unit. |
 | Correct a balance | **Units → Open → Add a correction** (debit adds to dues, credit reduces them). |
 | Month's collection for the accountant | **Payments → Download CSV** (opens in Excel / Tally import). |
+| Lift AMC invoice, repair, wear & tear, parts, licence | **Lift** → amount, which lift, bill month to start, number of instalments. Shared equally by the units served by that lift and shown on their bills as “Lift AMC / Repairs (shared)” with the invoice details. Add it before that month's bills are generated. |
 | One-off charge for a month (e.g. repairs levy) | **Bills** → Extra one-off charge + amount, for all units or one block, before generating. |
 | New notice on the website | **Website → Notices**. |
 | Approve a member's login request | **Members**. |

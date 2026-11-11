@@ -25,6 +25,7 @@
         <a href="#bills">Bills</a>
         <a href="#payments">Payments</a>
         <a href="#units">Units</a>
+        <a href="#lift">Lift</a>
         <a href="#members">Members</a>
         <a href="#website">Website</a>
         <a href="#settings">Settings</a>
@@ -134,7 +135,7 @@
       <h1>Units</h1>
       <label class="search"><span class="visually-hidden">Search units</span><input type="search" id="units-search" placeholder="Search name or unit"></label>
       <div class="table-scroll"><table>
-        <thead><tr><th>Unit</th><th>Name</th><th>Premises</th><th>Status</th><th class="num">Balance (₹)</th><th class="num">BPM (₹)</th><th></th></tr></thead>
+        <thead><tr><th>Unit</th><th>Name</th><th>Charge category</th><th>Lift</th><th>Status</th><th class="num">Balance (₹)</th><th class="num">BPM (₹)</th><th></th></tr></thead>
         <tbody id="units-rows"></tbody>
       </table></div>
 
@@ -143,10 +144,17 @@
           <h2 id="unit-title">Unit</h2>
           <label>Member / owner name<input type="text" name="name"></label>
           <label>Premises type<select name="type"></select></label>
+          <label>Charge category (AGM rates)<select name="category"></select></label>
           <label>Status<select name="status"><option value="">Not set</option></select></label>
+          <p class="muted small">Rented or Tenant status adds non-occupancy charges at the percentage set in Settings.</p>
+          <label>Served by lift
+            <select name="liftGroup"><option value="">No lift</option><option value="C">C wing lift</option><option value="D">D wing lift</option></select>
+          </label>
+          <p class="muted small">Units served by a lift pay its yearly lift charge (where their category has one) and share its AMC and repair expenses.</p>
+          <label>Construction cost certified by architect (₹, for sinking and repairs funds)<input type="number" name="constructionCost" min="0" step="1" inputmode="numeric"></label>
           <label>Builder pending maintenance (₹)<input type="number" name="bpm" min="0" step="1"></label>
           <fieldset class="charges">
-            <legend>Monthly charges for this unit only (leave blank to use the rate for its premises type)</legend>
+            <legend>Amounts for this unit only (leave blank to use its charge category and Settings)</legend>
             <div id="unit-charges"></div>
           </fieldset>
           <label class="check"><input type="checkbox" name="active"> Bill this unit every month</label>
@@ -172,6 +180,34 @@
           <div class="form-actions"><button class="btn" type="submit">Add correction</button></div>
         </form>
       </dialog>
+    </section>
+
+    <!-- LIFT -->
+    <section class="tab" data-tab="lift" hidden>
+      <h1>Lift expenses</h1>
+      <p class="muted">Record each lift expense other than the yearly lift charge (AMC invoice, repair, wear and tear, parts, licence). It is divided equally among the units served by that lift and added to their bills as “Lift AMC / Repairs (shared)”, in one month or spread over several months. Each bill lists the expense it includes.</p>
+      <p class="callout" id="lift-served"></p>
+      <form id="lift-form" class="form entry-form" novalidate>
+        <label>Date of expense<input type="date" name="date" required></label>
+        <label>Lift<select name="lift"><option value="C">C wing lift</option><option value="D">D wing lift</option><option value="CD">Both lifts (one contract)</option></select></label>
+        <label>Type<select name="kind"></select></label>
+        <label class="wide">Description<input type="text" name="description" placeholder="e.g. Door motor replaced, AMC Apr 2026 – Mar 2027" required></label>
+        <label>Vendor<input type="text" name="vendor"></label>
+        <label>Invoice no.<input type="text" name="invoiceNo"></label>
+        <label>Paid by (cheque / UTR)<input type="text" name="paidRef"></label>
+        <label>Amount (₹)<input type="number" name="amount" min="1" step="1" inputmode="numeric" required></label>
+        <label>Recover from bill month<input type="month" name="startMonth" required></label>
+        <label>Number of monthly instalments<input type="number" name="instalments" min="1" max="24" step="1" value="1"></label>
+        <p class="wide muted" id="lift-preview"></p>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save lift expense</button></div>
+      </form>
+      <h2 class="mt">Lift expense register</h2>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Date</th><th>Lift</th><th>Type</th><th>Description</th><th class="num">Amount (₹)</th><th class="num">Units</th><th class="num">Per unit (₹)</th><th>Billed</th><th></th></tr></thead>
+        <tbody id="lift-rows"></tbody>
+        <tfoot id="lift-foot"></tfoot>
+      </table></div>
     </section>
 
     <!-- MEMBERS -->
@@ -227,11 +263,24 @@
       </div>
 
       <form id="billing-form" class="form wide-form" novalidate>
-        <h2>Monthly charges</h2>
-        <p class="muted">Amount per unit per month, by premises type, as fixed by the General Body.</p>
+        <h2>Charge categories and rates</h2>
+        <p class="muted">Starting values are the rates passed at the AGM of 25 Jan 2015 as amended on 07 Jul 2015 (effective 1 April 2015). Monthly amounts per unit, except lift which is per year. Change them here when the General Body revises them; new bills use the new rates.</p>
         <div class="table-scroll"><table class="rates"><thead id="rates-head"></thead><tbody id="rates-body"></tbody></table></div>
-        <label>Penal interest on arrears (% per year, 0 for none)<input type="number" name="interestRatePA" min="0" max="21" step="0.5"></label>
+        <div class="form-actions"><button class="btn btn-small" type="button" id="add-category">Add category</button></div>
+
+        <h3>Lift charges</h3>
+        <label>How to bill the yearly lift charge
+          <select name="liftBilling"><option value="yearly">Full year in one bill</option><option value="monthly">Spread over 12 monthly bills</option></select>
+        </label>
+        <label>Month for the yearly lift bill<select name="liftBillMonth"></select></label>
+
+        <h3>Statutory funds and charges</h3>
+        <label>Sinking fund (% per year of construction cost, minimum 0.25)<input type="number" name="sinkingPct" min="0" step="0.01"></label>
+        <label>Repairs &amp; maintenance fund (% per year of construction cost, minimum 0.75)<input type="number" name="repairsPct" min="0" step="0.01"></label>
+        <label>Non-occupancy charges (% of service charges, for let-out premises)<input type="number" name="nonOccupancyPct" min="0" max="10" step="0.5"></label>
+        <label>Penal interest on arrears (% simple per year, 0 for none, maximum 12)<input type="number" name="interestRatePA" min="0" max="12" step="0.5"></label>
         <label>Days until due date<input type="number" name="dueDays" min="0" max="60" step="1"></label>
+        <label class="wide-label">Basis of charges (printed on every bill)<input type="text" name="chargesBasis"></label>
         <p class="form-msg" role="alert"></p>
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save charges</button></div>
       </form>

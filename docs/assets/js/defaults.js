@@ -22,22 +22,35 @@ export const DEFAULT_SITE = {
     { role: 'Treasurer', name: '', phone: '' }
   ],
   contact: { hours: '' },
+  chargesBasis: 'Charges as per AGM dated 25/01/2015 (amended 07/07/2015) and Bye-laws 65 to 71 of the Society.',
   notices: []
 };
 
+/**
+ * Charge categories and rates as passed at the AGM of 25 Jan 2015 (MOM AGM-MOM/20150225) and amended
+ * on 07 Jul 2015 (AmendmentOfMom/20150707), effective 1 April 2015. Amounts are per unit per month,
+ * except liftYearly. Education & Training Fund is Rs 10 per unit per month as per the bye-laws.
+ * Edit in Admin → Settings whenever the General Body revises them.
+ */
+export const AGM_2015_CATEGORIES = [
+  { id: 'RES', name: 'Residential flat (A & C wing)', maintenance: 1300, water: 0, liftYearly: 1000, parking: 0, education: 10, federation: 0, election: 0 },
+  { id: 'RESCOM', name: 'Residential flat used as commercial (A & C wing)', maintenance: 2000, water: 300, liftYearly: 2000, parking: 0, education: 10, federation: 0, election: 0 },
+  { id: 'DCOM', name: 'Commercial D wing (Gym D 201)', maintenance: 2000, water: 500, liftYearly: 0, parking: 0, education: 10, federation: 0, election: 0 },
+  { id: 'DCLINIC', name: 'Commercial D wing clinic / hospital (D 101 A & B)', maintenance: 2000, water: 500, liftYearly: 0, parking: 0, education: 10, federation: 0, election: 0 },
+  { id: 'SHOP_DRY', name: 'Shop (basement / ground floor) without water', maintenance: 1000, water: 0, liftYearly: 0, parking: 0, education: 10, federation: 0, election: 0 },
+  { id: 'SHOP_TAP', name: 'Shop with only water tap', maintenance: 1000, water: 300, liftYearly: 0, parking: 0, education: 10, federation: 0, election: 0 },
+  { id: 'SHOP_HEAVY', name: 'Shop: beauty parlour / pet shop / clinic / food shop / chicken centre', maintenance: 1000, water: 500, liftYearly: 0, parking: 0, education: 10, federation: 0, election: 0 }
+];
+
 export const DEFAULT_BILLING = {
-  interestRatePA: 0,   // 0 = no penal interest line on bills
-  dueDays: 15,         // due date = bill date + this many days
-  // Monthly charges by premises type. Education Fund is Rs 10 per unit per month as per the bye-laws.
-  // Fill in the other amounts as fixed by the General Body before generating the first monthly bills.
-  rates: {
-    'Residential Flat': { maintenance: 0, education: 10 },
-    'Residential, using as Commercial': { maintenance: 0, education: 10 },
-    'Commercial Office': { maintenance: 0, education: 10 },
-    'Hotel Terrace': { maintenance: 0, education: 10 },
-    'Ground-Floor Shop': { maintenance: 0, education: 10 },
-    'Basement Shop': { maintenance: 0, education: 10 }
-  }
+  categories: AGM_2015_CATEGORIES,
+  interestRatePA: 0,        // 0 = no penal interest; maximum 12% simple p.a. (MCS Rules as amended 2026)
+  dueDays: 15,              // due date = bill date + this many days
+  liftBilling: 'yearly',    // 'yearly' = full year's lift charge in liftBillMonth; 'monthly' = 1/12 every month
+  liftBillMonth: 4,         // April, start of the financial year
+  sinkingPct: 0.25,         // % per year of construction cost (minimum under the bye-laws / Rules)
+  repairsPct: 0.75,         // % per year of construction cost (minimum under the bye-laws / Rules)
+  nonOccupancyPct: 10       // % of service charges for let-out premises
 };
 
 /** The October 2026 bill sent to every unit: arrears to 30 Sep 2026 plus Rs 6,500 under "Any Others Charges". */

@@ -2,17 +2,20 @@
 import { initFirebase, errorText } from './firebase.js';
 import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
-  updateUnitDetails, importOpening, rebuildPublicDues
+  updateUnitDetails, importOpening, rebuildPublicDues,
+  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy
 } from './accounts.js';
 import {
-  PARTICULARS, LABEL, RECURRING, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES,
+  LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
+  categoryIdFor, liftGroupFor, LIFT_GROUPS, LIFT_KINDS, addMonths, liftExpenseEndMonth, MAX_INTEREST_PA,
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
+import { DEFAULT_SITE } from './defaults.js';
 import { getDues, getNotices, fmt, esc, fmtDate } from './data.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'members', 'website', 'settings'];
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'lift', 'members', 'website', 'settings'];
 
 let fb, uid, units = [], billing, site, dues;
 
@@ -35,6 +38,10 @@ const blockName = (id) => dues.blocks.find((b) => b.id === id)?.name || id;
 const unitOptions = (withBalance) => dues.blocks.map((b) => `<optgroup label="${esc(b.name)}">${
   units.filter((u) => u.block === b.id).map((u) => `<option value="${esc(u.id)}">${esc(u.unit)}${u.name ? ' – ' + esc(u.name) : ''}${withBalance ? ` (₹ ${fmt(u.balance)})` : ''}</option>`).join('')
 }</optgroup>`).join('');
+
+const noRates = () => !(billing.categories || []).some((c) => Number(c.maintenance) > 0);
+const catName = (u) => (billing.categories || []).find((c) => c.id === categoryIdFor(u))?.name || categoryIdFor(u);
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 async function refreshCore() {
   [units, billing, site] = await Promise.all([loadUnits(fb), loadBilling(fb), loadSite(fb)]);
@@ -92,7 +99,7 @@ function route() {
   $$('.tab').forEach((t) => (t.hidden = t.dataset.tab !== id));
   $$('#admin-nav a').forEach((a) => (a.getAttribute('href') === '#' + id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   $('#admin-nav').classList.remove('open');
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, members: loadMembers, website: loadWebsite, settings: loadSettings }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -103,6 +110,7 @@ function wireOnce() {
   wireBills();
   wirePayments();
   wireUnits();
+  wireLift();
   wireMembers();
   wireWebsite();
   wireSettings();
@@ -140,13 +148,16 @@ async function loadDashboard() {
   }).join('') || '<tr><td colspan="4" class="empty">No receipts yet.</td></tr>';
 
   const setup = $('#dash-setup');
-  const noRates = PREMISES_TYPES.every((t) => !billing.rates?.[t]?.maintenance);
+  const noCost = units.filter((u) => u.active !== false && !u.constructionCost && !u.charges?.sinking).length;
   if (!units.length) {
     setup.hidden = false;
     setup.innerHTML = '<h2>Set up the accounts</h2><p>No units yet. Go to <a href="#settings">Settings</a> and import the opening balances.</p>';
-  } else if (noRates) {
+  } else if (noRates()) {
     setup.hidden = false;
-    setup.innerHTML = '<h2>Monthly maintenance rates are ₹0</h2><p>Enter the monthly charges fixed by the General Body in <a href="#settings">Settings</a> before the next bills are generated.</p>';
+    setup.innerHTML = '<h2>Maintenance rates are ₹0</h2><p>Enter the rates fixed by the General Body in <a href="#settings">Settings</a> before the next bills are generated.</p>';
+  } else if (noCost) {
+    setup.hidden = false;
+    setup.innerHTML = `<h2>Sinking and repairs funds not yet billed for ${noCost} units</h2><p>These funds are worked out from each unit’s construction cost certified by the architect. Enter it under <a href="#units">Units → Open</a> once the General Body has adopted the figures.</p>`;
   } else setup.hidden = true;
 }
 
@@ -176,8 +187,9 @@ function wireBills() {
     if (!monthKey) return setMsg(form, 'Choose a month.');
     if (extraCode && !extraAmount) return setMsg(form, 'Enter the extra amount per unit, or set the extra charge to None.');
     if (!units.length) return setMsg(form, 'Import the opening balances in Settings first.');
-    const noRates = PREMISES_TYPES.every((t) => !billing.rates?.[t]?.maintenance);
-    const warn = noRates ? '\n\nMaintenance rates in Settings are ₹0, so these bills will only carry the other charges.' : '';
+    const m = Number(monthKey.slice(5, 7));
+    const warn = (noRates() ? '\n\nMaintenance rates in Settings are ₹0, so these bills will only carry the other charges.' : '')
+      + (billing.liftBilling !== 'monthly' && m === Number(billing.liftBillMonth || 4) ? `\n\nThis month includes the yearly lift charge for units with a lift.` : '');
     if (!confirm(`Create ${monthLabel(monthKey)} bills for every unit that doesn’t have one yet?${warn}`)) return;
 
     setMsg(form, '');
@@ -321,6 +333,11 @@ async function listPayments(month) {
 /* ---------------- units ---------------- */
 
 let editing = null;
+const UNIT_OVERRIDES = [
+  ['maintenance', 'Maintenance / service (₹/month)'], ['water', 'Water (₹/month)'], ['liftYearly', 'Lift (₹/year)'],
+  ['parking', 'Parking (₹/month)'], ['sinking', 'Sinking fund (₹/month)'], ['repairs', 'Repairs fund (₹/month)'],
+  ['nonOccupancy', 'Non-occupancy (₹/month)'], ['education', 'Education fund (₹/month)'], ['federation', 'Federation fund (₹/month)']
+];
 
 function renderUnits() {
   const q = ($('#units-search').value || '').toLowerCase().replace(/\s/g, '');
@@ -328,10 +345,10 @@ function renderUnits() {
   $('#units-rows').innerHTML = rows.map((u) => `<tr>
     <td class="unit">${esc(u.unit)}</td>
     <td>${esc(u.name)}${u.unverified ? '<span class="flag">To verify</span>' : ''}${u.active === false ? ' <span class="status-pill">Not billed</span>' : ''}</td>
-    <td class="type">${esc(u.type)}</td><td>${esc(u.status || '')}</td>
+    <td class="type">${esc(catName(u))}</td><td>${liftGroupFor(u) || '—'}</td><td>${esc(u.status || '')}</td>
     <td class="num">${amt(u.balance)}</td><td class="num">${u.bpm ? fmt(u.bpm) : '—'}</td>
     <td><button class="btn btn-small" type="button" data-edit="${esc(u.id)}">Open</button></td></tr>`).join('')
-    || `<tr><td colspan="7" class="empty">${units.length ? 'No unit matches.' : 'No units yet. Import the opening balances in Settings.'}</td></tr>`;
+    || `<tr><td colspan="8" class="empty">${units.length ? 'No unit matches.' : 'No units yet. Import the opening balances in Settings.'}</td></tr>`;
   return Promise.resolve();
 }
 
@@ -339,7 +356,7 @@ function wireUnits() {
   const form = $('#unit-form');
   form.type.innerHTML = PREMISES_TYPES.map((t) => `<option>${t}</option>`).join('');
   form.status.innerHTML += STATUSES.map((s) => `<option>${s}</option>`).join('');
-  $('#unit-charges').innerHTML = RECURRING.map((c) => `<label>${LABEL[c]}<input type="number" min="0" step="1" name="ch_${c}" inputmode="numeric"></label>`).join('');
+  $('#unit-charges').innerHTML = UNIT_OVERRIDES.map(([c, label]) => `<label>${label}<input type="number" min="0" step="1" name="ch_${c}" inputmode="numeric"></label>`).join('');
   $('#units-search').addEventListener('input', renderUnits);
   $('#units-rows').addEventListener('click', (e) => {
     const b = e.target.closest('[data-edit]');
@@ -351,11 +368,13 @@ function wireUnits() {
     e.preventDefault();
     const fd = new FormData(form);
     const charges = {};
-    for (const c of RECURRING) { const v = fd.get('ch_' + c); if (v !== '') charges[c] = round(v); }
+    for (const [c] of UNIT_OVERRIDES) { const v = fd.get('ch_' + c); if (v !== '') charges[c] = round(v); }
     await busy($('button[type=submit]', form), async () => {
       try {
         await updateUnitDetails(fb, editing, {
           name: String(fd.get('name')).trim(), type: fd.get('type'), status: fd.get('status'),
+          category: fd.get('category'), liftGroup: String(fd.get('liftGroup')),
+          constructionCost: fd.get('constructionCost') === '' ? null : round(fd.get('constructionCost')),
           bpm: fd.get('bpm') === '' ? null : round(fd.get('bpm')), charges, active: Boolean(fd.get('active'))
         });
         await rebuildPublicDues(fb, dues.blocks);
@@ -395,9 +414,13 @@ async function openUnit(id) {
   form.name.value = u.name || '';
   form.type.value = u.type;
   form.status.value = u.status || '';
+  form.category.innerHTML = (billing.categories || []).map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+  form.category.value = categoryIdFor(u);
+  form.liftGroup.value = liftGroupFor(u);
+  form.constructionCost.value = u.constructionCost ?? '';
   form.bpm.value = u.bpm ?? '';
   form.active.checked = u.active !== false;
-  for (const c of RECURRING) form['ch_' + c].value = u.charges?.[c] ?? '';
+  for (const [c] of UNIT_OVERRIDES) form['ch_' + c].value = u.charges?.[c] ?? '';
   setMsg(form, '');
   setMsg($('#adj-form'), '');
   $('#adj-form').date.value = todayIST();
@@ -411,6 +434,92 @@ async function openUnit(id) {
       <td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No entries.</td></tr>';
   if (!$('#unit-dialog').open) $('#unit-dialog').showModal();
+}
+
+/* ---------------- lift expenses ---------------- */
+
+let liftList = [];
+const lastBilled = () => billing.lastBilledMonth || billing.lastRun?.month || '';
+const liftName = (l) => (l === 'CD' ? 'C & D wing lifts' : LIFT_GROUPS[l] || l);
+
+function liftPreview() {
+  const f = $('#lift-form');
+  const lifts = f.lift.value === 'CD' ? ['C', 'D'] : [f.lift.value];
+  const n = unitsServedBy(units, lifts).length;
+  const amount = round(f.amount.value);
+  const inst = Math.max(1, round(f.instalments.value) || 1);
+  if (!n) { $('#lift-preview').textContent = 'No units are set as served by this lift yet (Units → Open → Served by lift).'; return; }
+  if (!amount) { $('#lift-preview').textContent = `Shared equally by ${n} units.`; return; }
+  const share = Math.round(amount / n);
+  $('#lift-preview').innerHTML = `Shared equally by <strong>${n} units</strong>: ₹ ${fmt(share)} each${inst > 1 ? `, ₹ ${fmt(Math.floor(share / inst))} a month for ${inst} months` : ''}, starting with the ${monthLabel(f.startMonth.value || monthOf(todayIST()))} bill.`;
+}
+
+async function loadLift() {
+  const counts = Object.keys(LIFT_GROUPS).map((g) => `${LIFT_GROUPS[g]}: ${unitsServedBy(units, [g]).length} units`).join('; ');
+  $('#lift-served').innerHTML = `${counts}. Change which lift serves a unit under <a href="#units">Units → Open</a>.`;
+  const f = $('#lift-form');
+  const next = lastBilled() ? addMonths(lastBilled(), 1) : monthOf(todayIST());
+  const firstOpen = next > monthOf(todayIST()) ? next : monthOf(todayIST()); // earliest month not yet billed
+  if (!f.startMonth.value || f.startMonth.value <= lastBilled()) f.startMonth.value = firstOpen;
+  f.startMonth.min = next;
+  liftPreview();
+  liftList = await loadLiftExpenses(fb);
+  const lb = lastBilled();
+  $('#lift-rows').innerHTML = liftList.map((e) => {
+    const end = liftExpenseEndMonth(e);
+    const billed = e.startMonth > lb ? `From ${monthLabel(e.startMonth)}` : end <= lb ? 'Fully billed' : `Billing till ${monthLabel(end)}`;
+    return `<tr>
+      <td>${ddmmyyyy(e.date)}</td><td>${esc(liftName(e.lift))}</td><td>${esc(e.kind)}</td>
+      <td>${esc(e.description)}${e.vendor ? `<br><span class="muted">${esc(e.vendor)}${e.invoiceNo ? ', inv. ' + esc(e.invoiceNo) : ''}</span>` : ''}</td>
+      <td class="num">${fmt(e.amount)}</td><td class="num">${e.unitIds.length}</td><td class="num">${fmt(Math.round(e.amount / e.unitIds.length))}</td>
+      <td>${billed}${e.instalments > 1 ? ` <span class="muted">(${e.instalments} instalments)</span>` : ''}</td>
+      <td>${e.startMonth > lb ? `<button class="btn btn-small btn-danger" type="button" data-del-lift="${e.id}">Delete</button>` : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="9" class="empty">No lift expenses recorded yet.</td></tr>';
+  const fy = (iso) => (Number(iso.slice(5, 7)) >= 4 ? Number(iso.slice(0, 4)) : Number(iso.slice(0, 4)) - 1);
+  const thisFy = fy(todayIST());
+  const byLift = {};
+  liftList.filter((e) => fy(e.date) === thisFy).forEach((e) => { byLift[e.lift] = (byLift[e.lift] || 0) + e.amount; });
+  $('#lift-foot').innerHTML = liftList.length ? `<tr><td colspan="9">This financial year: ${Object.entries(byLift).map(([l, a]) => `${esc(liftName(l))} ₹ ${fmt(a)}`).join(', ') || 'none'}</td></tr>` : '';
+}
+
+function wireLift() {
+  const f = $('#lift-form');
+  f.kind.innerHTML = LIFT_KINDS.map((k) => `<option>${k}</option>`).join('');
+  f.date.value = todayIST();
+  ['input', 'change'].forEach((ev) => f.addEventListener(ev, liftPreview));
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(f).entries());
+    if (!data.date) return setMsg(f, 'Enter the date of the expense.');
+    if (!data.description.trim()) return setMsg(f, 'Describe the expense, e.g. the work done or the AMC period.');
+    if (!(round(data.amount) > 0)) return setMsg(f, 'Enter the amount.');
+    if (!data.startMonth) return setMsg(f, 'Choose the bill month to start recovering from.');
+    const lifts = data.lift === 'CD' ? ['C', 'D'] : [data.lift];
+    const n = unitsServedBy(units, lifts).length;
+    if (!confirm(`Share ₹ ${fmt(data.amount)} (${data.kind}, ${liftName(data.lift)}) equally among ${n} units from the ${monthLabel(data.startMonth)} bill?`)) return;
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        billing = await loadBilling(fb);
+        const r = await addLiftExpense(fb, data, units, lastBilled());
+        setMsg(f, `Saved. ${r.units} units will see their share on the ${monthLabel(data.startMonth)} bill.`, true);
+        f.reset();
+        f.date.value = todayIST();
+        f.instalments.value = 1;
+        await loadLift();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#lift-rows').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-del-lift]');
+    if (!b || !confirm('Delete this lift expense? It hasn’t been billed yet.')) return;
+    await busy(b, async () => {
+      try {
+        billing = await loadBilling(fb);
+        await deleteLiftExpense(fb, liftList.find((x) => x.id === b.dataset.delLift), lastBilled());
+        await loadLift();
+      } catch (err) { alert(errorText(err)); }
+    });
+  });
 }
 
 /* ---------------- members ---------------- */
@@ -536,18 +645,44 @@ const SOCIETY_FIELDS = [
   ['bank.name', 'Bank and branch'], ['bank.accountName', 'Account name'], ['bank.accountNo', 'Account number'], ['bank.ifsc', 'IFSC code']
 ];
 
+const CAT_COLS = [['maintenance', 'Maintenance / service'], ['water', 'Water'], ['liftYearly', 'Lift (per year)'],
+  ['parking', 'Parking'], ['education', 'Education fund'], ['federation', 'Federation fund'], ['election', 'Election fund']];
+let draftCats = [];
+
+function renderCategories() {
+  $('#rates-head').innerHTML = `<tr><th>Category</th>${CAT_COLS.map(([, l]) => `<th class="num">${l}</th>`).join('')}<th>Units</th></tr>`;
+  $('#rates-body').innerHTML = draftCats.map((c, i) => `<tr>
+    <td><input type="text" class="cat-name" name="c_${i}_name" value="${esc(c.name)}" aria-label="Category name"></td>
+    ${CAT_COLS.map(([k, l]) => `<td class="num"><input type="number" min="0" step="1" name="c_${i}_${k}" value="${c[k] ?? 0}" aria-label="${esc(c.name)} ${l}"></td>`).join('')}
+    <td class="num">${units.filter((u) => categoryIdFor(u) === c.id).length}</td></tr>`).join('');
+}
+
 async function loadSettings() {
   $('#import-box').hidden = units.length > 0;
-  $('#rates-head').innerHTML = `<tr><th>Premises type</th>${RECURRING.map((c) => `<th class="num">${LABEL[c]}</th>`).join('')}</tr>`;
-  $('#rates-body').innerHTML = PREMISES_TYPES.map((t, i) => `<tr><td>${esc(t)}</td>${RECURRING.map((c) =>
-    `<td class="num"><input type="number" min="0" step="1" name="r_${i}_${c}" value="${billing.rates?.[t]?.[c] ?? 0}" aria-label="${esc(t)} ${LABEL[c]}"></td>`).join('')}</tr>`).join('');
+  draftCats = structuredClone(billing.categories || []);
+  renderCategories();
   const bf = $('#billing-form');
+  bf.liftBillMonth.innerHTML = MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+  bf.liftBilling.value = billing.liftBilling || 'yearly';
+  bf.liftBillMonth.value = String(billing.liftBillMonth || 4);
+  bf.sinkingPct.value = billing.sinkingPct ?? 0.25;
+  bf.repairsPct.value = billing.repairsPct ?? 0.75;
+  bf.nonOccupancyPct.value = billing.nonOccupancyPct ?? 10;
   bf.interestRatePA.value = billing.interestRatePA ?? 0;
   bf.dueDays.value = billing.dueDays ?? 15;
+  bf.chargesBasis.value = site.chargesBasis ?? DEFAULT_SITE.chargesBasis;
   $('#society-fields').innerHTML = SOCIETY_FIELDS.map(([k, label]) => {
     const [a, b] = k.split('.');
     return `<label>${label}<input type="text" name="${k}" value="${esc(site[a]?.[b] || '')}"></label>`;
   }).join('');
+}
+
+function readCategories(fd) {
+  draftCats = draftCats.map((c, i) => {
+    const out = { ...c, name: String(fd.get(`c_${i}_name`) ?? c.name).trim() || c.name };
+    for (const [k] of CAT_COLS) out[k] = round(fd.get(`c_${i}_${k}`) ?? c[k]);
+    return out;
+  });
 }
 
 function wireSettings() {
@@ -571,18 +706,30 @@ function wireSettings() {
   });
 
   const bf = $('#billing-form');
+  $('#add-category').addEventListener('click', () => {
+    readCategories(new FormData(bf));
+    draftCats.push({ id: `CAT${Date.now().toString(36).toUpperCase()}`, name: 'New category', maintenance: 0, water: 0, liftYearly: 0, parking: 0, education: 10, federation: 0, election: 0 });
+    renderCategories();
+  });
   bf.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(bf);
-    const rates = {};
-    PREMISES_TYPES.forEach((t, i) => { rates[t] = {}; RECURRING.forEach((c) => { rates[t][c] = round(fd.get(`r_${i}_${c}`)); }); });
-    const interestRatePA = Number(fd.get('interestRatePA')) || 0;
-    const dueDays = round(fd.get('dueDays')) || 15;
-    await busy($('button', bf), async () => {
+    readCategories(fd);
+    const num = (k, d) => (fd.get(k) === '' ? d : Number(fd.get(k)));
+    const interestRatePA = num('interestRatePA', 0);
+    if (interestRatePA > MAX_INTEREST_PA) return setMsg(bf, `Penal interest can’t be more than ${MAX_INTEREST_PA}% simple per year.`);
+    if (num('nonOccupancyPct', 10) > 10) return setMsg(bf, 'Non-occupancy charges can’t be more than 10% of service charges.');
+    const patch = {
+      categories: draftCats, interestRatePA, dueDays: round(num('dueDays', 15)) || 15,
+      liftBilling: fd.get('liftBilling'), liftBillMonth: Number(fd.get('liftBillMonth')),
+      sinkingPct: num('sinkingPct', 0.25), repairsPct: num('repairsPct', 0.75), nonOccupancyPct: num('nonOccupancyPct', 10)
+    };
+    await busy($('button[type=submit]', bf), async () => {
       try {
-        await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'billing'), { rates, interestRatePA, dueDays }, { merge: true });
-        await saveSite({ interestRatePA }); // printed on bills for members too
+        await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'billing'), patch, { merge: true });
+        await saveSite({ interestRatePA, chargesBasis: String(fd.get('chargesBasis')).trim() }); // printed on bills for members too
         billing = await loadBilling(fb);
+        renderCategories();
         setMsg(bf, 'Saved. New bills use these charges.', true);
       } catch (err) { setMsg(bf, esc(errorText(err))); }
     });

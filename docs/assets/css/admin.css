@@ -38,3 +38,7 @@ textarea { font: inherit; padding: .6rem .75rem; border: 1px solid var(--line); 
 #unit-charges label { min-width: 0; align-content: end; }
 #unit-charges input { width: 100%; min-width: 0; }
 dialog h3 { margin-top: 1.5rem; }
+.rates input.cat-name { width: 22rem; text-align: left; }
+.small { font-size: .88rem; margin: -.5rem 0 0; }
+#billing-form h3 { margin: 1.25rem 0 0; }
+#billing-form > label.wide-label { max-width: 820px; }

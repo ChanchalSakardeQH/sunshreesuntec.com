@@ -8,7 +8,7 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
-  computeBill, billNumber, billId, monthBounds, monthLabel, todayIST, addDays, round
+  computeBill, billNumber, billId, monthBounds, monthLabel, todayIST, addDays, round, liftExpenseEndMonth
 } from '../docs/assets/js/billing-core.js';
 import { DEFAULT_BILLING } from '../docs/assets/js/defaults.js';
 
@@ -32,6 +32,11 @@ const bounds = monthBounds(monthKey);
 const unitsSnap = await db.collection('units').orderBy('order').get();
 if (unitsSnap.empty) { console.error('No units found. Import the opening balances from Admin → Settings first.'); process.exit(1); }
 
+// Lift AMC / repair expenses with an instalment due this month, shared by the units served by that lift.
+const liftSnap = await db.collection('liftExpenses').where('startMonth', '<=', monthKey).get();
+const liftExpenses = liftSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  .filter((e) => e.status !== 'deleted' && liftExpenseEndMonth(e) >= monthKey);
+
 let made = 0, skipped = 0;
 const failed = [];
 
@@ -46,12 +51,13 @@ for (const doc of unitsSnap.docs) {
       const unit = { id: doc.id, ...unitSnap.data() };
       if (unit.active === false) return false;
 
-      const calc = computeBill({ unit, settings });
+      const calc = computeBill({ unit, settings, monthKey, liftExpenses });
       const bill = {
         billNo: billNumber(unit.unit, billDate), unitId: unit.id, unit: unit.unit, block: unit.block,
         name: unit.name || '', type: unit.type, status: unit.status || '', month: monthKey, billDate, dueDate,
         periodFrom: bounds.from, periodTo: bounds.to, arrears: calc.arrears, lines: calc.lines,
         current: calc.current, total: calc.total, unverified: Boolean(unit.unverified),
+        liftNotes: calc.liftNotes, liftExpenseIds: calc.liftNotes.map((n) => n.id),
         source: 'scheduler', createdAt: FieldValue.serverTimestamp(), createdBy: 'github-actions'
       };
       const newBalance = calc.arrears + calc.current;
@@ -61,7 +67,10 @@ for (const doc of unitsSnap.docs) {
         debit: calc.current, credit: 0, kind: 'bill', ref: billRef.id,
         createdAt: FieldValue.serverTimestamp(), createdBy: 'github-actions'
       });
-      tx.update(unitRef, { balance: newBalance, lastBillId: billRef.id, updatedAt: FieldValue.serverTimestamp() });
+      tx.update(unitRef, {
+        balance: newBalance, interestDue: Math.max(0, round(unit.interestDue)) + calc.interest,
+        lastBillId: billRef.id, updatedAt: FieldValue.serverTimestamp()
+      });
       if (pubSnap.exists) {
         const units = pubSnap.data().units.map((r) => (r.id === unit.id ? { ...r, owner: round(newBalance) } : r));
         tx.update(pubRef, { units, asOn: todayIST(), updatedAt: FieldValue.serverTimestamp() });
@@ -74,7 +83,10 @@ for (const doc of unitsSnap.docs) {
   }
 }
 
-await db.doc('settings/billing').set({ lastRun: { month: monthKey, at: FieldValue.serverTimestamp(), count: made, by: 'github-actions' } }, { merge: true });
+await db.doc('settings/billing').set({
+  lastRun: { month: monthKey, at: FieldValue.serverTimestamp(), count: made, by: 'github-actions' },
+  ...(made && monthKey > (settings.lastBilledMonth || '') ? { lastBilledMonth: monthKey } : {})
+}, { merge: true });
 
 console.log(`${monthLabel(monthKey)}: ${made} bills created, ${skipped} already existed or not billed.`);
 if (failed.length) {

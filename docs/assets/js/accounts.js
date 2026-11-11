@@ -2,7 +2,8 @@
 // Firestore transaction that updates the unit's running balance and its ledger together.
 
 import {
-  computeBill, billNumber, billId, monthBounds, financialYear, receiptNumber, round, monthLabel, todayIST
+  computeBill, billNumber, billId, monthBounds, financialYear, receiptNumber, round, monthLabel, todayIST,
+  categoryIdFor, liftGroupFor, liftExpenseEndMonth
 } from './billing-core.js';
 import { DEFAULT_BILLING, DEFAULT_SITE, OCTOBER_2026_BILL } from './defaults.js';
 
@@ -68,7 +69,7 @@ function patchPublic(tx, F, pubRef, pubSnap, unit) {
  */
 export async function generateBill(fb, unitId, opts) {
   const { F, db, auth } = fb;
-  const { monthKey, billDate, dueDate, extras = [], settings, periodFrom, periodTo, source = 'admin' } = opts;
+  const { monthKey, billDate, dueDate, extras = [], liftExpenses = [], settings, periodFrom, periodTo, source = 'admin' } = opts;
   const unitRef = F.doc(db, 'units', unitId);
   const billRef = F.doc(db, 'bills', billId(unitId, monthKey));
   const pubRef = F.doc(db, 'public', 'dues');
@@ -80,7 +81,7 @@ export async function generateBill(fb, unitId, opts) {
     const unit = { id: unitId, ...unitSnap.data() };
     if (unit.active === false) return null;
 
-    const calc = computeBill({ unit, settings, extras });
+    const calc = computeBill({ unit, settings, monthKey, extras, liftExpenses });
     const bounds = monthBounds(monthKey);
     const bill = {
       billNo: billNumber(unit.unit, billDate),
@@ -89,6 +90,7 @@ export async function generateBill(fb, unitId, opts) {
       periodFrom: periodFrom || bounds.from, periodTo: periodTo || bounds.to,
       arrears: calc.arrears, lines: calc.lines, current: calc.current, total: calc.total,
       unverified: Boolean(unit.unverified),
+      liftNotes: calc.liftNotes, liftExpenseIds: calc.liftNotes.map((n) => n.id),
       source, createdAt: F.serverTimestamp(), createdBy: auth.currentUser?.uid || source
     };
     const newBalance = calc.arrears + calc.current;
@@ -98,7 +100,10 @@ export async function generateBill(fb, unitId, opts) {
       debit: calc.current, credit: 0, kind: 'bill', ref: billRef.id,
       createdAt: F.serverTimestamp(), createdBy: bill.createdBy
     });
-    tx.update(unitRef, { balance: newBalance, lastBillId: billRef.id, updatedAt: F.serverTimestamp() });
+    tx.update(unitRef, {
+      balance: newBalance, interestDue: Math.max(0, round(unit.interestDue)) + calc.interest,
+      lastBillId: billRef.id, updatedAt: F.serverTimestamp()
+    });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: newBalance });
     return bill;
   });
@@ -106,22 +111,81 @@ export async function generateBill(fb, unitId, opts) {
 
 export async function generateMonth(fb, opts, onProgress = () => {}) {
   const units = (await loadUnits(fb)).filter((u) => u.active !== false);
+  const liftExpenses = await loadLiftExpensesFor(fb, opts.monthKey);
   const made = [], skipped = [], failed = [];
   for (const [i, u] of units.entries()) {
     try {
       const extras = opts.extrasBlock && opts.extrasBlock !== 'all' && u.block !== opts.extrasBlock ? [] : opts.extras;
-      const b = await generateBill(fb, u.id, { ...opts, extras });
+      const b = await generateBill(fb, u.id, { ...opts, extras, liftExpenses });
       (b ? made : skipped).push(u.unit);
     } catch (err) {
       failed.push({ unit: u.unit, error: err.message || String(err) });
     }
     onProgress(i + 1, units.length);
   }
-  if (made.length) {
-    await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'billing'),
-      { lastRun: { month: opts.monthKey, at: fb.F.serverTimestamp(), count: made.length } }, { merge: true });
-  }
+  if (made.length) await markBilled(fb, opts.monthKey, made.length);
   return { made, skipped, failed };
+}
+
+/** Remembers the latest month that has bills, so lift expenses can't be added to a month already billed. */
+async function markBilled(fb, monthKey, count) {
+  const ref = fb.F.doc(fb.db, 'settings', 'billing');
+  const cur = await fb.F.getDoc(ref);
+  const last = cur.exists() ? cur.data().lastBilledMonth || '' : '';
+  await fb.F.setDoc(ref, {
+    lastRun: { month: monthKey, at: fb.F.serverTimestamp(), count },
+    ...(monthKey > last ? { lastBilledMonth: monthKey } : {})
+  }, { merge: true });
+}
+
+/* ---------- lift expenses (AMC, repairs, wear & tear) ---------- */
+
+export async function loadLiftExpenses({ F, db }) {
+  const snap = await F.getDocs(F.collection(db, 'liftExpenses'));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** Lift expenses with an instalment falling in this month. */
+export async function loadLiftExpensesFor({ F, db }, monthKey) {
+  const snap = await F.getDocs(F.query(F.collection(db, 'liftExpenses'), F.where('startMonth', '<=', monthKey)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .filter((e) => e.status !== 'deleted' && liftExpenseEndMonth(e) >= monthKey);
+}
+
+/** Units that share a lift expense: active units served by the chosen lift(s). */
+export function unitsServedBy(units, lifts) {
+  return units.filter((u) => u.active !== false && lifts.includes(liftGroupFor(u)));
+}
+
+/**
+ * Records a lift expense to be shared equally by the units served by that lift, starting with the bills
+ * of startMonth. That month must not have been billed yet, so every unit receives its share.
+ */
+export async function addLiftExpense(fb, e, units, lastBilledMonth) {
+  const { F, db, auth } = fb;
+  const amount = round(e.amount);
+  if (!(amount > 0)) throw new Error('Enter the expense amount.');
+  if (lastBilledMonth && e.startMonth <= lastBilledMonth) {
+    throw new Error(`Bills up to ${monthLabel(lastBilledMonth)} are already generated. Recover this expense from a later month.`);
+  }
+  const lifts = e.lift === 'CD' ? ['C', 'D'] : [e.lift];
+  const served = unitsServedBy(units, lifts);
+  if (!served.length) throw new Error('No units are marked as served by this lift. Set the lift on each unit under Units → Open.');
+  const ref = await F.addDoc(F.collection(db, 'liftExpenses'), {
+    date: e.date, lift: e.lift, kind: e.kind, description: e.description || '', vendor: e.vendor || '',
+    invoiceNo: e.invoiceNo || '', paidRef: e.paidRef || '', amount,
+    startMonth: e.startMonth, instalments: Math.min(24, Math.max(1, round(e.instalments) || 1)),
+    unitIds: served.map((u) => u.id), status: 'active',
+    createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
+  });
+  return { id: ref.id, units: served.length };
+}
+
+export async function deleteLiftExpense(fb, exp, lastBilledMonth) {
+  if (lastBilledMonth && exp.startMonth <= lastBilledMonth) {
+    throw new Error('This expense is already on generated bills. Correct individual units under Units → Add a correction instead.');
+  }
+  await fb.F.deleteDoc(fb.F.doc(fb.db, 'liftExpenses', exp.id));
 }
 
 /* ---------- payments and receipts ---------- */
@@ -144,11 +208,13 @@ export async function recordPayment(fb, p) {
     const receiptNo = receiptNumber(fy, seq);
     const before = round(unit.balance);
     const after = before - amount;
+    // A payment settles unpaid penal interest first, then the principal dues.
+    const interestCleared = Math.min(amount, Math.max(0, round(unit.interestDue)));
 
     const payment = {
       receiptNo, fy, unitId: p.unitId, unit: unit.unit, block: unit.block, name: unit.name || '',
       date: p.date, amount, mode: p.mode, reference: p.reference || '', bank: p.bank || '', note: p.note || '',
-      billNo: p.billNo || '', balanceBefore: before, balanceAfter: after, status: 'ok',
+      billNo: p.billNo || '', balanceBefore: before, balanceAfter: after, interestCleared, status: 'ok',
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     };
     tx.set(counterRef, { next: seq + 1 });
@@ -158,7 +224,7 @@ export async function recordPayment(fb, p) {
       receipt: receiptNo, debit: 0, credit: amount, kind: 'payment', ref: payRef.id,
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     });
-    tx.update(unitRef, { balance: after, updatedAt: F.serverTimestamp() });
+    tx.update(unitRef, { balance: after, interestDue: Math.max(0, round(unit.interestDue)) - interestCleared, updatedAt: F.serverTimestamp() });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after });
     return { id: payRef.id, ...payment };
   });
@@ -184,7 +250,7 @@ export async function cancelPayment(fb, paymentId, reason) {
       receipt: pay.receiptNo, debit: pay.amount, credit: 0, kind: 'reversal', ref: paymentId,
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     });
-    tx.update(unitRef, { balance: after, updatedAt: F.serverTimestamp() });
+    tx.update(unitRef, { balance: after, interestDue: Math.max(0, round(unit.interestDue)) + (pay.interestCleared || 0), updatedAt: F.serverTimestamp() });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after });
   });
 }
@@ -236,7 +302,8 @@ export async function importOpening(fb, dues, { includeOctober = true } = {}, on
     const opening = u.owner ?? 0;
     batch.set(F.doc(db, 'units', u.id), {
       unit: u.unit, block: u.block, name: u.name || '', type: u.type, status: '',
-      balance: opening, bpm: u.bpm ?? null, unverified: u.owner === null || Boolean(u.verify),
+      balance: opening, interestDue: 0, bpm: u.bpm ?? null, unverified: u.owner === null || Boolean(u.verify),
+      category: categoryIdFor(u), liftGroup: liftGroupFor(u), constructionCost: null,
       charges: {}, active: true, order: i, updatedAt: F.serverTimestamp()
     });
     batch.set(F.doc(F.collection(db, 'units', u.id, 'ledger')), {
@@ -261,9 +328,10 @@ export async function importOpening(fb, dues, { includeOctober = true } = {}, on
       // October bill carries only the one-off Rs 6,500, not the monthly rates.
       await generateBill(fb, u.id, {
         monthKey: o.month, billDate: o.billDate, dueDate: '', extras: o.extras,
-        settings: { ...settings, rates: {}, interestRatePA: 0 }, periodFrom: o.periodFrom, periodTo: o.periodTo, source: 'import'
+        settings: { ...settings, categories: [], interestRatePA: 0, sinkingPct: 0, repairsPct: 0, nonOccupancyPct: 0 }, periodFrom: o.periodFrom, periodTo: o.periodTo, source: 'import'
       });
       onProgress(dues.units.length + i + 1, dues.units.length * 2);
     }
+    await markBilled(fb, o.month, dues.units.length);
   }
 }

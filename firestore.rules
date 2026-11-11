@@ -6,6 +6,7 @@ rules_version = '2';
 //   users/{uid}                     member access requests: pending → approved / rejected
 //   units/{unitId} (+ /ledger)      unit accounts: committee, or the approved member of that unit
 //   bills/{id}, payments/{id}       bills and receipts: committee, or the approved member of that unit
+//   liftExpenses/*                  lift AMC / repair expenses shared by units (committee only; shown on bills)
 //   settings/*, counters/*          committee only
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -71,6 +72,10 @@ service cloud.firestore {
       // Receipts are never deleted; a wrong one is marked cancelled.
       allow create, update: if isAdmin();
       allow delete: if false;
+    }
+
+    match /liftExpenses/{expenseId} {
+      allow read, write: if isAdmin();
     }
 
     match /settings/{docId} {
