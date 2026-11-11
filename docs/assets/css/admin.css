@@ -1,0 +1,40 @@
+/* Admin (accounts) pages – extends style.css */
+body.admin .site-nav { align-items: center; }
+body.admin main { padding-top: 2rem; }
+.mt { margin-top: 2rem; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+@media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+.tab > h1 { margin-bottom: .75rem; }
+.tab section + section { margin-top: 0; }
+.wide-form { max-width: 820px; margin-top: 2.5rem; }
+.wide-form .table-scroll { margin-bottom: .5rem; }
+.rates input { width: 6.5rem; font: inherit; padding: .35rem .5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); text-align: right; }
+.rates th, .rates td { white-space: nowrap; }
+.pay-info { margin: 0; min-height: 1.4em; font-size: .95rem; }
+.pay-info strong { color: var(--ink); }
+.status-pill { display: inline-block; font-size: .78rem; font-weight: 600; padding: .05rem .45rem; border-radius: 4px; background: var(--paper); color: var(--muted); }
+.status-pill.cancelled { background: #FBE4E4; color: #9A2B2B; }
+dialog { width: min(920px, 100% - 1.5rem); max-height: 92vh; border: 1px solid var(--line); border-radius: 8px; padding: 1.5rem; background: var(--surface); color: var(--ink); }
+dialog::backdrop { background: rgba(10, 20, 30, .45); }
+dialog .form { max-width: none; }
+fieldset.charges { border: 1px solid var(--line); border-radius: var(--radius); padding: .75rem 1rem 1rem; }
+fieldset.charges legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; }
+#unit-charges { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; }
+#unit-charges label { font-weight: 500; font-size: .88rem; }
+.notice-admin { display: flex; justify-content: space-between; gap: 1rem; padding: .75rem 0; border-bottom: 1px solid var(--line); }
+.notice-admin p { margin: 0; }
+textarea { font: inherit; padding: .6rem .75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+.committee-row { display: grid; grid-template-columns: 8rem 1fr 1fr; gap: .75rem; align-items: end; }
+@media (max-width: 560px) { .committee-row { grid-template-columns: 1fr; } }
+.progress-ok { color: var(--credit); font-weight: 600; }
+.entry-form label { min-width: 0; }
+.entry-form input, .entry-form select { width: 100%; min-width: 0; }
+.entry-form #pay-info { grid-column: 1 / -1; }
+.inline-label input { font: inherit; font-weight: 400; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+.receipt.sheet { min-height: 0; }
+#billing-form { max-width: none; }
+#billing-form > label { max-width: 460px; }
+#society-fields, #committee-fields { display: grid; gap: 1rem; }
+#unit-charges label { min-width: 0; align-content: end; }
+#unit-charges input { width: 100%; min-width: 0; }
+dialog h3 { margin-top: 1.5rem; }

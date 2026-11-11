@@ -1,0 +1,28 @@
+name: Monthly maintenance bills
+
+on:
+  schedule:
+    - cron: '30 0 1 * *'   # 00:30 UTC = 06:00 IST on the 1st of every month
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to bill (YYYY-MM). Leave blank for the current month.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  bills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/generate-bills.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          BILL_MONTH: ${{ github.event.inputs.month }}

@@ -281,3 +281,5 @@ tfoot td { font-weight: 700; border-bottom: 0; background: var(--paper); }
 }
 
 main { min-height: 65vh; }
+.mt-sm { margin-top: 1.75rem; }
+#member-account h3 { margin-top: 1.75rem; }

@@ -32,7 +32,7 @@
         <a href="#committee">Committee</a>
         <a href="#contact">Contact</a>
         <a href="#member" class="nav-member">Member login</a>
-        <a href="#admin" class="nav-admin" hidden>Admin</a>
+        <a href="admin.html" class="nav-admin" hidden>Accounts</a>
       </nav>
     </div>
   </header>
@@ -105,18 +105,18 @@
         <div class="callout">
           <h2>Think a figure is wrong?</h2>
           <p>Give the Society office a written note with copies of your maintenance receipts. The accounts will be checked and corrected where the receipts show a payment that isn’t reflected here.</p>
-          <p>Registered members can sign in to see the full account for their own unit. <a href="#member">Request member access</a></p>
+          <p>Registered members can sign in to download their bills and receipts and see every entry in their account. <a href="#member">Request member access</a></p>
         </div>
 
         <details class="glossary">
           <summary>What the columns mean</summary>
           <dl>
             <dt>Member outstanding</dt>
-            <dd>The closing balance against the unit holder in the Society’s accounts. “Cr” means the Society owes the member (an advance or excess payment).</dd>
+            <dd>The balance against the unit holder in the Society’s accounts today, including the latest bill and every payment recorded. “Cr” means the member has paid in advance.</dd>
             <dt>Builder pending maintenance (BPM)</dt>
             <dd>Maintenance from the builder period, kept separate from the member’s own balance.</dd>
-            <dt>Not listed</dt>
-            <dd>No individual balance was found for this unit in the statement. It does not mean the unit has no dues.</dd>
+            <dt>Under verification</dt>
+            <dd>The opening balance for this unit is still being checked against the Society’s records.</dd>
           </dl>
         </details>
       </div>
@@ -135,11 +135,7 @@
       <div class="wrap narrow page">
         <h1 id="committee-title">Managing committee</h1>
         <p>Contact the committee for maintenance, membership transfer, NOCs and repairs.</p>
-        <ul class="people">
-          <li><span class="role">Chairman</span><span class="who">Name to be added</span></li>
-          <li><span class="role">Secretary</span><span class="who">Name to be added</span></li>
-          <li><span class="role">Treasurer</span><span class="who">Name to be added</span></li>
-        </ul>
+        <ul class="people" id="committee-list"></ul>
       </div>
     </section>
 
@@ -147,12 +143,8 @@
     <section class="tab" data-tab="contact" hidden aria-labelledby="contact-title">
       <div class="wrap narrow page">
         <h1 id="contact-title">Contact</h1>
-        <dl class="facts">
-          <div><dt>Society office</dt><dd>Sunshree Suntec CHS Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048</dd></div>
-          <div><dt>Email</dt><dd><a href="mailto:office@sunshreesuntec.com">office@sunshreesuntec.com</a></dd></div>
-          <div><dt>Office hours</dt><dd>To be added</dd></div>
-        </dl>
-        <p>For a dispute about your maintenance balance, bring copies of your payment receipts to the office or email them with your unit number in the subject line.</p>
+        <dl class="facts" id="contact-facts"></dl>
+        <p>For a dispute about your maintenance balance, bring copies of your payment receipts to the office or email them with your unit number in the subject line. If you pay by NEFT, email the transaction details with your bill number.</p>
       </div>
     </section>
 
@@ -210,7 +202,21 @@
             <button class="btn" type="button" data-signout>Sign out</button>
           </div>
           <dl class="dues-summary" id="account-summary"></dl>
-          <h3>Account entries</h3>
+          <h3>Bills</h3>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col">Bill no.</th><th scope="col">Month</th><th scope="col">Due date</th><th scope="col" class="num">Total (₹)</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
+              <tbody id="account-bills"></tbody>
+            </table>
+          </div>
+          <h3 class="mt-sm">Receipts</h3>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col">Receipt no.</th><th scope="col">Date</th><th scope="col">Mode</th><th scope="col" class="num">Amount (₹)</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
+              <tbody id="account-receipts"></tbody>
+            </table>
+          </div>
+          <h3 class="mt-sm">Account entries</h3>
           <div class="table-scroll">
             <table class="ledger">
               <thead><tr><th scope="col">Date</th><th scope="col">Particulars</th><th scope="col">Receipt no.</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th><th scope="col" class="num">Balance</th></tr></thead>
@@ -221,61 +227,6 @@
       </div>
     </section>
 
-    <!-- ADMIN -->
-    <section class="tab" data-tab="admin" hidden aria-labelledby="admin-title">
-      <div class="wrap page">
-        <div class="account-head">
-          <h1 id="admin-title">Admin</h1>
-          <button class="btn" type="button" data-signout>Sign out</button>
-        </div>
-        <p id="admin-denied" class="callout" hidden>Sign in with a committee account to use this page.</p>
-
-        <div id="admin-panel" hidden>
-          <section aria-labelledby="pending-title">
-            <h2 id="pending-title">Access requests</h2>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th scope="col">Unit</th><th scope="col">Name</th><th scope="col">Mobile</th><th scope="col">Email</th><th scope="col">Requested</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
-                <tbody id="pending-rows"></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section aria-labelledby="approved-title">
-            <h2 id="approved-title">Approved members</h2>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th scope="col">Unit</th><th scope="col">Name</th><th scope="col">Mobile</th><th scope="col">Email</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
-                <tbody id="approved-rows"></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section aria-labelledby="ledger-title">
-            <h2 id="ledger-title">Unit account entries</h2>
-            <p class="muted">Entries added here are visible only to the approved member of that unit and to committee accounts.</p>
-            <label class="inline-label">Unit
-              <select id="admin-unit"><option value="">Choose a unit</option></select>
-            </label>
-            <form id="entry-form" class="form entry-form" hidden novalidate>
-              <label>Date<input type="date" name="date" required></label>
-              <label class="wide">Particulars<input type="text" name="particulars" placeholder="e.g. Maintenance Apr–Jun 2026" required></label>
-              <label>Receipt no.<input type="text" name="receipt"></label>
-              <label>Debit (₹)<input type="number" name="debit" min="0" step="1" inputmode="numeric"></label>
-              <label>Credit (₹)<input type="number" name="credit" min="0" step="1" inputmode="numeric"></label>
-              <p class="form-msg" role="alert"></p>
-              <div class="form-actions"><button class="btn btn-primary" type="submit">Add entry</button></div>
-            </form>
-            <div class="table-scroll">
-              <table class="ledger">
-                <thead><tr><th scope="col">Date</th><th scope="col">Particulars</th><th scope="col">Receipt no.</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th><th scope="col" class="num">Balance</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
-                <tbody id="admin-ledger"></tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="site-footer">

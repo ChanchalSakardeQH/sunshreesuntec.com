@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bill / Receipt – Sunshree Suntec CHS</title>
+  <link rel="icon" href="assets/img/seal.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/print.css">
+</head>
+<body>
+  <div class="toolbar" id="toolbar" hidden>
+    <a href="javascript:history.back()" class="tb-btn">Back</a>
+    <span id="tb-title"></span>
+    <span class="tb-spacer"></span>
+    <a class="tb-btn" id="tb-share" hidden target="_blank" rel="noopener">Share on WhatsApp</a>
+    <button class="tb-btn tb-primary" type="button" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+  <p class="msg" id="msg">Loading…</p>
+  <div id="docs"></div>
+  <script type="module" src="assets/js/print.js"></script>
+</body>
+</html>

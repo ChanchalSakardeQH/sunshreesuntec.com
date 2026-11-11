@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Accounts – Sunshree Suntec CHS</title>
+  <link rel="icon" href="assets/img/seal.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body class="admin">
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/img/seal.svg" alt="" width="40" height="40">
+        <span class="brand-text"><strong>Sunshree Suntec</strong><span>Society accounts</span></span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="admin-nav">Menu</button>
+      <nav id="admin-nav" class="site-nav" aria-label="Accounts" hidden>
+        <a href="#dashboard">Dashboard</a>
+        <a href="#bills">Bills</a>
+        <a href="#payments">Payments</a>
+        <a href="#units">Units</a>
+        <a href="#members">Members</a>
+        <a href="#website">Website</a>
+        <a href="#settings">Settings</a>
+        <button class="btn btn-small" type="button" id="signout">Sign out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap page">
+    <p id="gate" class="lede">Loading…</p>
+
+    <form id="admin-login" class="form" hidden novalidate>
+      <h1>Committee sign in</h1>
+      <label>Email<input type="email" name="email" autocomplete="email" required></label>
+      <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+      <p class="form-msg" role="alert"></p>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Sign in</button></div>
+    </form>
+
+    <!-- DASHBOARD -->
+    <section class="tab" data-tab="dashboard" hidden>
+      <h1>Dashboard</h1>
+      <p class="muted" id="dash-asof"></p>
+      <dl class="dues-summary" id="dash-cards"></dl>
+      <div class="two-col">
+        <section>
+          <h2>Largest outstanding</h2>
+          <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Name</th><th class="num">Balance (₹)</th></tr></thead><tbody id="dash-top"></tbody></table></div>
+        </section>
+        <section>
+          <h2>Recent receipts</h2>
+          <div class="table-scroll"><table><thead><tr><th>Date</th><th>Receipt</th><th>Unit</th><th class="num">Amount (₹)</th></tr></thead><tbody id="dash-recent"></tbody></table></div>
+        </section>
+      </div>
+      <div class="callout" id="dash-setup" hidden></div>
+    </section>
+
+    <!-- BILLS -->
+    <section class="tab" data-tab="bills" hidden>
+      <h1>Bills</h1>
+      <p class="muted">Bills are created once per unit per month. Running it again for the same month only adds bills for units that don’t have one yet. On the 1st of every month GitHub creates them automatically.</p>
+      <form id="gen-form" class="form entry-form" novalidate>
+        <label>Month<input type="month" name="month" required></label>
+        <label>Bill date<input type="date" name="billDate" required></label>
+        <label>Due date<input type="date" name="dueDate" required></label>
+        <label>Extra one-off charge
+          <select name="extraCode"><option value="">None</option></select>
+        </label>
+        <label>Extra amount per unit (₹)<input type="number" name="extraAmount" min="0" step="1" inputmode="numeric"></label>
+        <label>Apply extra to
+          <select name="extraBlock"><option value="all">All units</option></select>
+        </label>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Generate bills</button>
+          <span id="gen-progress" class="muted"></span>
+        </div>
+      </form>
+
+      <div class="account-head">
+        <h2 id="bills-title">Bills</h2>
+        <div class="form-actions">
+          <label class="inline-label">Show month<input type="month" id="bills-month"></label>
+          <a class="btn" id="print-all" target="_blank" rel="noopener">Print all bills</a>
+        </div>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Bill no.</th><th>Unit</th><th>Name</th><th class="num">Arrears</th><th class="num">This month</th><th class="num">Total</th><th></th></tr></thead>
+        <tbody id="bills-rows"></tbody>
+        <tfoot id="bills-foot"></tfoot>
+      </table></div>
+    </section>
+
+    <!-- PAYMENTS -->
+    <section class="tab" data-tab="payments" hidden>
+      <h1>Payments and receipts</h1>
+      <form id="pay-form" class="form entry-form" novalidate>
+        <label class="wide">Unit<select name="unitId" id="pay-unit" required><option value="">Choose unit</option></select></label>
+        <p class="wide pay-info muted" id="pay-info"></p>
+        <label>Payment date<input type="date" name="date" required></label>
+        <label>Amount (₹)<input type="number" name="amount" min="1" step="1" inputmode="numeric" required></label>
+        <label>Mode<select name="mode" id="pay-mode"></select></label>
+        <label>UTR / cheque / ref. no.<input type="text" name="reference"></label>
+        <label>Bank (for cheques)<input type="text" name="bank"></label>
+        <label>Against bill no.<input type="text" name="billNo" id="pay-bill"></label>
+        <label class="wide">Note<input type="text" name="note" placeholder="Optional"></label>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save payment and create receipt</button></div>
+      </form>
+
+      <div class="account-head">
+        <h2>Receipt register</h2>
+        <div class="form-actions">
+          <label class="inline-label">Month<input type="month" id="pay-month"></label>
+          <button class="btn" type="button" id="pay-csv">Download CSV</button>
+        </div>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Date</th><th>Receipt no.</th><th>Unit</th><th>Name</th><th>Mode / ref.</th><th class="num">Amount (₹)</th><th></th></tr></thead>
+        <tbody id="pay-rows"></tbody>
+        <tfoot id="pay-foot"></tfoot>
+      </table></div>
+    </section>
+
+    <!-- UNITS -->
+    <section class="tab" data-tab="units" hidden>
+      <h1>Units</h1>
+      <label class="search"><span class="visually-hidden">Search units</span><input type="search" id="units-search" placeholder="Search name or unit"></label>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Unit</th><th>Name</th><th>Premises</th><th>Status</th><th class="num">Balance (₹)</th><th class="num">BPM (₹)</th><th></th></tr></thead>
+        <tbody id="units-rows"></tbody>
+      </table></div>
+
+      <dialog id="unit-dialog">
+        <form id="unit-form" class="form" method="dialog" novalidate>
+          <h2 id="unit-title">Unit</h2>
+          <label>Member / owner name<input type="text" name="name"></label>
+          <label>Premises type<select name="type"></select></label>
+          <label>Status<select name="status"><option value="">Not set</option></select></label>
+          <label>Builder pending maintenance (₹)<input type="number" name="bpm" min="0" step="1"></label>
+          <fieldset class="charges">
+            <legend>Monthly charges for this unit only (leave blank to use the rate for its premises type)</legend>
+            <div id="unit-charges"></div>
+          </fieldset>
+          <label class="check"><input type="checkbox" name="active"> Bill this unit every month</label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" value="save">Save unit</button>
+            <button class="btn" type="button" data-close>Close</button>
+          </div>
+        </form>
+        <h3>Account</h3>
+        <div class="table-scroll"><table class="ledger">
+          <thead><tr><th>Date</th><th>Particulars</th><th>Receipt</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead>
+          <tbody id="unit-ledger"></tbody>
+        </table></div>
+        <form id="adj-form" class="form entry-form" novalidate>
+          <h3 class="wide">Add a correction</h3>
+          <label>Date<input type="date" name="date" required></label>
+          <label class="wide">Particulars<input type="text" name="particulars" placeholder="e.g. Opening balance verified from receipts" required></label>
+          <label>Debit (₹, adds to dues)<input type="number" name="debit" min="0" step="1"></label>
+          <label>Credit (₹, reduces dues)<input type="number" name="credit" min="0" step="1"></label>
+          <label class="check wide"><input type="checkbox" name="clearUnverified"> Opening balance is now verified</label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn" type="submit">Add correction</button></div>
+        </form>
+      </dialog>
+    </section>
+
+    <!-- MEMBERS -->
+    <section class="tab" data-tab="members" hidden>
+      <h1>Member access</h1>
+      <h2>Requests waiting</h2>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Unit</th><th>Name</th><th>Mobile</th><th>Email</th><th>Requested</th><th></th></tr></thead>
+        <tbody id="pending-rows"></tbody>
+      </table></div>
+      <h2 class="mt">Approved members</h2>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Unit</th><th>Name</th><th>Mobile</th><th>Email</th><th></th></tr></thead>
+        <tbody id="approved-rows"></tbody>
+      </table></div>
+    </section>
+
+    <!-- WEBSITE -->
+    <section class="tab" data-tab="website" hidden>
+      <h1>Website</h1>
+      <p class="muted">Maintenance dues on the website update by themselves whenever a bill, payment or correction is saved. Use this page for notices and contact details.</p>
+
+      <h2>Notices</h2>
+      <form id="notice-form" class="form" novalidate>
+        <label>Date<input type="date" name="date" required></label>
+        <label>Title<input type="text" name="title" required></label>
+        <label>Short summary (shown on the home page)<input type="text" name="summary" required></label>
+        <label>Full text (blank line between paragraphs)<textarea name="body" rows="6" required></textarea></label>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Publish notice</button></div>
+      </form>
+      <div id="notice-admin-list" class="mt"></div>
+
+      <h2 class="mt">Committee and contact</h2>
+      <form id="contact-form" class="form" novalidate>
+        <div id="committee-fields"></div>
+        <label>Society contact number (printed on bills)<input type="tel" name="contactNo"></label>
+        <label>Office hours<input type="text" name="hours" placeholder="e.g. Sunday 10 am – 12 noon"></label>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save contact details</button></div>
+      </form>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="tab" data-tab="settings" hidden>
+      <h1>Settings</h1>
+      <div class="callout" id="import-box">
+        <h2>Start the accounts</h2>
+        <p>Creates all 65 units with their balance as on 30 September 2026 from the society statement, and posts the October 2026 bill (arrears plus ₹6,500 other charges) exactly as it was sent to members. This runs once.</p>
+        <label class="check"><input type="checkbox" id="import-oct" checked> Include the October 2026 bill</label>
+        <div class="form-actions"><button class="btn btn-primary" type="button" id="import-btn">Import opening balances</button><span id="import-progress" class="muted"></span></div>
+        <p class="form-msg" id="import-msg" role="alert"></p>
+      </div>
+
+      <form id="billing-form" class="form wide-form" novalidate>
+        <h2>Monthly charges</h2>
+        <p class="muted">Amount per unit per month, by premises type, as fixed by the General Body.</p>
+        <div class="table-scroll"><table class="rates"><thead id="rates-head"></thead><tbody id="rates-body"></tbody></table></div>
+        <label>Penal interest on arrears (% per year, 0 for none)<input type="number" name="interestRatePA" min="0" max="21" step="0.5"></label>
+        <label>Days until due date<input type="number" name="dueDays" min="0" max="60" step="1"></label>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save charges</button></div>
+      </form>
+
+      <form id="society-form" class="form wide-form" novalidate>
+        <h2>Society and bank details (printed on bills and receipts)</h2>
+        <div id="society-fields"></div>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
+      </form>
+    </section>
+  </main>
+
+  <script type="module" src="assets/js/admin.js"></script>
+</body>
+</html>

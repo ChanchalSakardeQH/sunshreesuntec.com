@@ -1,6 +1,8 @@
 import { getDues, getNotices, fmt, esc, fmtDate, ownerCell, bpmCell, totals, normalise } from './data.js';
+import { initFirebase } from './firebase.js';
+import { DEFAULT_SITE } from './defaults.js';
 
-const TABS = ['home', 'about', 'dues', 'notices', 'committee', 'contact', 'member', 'admin'];
+const TABS = ['home', 'about', 'dues', 'notices', 'committee', 'contact', 'member'];
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
@@ -101,9 +103,37 @@ function renderHomeBlocks(data) {
   }).join('');
 }
 
-getDues().then((data) => {
-  $('#dues-lede').textContent =
-    `Closing balances from the Society’s ${data.statement} for ${fmtDate(data.periodFrom)} to ${fmtDate(data.periodTo)}. No interest has been added.`;
+/** Live balances from the accounts (public/dues in Firestore); falls back to data/dues.json. */
+async function loadLiveDues() {
+  const fallback = await getDues();
+  try {
+    const fb = await initFirebase();
+    if (!fb) return { data: fallback, live: false };
+    const snap = await fb.F.getDoc(fb.F.doc(fb.db, 'public', 'dues'));
+    if (!snap.exists() || !snap.data().units?.length) return { data: fallback, live: false };
+    const d = snap.data();
+    return { data: { ...d, blocks: d.blocks?.length ? d.blocks : fallback.blocks }, live: true };
+  } catch (err) {
+    console.warn('Live dues unavailable, showing saved statement', err);
+    return { data: fallback, live: false };
+  }
+}
+
+async function loadSiteContent() {
+  try {
+    const fb = await initFirebase();
+    if (fb) {
+      const snap = await fb.F.getDoc(fb.F.doc(fb.db, 'public', 'site'));
+      if (snap.exists()) return { ...DEFAULT_SITE, ...snap.data() };
+    }
+  } catch (err) { console.warn('Site content unavailable', err); }
+  return { ...DEFAULT_SITE, notices: await getNotices().catch(() => []) };
+}
+
+loadLiveDues().then(({ data, live }) => {
+  $('#dues-lede').textContent = live
+    ? `Balances as on ${fmtDate(data.asOn)}, updated whenever the Society records a bill or a payment. No interest has been added unless shown on your bill.`
+    : `Closing balances from the Society’s ${data.statement} for ${fmtDate(data.periodFrom)} to ${fmtDate(data.periodTo)}. No interest has been added.`;
   renderFilter(data);
   renderDues(data);
   renderHomeBlocks(data);
@@ -128,14 +158,14 @@ getDues().then((data) => {
   $('#dues-lede').textContent = 'The dues statement could not be loaded. Refresh the page to try again.';
 });
 
-/* ---------- Notices ---------- */
-getNotices().then((list) => {
-  list.sort((a, b) => b.date.localeCompare(a.date));
+/* ---------- Notices, committee, contact ---------- */
+loadSiteContent().then((site) => {
+  const list = [...(site.notices || [])].sort((a, b) => b.date.localeCompare(a.date));
   $('#notice-list').innerHTML = list.map((n) => `
     <article class="notice" id="notice-${esc(n.id)}">
       <time datetime="${esc(n.date)}">${fmtDate(n.date)}</time>
       <h2>${esc(n.title)}</h2>
-      ${n.body.map((p) => `<p>${esc(p)}</p>`).join('')}
+      ${(n.body || []).map((p) => `<p>${esc(p)}</p>`).join('')}
     </article>`).join('') || '<p class="empty">No notices yet.</p>';
 
   const n = list[0];
@@ -144,6 +174,17 @@ getNotices().then((list) => {
     <h3>${esc(n.title)}</h3>
     <p>${esc(n.summary)}</p>
     <a href="#notices">Read the notice</a>` : '<p class="muted">No notices yet.</p>';
+
+  $('#committee-list').innerHTML = (site.committee || []).map((c) => `<li><span class="role">${esc(c.role)}</span>
+    <span class="who">${c.name ? esc(c.name) : '<span class="muted">To be added</span>'}${c.phone ? ` <a href="tel:${esc(c.phone.replace(/\s/g, ''))}">${esc(c.phone)}</a>` : ''}</span></li>`).join('');
+
+  const s = site.society || DEFAULT_SITE.society, b = site.bank || DEFAULT_SITE.bank;
+  $('#contact-facts').innerHTML = `
+    <div><dt>Society office</dt><dd>${esc(s.address)}</dd></div>
+    <div><dt>Email</dt><dd><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></dd></div>
+    ${s.contactNo ? `<div><dt>Phone</dt><dd><a href="tel:${esc(s.contactNo.replace(/\s/g, ''))}">${esc(s.contactNo)}</a></dd></div>` : ''}
+    ${site.contact?.hours ? `<div><dt>Office hours</dt><dd>${esc(site.contact.hours)}</dd></div>` : ''}
+    <div><dt>Pay by NEFT</dt><dd>${esc(b.accountName)}<br>A/c ${esc(b.accountNo)}, IFSC ${esc(b.ifsc)}<br>${esc(b.name)}</dd></div>`;
 }).catch(() => {
   $('#latest-notice').innerHTML = '<p class="muted">Notices could not be loaded.</p>';
 });

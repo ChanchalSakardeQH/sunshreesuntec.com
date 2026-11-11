@@ -1,0 +1,12 @@
+{
+  "name": "sunshreesuntec-accounts",
+  "private": true,
+  "type": "module",
+  "description": "Monthly bill generation for sunshreesuntec.com (runs in GitHub Actions)",
+  "scripts": {
+    "bills": "node scripts/generate-bills.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "12.7.0"
+  }
+}
