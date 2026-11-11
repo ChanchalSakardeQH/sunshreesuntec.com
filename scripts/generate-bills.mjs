@@ -8,7 +8,7 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
-  computeBill, billNumber, billId, monthBounds, monthLabel, todayIST, addDays, round, liftExpenseEndMonth
+  computeBill, billNumber, billId, monthBounds, monthLabel, todayIST, addDays, round, liftExpenseEndMonth, buildContext
 } from '../docs/assets/js/billing-core.js';
 import { DEFAULT_BILLING } from '../docs/assets/js/defaults.js';
 
@@ -24,13 +24,15 @@ const monthKey = (process.env.BILL_MONTH || '').trim() || todayIST().slice(0, 7)
 if (!/^\d{4}-\d{2}$/.test(monthKey)) { console.error(`BILL_MONTH must look like 2026-12, got "${monthKey}"`); process.exit(1); }
 
 const settingsSnap = await db.doc('settings/billing').get();
-const settings = { ...DEFAULT_BILLING, ...(settingsSnap.exists ? settingsSnap.data() : {}) };
+const saved = settingsSnap.exists ? settingsSnap.data() : {};
+const settings = { ...DEFAULT_BILLING, ...saved, mmc: { ...DEFAULT_BILLING.mmc, ...(saved.mmc || {}) } };
 const billDate = `${monthKey}-01`;
 const dueDate = addDays(billDate, Number(settings.dueDays) || 15);
 const bounds = monthBounds(monthKey);
 
 const unitsSnap = await db.collection('units').orderBy('order').get();
 if (unitsSnap.empty) { console.error('No units found. Import the opening balances from Admin → Settings first.'); process.exit(1); }
+const ctx = buildContext(unitsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
 // Lift AMC / repair expenses with an instalment due this month, shared by the units served by that lift.
 const liftSnap = await db.collection('liftExpenses').where('startMonth', '<=', monthKey).get();
@@ -51,13 +53,13 @@ for (const doc of unitsSnap.docs) {
       const unit = { id: doc.id, ...unitSnap.data() };
       if (unit.active === false) return false;
 
-      const calc = computeBill({ unit, settings, monthKey, liftExpenses });
+      const calc = computeBill({ unit, settings, monthKey, liftExpenses, ctx });
       const bill = {
         billNo: billNumber(unit.unit, billDate), unitId: unit.id, unit: unit.unit, block: unit.block,
         name: unit.name || '', type: unit.type, status: unit.status || '', month: monthKey, billDate, dueDate,
         periodFrom: bounds.from, periodTo: bounds.to, arrears: calc.arrears, lines: calc.lines,
         current: calc.current, total: calc.total, unverified: Boolean(unit.unverified),
-        liftNotes: calc.liftNotes, liftExpenseIds: calc.liftNotes.map((n) => n.id),
+        liftNotes: calc.liftNotes, liftExpenseIds: calc.liftNotes.map((n) => n.id), method: settings.method || 'agm',
         source: 'scheduler', createdAt: FieldValue.serverTimestamp(), createdBy: 'github-actions'
       };
       const newBalance = calc.arrears + calc.current;

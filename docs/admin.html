@@ -74,7 +74,14 @@
         <label>Extra one-off charge
           <select name="extraCode"><option value="">None</option></select>
         </label>
-        <label>Extra amount per unit (₹)<input type="number" name="extraAmount" min="0" step="1" inputmode="numeric"></label>
+        <label>Extra amount (₹)<input type="number" name="extraAmount" min="0" step="1" inputmode="numeric"></label>
+        <label>How to charge the extra
+          <select name="extraBasis">
+            <option value="unit">Same amount for each unit</option>
+            <option value="equal">Total, divided equally</option>
+            <option value="area">Total, by carpet area (e.g. Major Repairs Fund)</option>
+          </select>
+        </label>
         <label>Apply extra to
           <select name="extraBlock"><option value="all">All units</option></select>
         </label>
@@ -133,7 +140,19 @@
     <!-- UNITS -->
     <section class="tab" data-tab="units" hidden>
       <h1>Units</h1>
-      <label class="search"><span class="visually-hidden">Search units</span><input type="search" id="units-search" placeholder="Search name or unit"></label>
+      <div class="account-head">
+        <label class="search"><span class="visually-hidden">Search units</span><input type="search" id="units-search" placeholder="Search name or unit"></label>
+        <button class="btn" type="button" id="measure-toggle">Enter area, inlets and parking for all units</button>
+      </div>
+      <form id="measure-form" class="mt-sm" hidden novalidate>
+        <p class="muted">Used by the Monthly Maintenance Calculation: carpet area for sinking, repairs, property tax, insurance and major repairs; water inlets (taps) for water charges; vehicles for parking.</p>
+        <div class="table-scroll"><table class="rates">
+          <thead><tr><th>Unit</th><th>Name</th><th class="num">Carpet area (sq ft)</th><th class="num">Water inlets</th><th class="num">Two-wheelers</th><th class="num">Four-wheelers</th><th>Lift</th></tr></thead>
+          <tbody id="measure-rows"></tbody>
+        </table></div>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save all units</button></div>
+      </form>
       <div class="table-scroll"><table>
         <thead><tr><th>Unit</th><th>Name</th><th>Charge category</th><th>Lift</th><th>Status</th><th class="num">Balance (₹)</th><th class="num">BPM (₹)</th><th></th></tr></thead>
         <tbody id="units-rows"></tbody>
@@ -151,7 +170,13 @@
             <select name="liftGroup"><option value="">No lift</option><option value="C">C wing lift</option><option value="D">D wing lift</option></select>
           </label>
           <p class="muted small">Units served by a lift pay its yearly lift charge (where their category has one) and share its AMC and repair expenses.</p>
-          <label>Construction cost certified by architect (₹, for sinking and repairs funds)<input type="number" name="constructionCost" min="0" step="1" inputmode="numeric"></label>
+          <div class="field-row">
+            <label>Carpet area (sq ft)<input type="number" name="carpetArea" min="0" step="1" inputmode="numeric"></label>
+            <label>Water inlets<input type="number" name="inlets" min="0" step="1" inputmode="numeric"></label>
+            <label>Two-wheelers<input type="number" name="twoWheelers" min="0" step="1" inputmode="numeric"></label>
+            <label>Four-wheelers<input type="number" name="fourWheelers" min="0" step="1" inputmode="numeric"></label>
+          </div>
+          <label>Construction cost certified by architect (₹, total for this unit; leave blank to use cost per sq ft × area)<input type="number" name="constructionCost" min="0" step="1" inputmode="numeric"></label>
           <label>Builder pending maintenance (₹)<input type="number" name="bpm" min="0" step="1"></label>
           <fieldset class="charges">
             <legend>Amounts for this unit only (leave blank to use its charge category and Settings)</legend>
@@ -262,8 +287,51 @@
         <p class="form-msg" id="import-msg" role="alert"></p>
       </div>
 
+      <form id="mmc-form" class="form wide-form" novalidate>
+        <h2>How bills are calculated</h2>
+        <label>Charge basis
+          <select name="method">
+            <option value="agm">AGM 2015 rates per charge category</option>
+            <option value="mmc">Monthly Maintenance Calculation as per Bye-laws 65–71 and MCS Rules 2026</option>
+          </select>
+        </label>
+        <p class="muted small">Switch to the Monthly Maintenance Calculation once the General Body adopts it. Use Preview to check every unit’s bill first.</p>
+
+        <h3>1. Service charges: equal contribution</h3>
+        <p class="muted">Monthly common expenses (Bye-law 66). “All units” items are divided equally among every unit; lift items only among the units served by that lift, so shops without a lift don’t pay them.</p>
+        <div class="table-scroll"><table class="rates">
+          <thead><tr><th>Expense</th><th class="num">Per month (₹)</th><th>Shared by</th><th></th></tr></thead>
+          <tbody id="mmc-rows"></tbody>
+        </table></div>
+        <div class="form-actions"><button class="btn btn-small" type="button" id="mmc-add">Add expense</button></div>
+
+        <h3>2. Water charges: per inlet</h3>
+        <label>Monthly water expense (₹): water bill, tankers, pump electricity and repairs<input type="number" name="waterMonthly" min="0" step="1"></label>
+
+        <h3>3. Area-wise contribution</h3>
+        <label>Construction cost per sq ft certified by the architect (₹)<input type="number" name="costPerSqft" min="0" step="1"></label>
+        <label>Property tax paid by the society, per year (₹; 0 if members pay directly)<input type="number" name="propertyTaxYearly" min="0" step="1"></label>
+        <label>Building insurance premium, per year (₹)<input type="number" name="insuranceYearly" min="0" step="1"></label>
+
+        <h3>4. Parking, as fixed by the General Body</h3>
+        <label>Per two-wheeler per month (₹)<input type="number" name="parking2w" min="0" step="1"></label>
+        <label>Per four-wheeler per month (₹)<input type="number" name="parking4w" min="0" step="1"></label>
+
+        <div class="callout" id="mmc-summary"></div>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Save calculation</button>
+          <button class="btn" type="button" id="mmc-preview">Preview next month’s bills</button>
+        </div>
+      </form>
+
+      <section id="mmc-preview-box" class="wide-form" hidden>
+        <div class="account-head"><h2 id="mmc-preview-title">Preview</h2><button class="btn" type="button" id="mmc-csv">Download CSV</button></div>
+        <div class="table-scroll"><table><thead id="mmc-preview-head"></thead><tbody id="mmc-preview-rows"></tbody><tfoot id="mmc-preview-foot"></tfoot></table></div>
+      </section>
+
       <form id="billing-form" class="form wide-form" novalidate>
-        <h2>Charge categories and rates</h2>
+        <h2>Charge categories and rates (AGM 2015 method)</h2>
         <p class="muted">Starting values are the rates passed at the AGM of 25 Jan 2015 as amended on 07 Jul 2015 (effective 1 April 2015). Monthly amounts per unit, except lift which is per year. Change them here when the General Body revises them; new bills use the new rates.</p>
         <div class="table-scroll"><table class="rates"><thead id="rates-head"></thead><tbody id="rates-body"></tbody></table></div>
         <div class="form-actions"><button class="btn btn-small" type="button" id="add-category">Add category</button></div>

@@ -3,14 +3,15 @@ import { initFirebase, errorText } from './firebase.js';
 import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
   updateUnitDetails, importOpening, rebuildPublicDues,
-  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy
+  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements
 } from './accounts.js';
 import {
   LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
   categoryIdFor, liftGroupFor, LIFT_GROUPS, LIFT_KINDS, addMonths, liftExpenseEndMonth, MAX_INTEREST_PA,
+  PARTICULARS, buildContext, mmcRates, computeBill, prepareExtras, extrasForUnit, constructionCostOf,
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
-import { DEFAULT_SITE } from './defaults.js';
+import { DEFAULT_SITE, MMC_TEMPLATE } from './defaults.js';
 import { getDues, getNotices, fmt, esc, fmtDate } from './data.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -39,7 +40,9 @@ const unitOptions = (withBalance) => dues.blocks.map((b) => `<optgroup label="${
   units.filter((u) => u.block === b.id).map((u) => `<option value="${esc(u.id)}">${esc(u.unit)}${u.name ? ' – ' + esc(u.name) : ''}${withBalance ? ` (₹ ${fmt(u.balance)})` : ''}</option>`).join('')
 }</optgroup>`).join('');
 
-const noRates = () => !(billing.categories || []).some((c) => Number(c.maintenance) > 0);
+const noRates = () => (billing.method === 'mmc'
+  ? !(billing.mmc?.expenses || []).some((e) => Number(e.monthly) > 0 && e.id !== 'education')
+  : !(billing.categories || []).some((c) => Number(c.maintenance) > 0));
 const catName = (u) => (billing.categories || []).find((c) => c.id === categoryIdFor(u))?.name || categoryIdFor(u);
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -185,7 +188,11 @@ function wireBills() {
     const extraCode = String(fd.get('extraCode'));
     const extraAmount = round(fd.get('extraAmount'));
     if (!monthKey) return setMsg(form, 'Choose a month.');
-    if (extraCode && !extraAmount) return setMsg(form, 'Enter the extra amount per unit, or set the extra charge to None.');
+    if (extraCode && !extraAmount) return setMsg(form, 'Enter the extra amount, or set the extra charge to None.');
+    if (extraCode) {
+      try { prepareExtras([{ code: extraCode, amount: extraAmount, basis: String(fd.get('extraBasis')), block: String(fd.get('extraBlock')) }], units); }
+      catch (err) { return setMsg(form, esc(err.message)); }
+    }
     if (!units.length) return setMsg(form, 'Import the opening balances in Settings first.');
     const m = Number(monthKey.slice(5, 7));
     const warn = (noRates() ? '\n\nMaintenance rates in Settings are ₹0, so these bills will only carry the other charges.' : '')
@@ -198,7 +205,7 @@ function wireBills() {
         billing = await loadBilling(fb);
         const res = await generateMonth(fb, {
           monthKey, billDate: String(fd.get('billDate')), dueDate: String(fd.get('dueDate')),
-          extras: extraCode ? [{ code: extraCode, amount: extraAmount }] : [], extrasBlock: String(fd.get('extraBlock')),
+          extras: extraCode ? [{ code: extraCode, amount: extraAmount, basis: String(fd.get('extraBasis')), block: String(fd.get('extraBlock')) }] : [],
           settings: billing
         }, (i, n) => { $('#gen-progress').textContent = `${i} of ${n} units…`; });
         $('#gen-progress').textContent = '';
@@ -336,7 +343,8 @@ let editing = null;
 const UNIT_OVERRIDES = [
   ['maintenance', 'Maintenance / service (₹/month)'], ['water', 'Water (₹/month)'], ['liftYearly', 'Lift (₹/year)'],
   ['parking', 'Parking (₹/month)'], ['sinking', 'Sinking fund (₹/month)'], ['repairs', 'Repairs fund (₹/month)'],
-  ['nonOccupancy', 'Non-occupancy (₹/month)'], ['education', 'Education fund (₹/month)'], ['federation', 'Federation fund (₹/month)']
+  ['nonOccupancy', 'Non-occupancy (₹/month)'], ['education', 'Education fund (₹/month)'], ['federation', 'Federation fund (₹/month)'],
+  ['liftMonthly', 'Lift, calculated method (₹/month)'], ['welfare', 'Welfare fund, voluntary (₹/month)']
 ];
 
 function renderUnits() {
@@ -352,12 +360,43 @@ function renderUnits() {
   return Promise.resolve();
 }
 
+function renderMeasurements() {
+  $('#measure-rows').innerHTML = units.map((u) => {
+    const id = esc(u.id), g = liftGroupFor(u);
+    const n = (name, v) => `<td class="num"><input type="number" min="0" step="1" name="m_${id}_${name}" value="${v ?? ''}" aria-label="${esc(u.unit)} ${name}"></td>`;
+    return `<tr><td class="unit">${esc(u.unit)}</td><td>${esc(u.name)}</td>${n('area', u.carpetArea)}${n('inlets', u.inlets)}${n('2w', u.twoWheelers)}${n('4w', u.fourWheelers)}
+      <td><select name="m_${id}_lift" aria-label="${esc(u.unit)} lift"><option value="">None</option><option value="C" ${g === 'C' ? 'selected' : ''}>C</option><option value="D" ${g === 'D' ? 'selected' : ''}>D</option></select></td></tr>`;
+  }).join('');
+}
+
 function wireUnits() {
   const form = $('#unit-form');
   form.type.innerHTML = PREMISES_TYPES.map((t) => `<option>${t}</option>`).join('');
   form.status.innerHTML += STATUSES.map((s) => `<option>${s}</option>`).join('');
   $('#unit-charges').innerHTML = UNIT_OVERRIDES.map(([c, label]) => `<label>${label}<input type="number" min="0" step="1" name="ch_${c}" inputmode="numeric"></label>`).join('');
   $('#units-search').addEventListener('input', renderUnits);
+  $('#measure-toggle').addEventListener('click', () => {
+    const f = $('#measure-form');
+    f.hidden = !f.hidden;
+    if (!f.hidden) renderMeasurements();
+  });
+  $('#measure-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.currentTarget, fd = new FormData(f);
+    const num = (k) => (fd.get(k) === '' || fd.get(k) == null ? null : Number(fd.get(k)));
+    const rows = units.map((u) => ({
+      id: u.id, carpetArea: num(`m_${u.id}_area`), inlets: round(num(`m_${u.id}_inlets`)),
+      twoWheelers: round(num(`m_${u.id}_2w`)), fourWheelers: round(num(`m_${u.id}_4w`)), liftGroup: String(fd.get(`m_${u.id}_lift`) ?? '')
+    }));
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        await saveUnitMeasurements(fb, rows);
+        await refreshCore();
+        renderUnits();
+        setMsg(f, `Saved ${rows.length} units.`, true);
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
   $('#units-rows').addEventListener('click', (e) => {
     const b = e.target.closest('[data-edit]');
     if (b) openUnit(b.dataset.edit).catch((err) => alert(errorText(err)));
@@ -375,6 +414,8 @@ function wireUnits() {
           name: String(fd.get('name')).trim(), type: fd.get('type'), status: fd.get('status'),
           category: fd.get('category'), liftGroup: String(fd.get('liftGroup')),
           constructionCost: fd.get('constructionCost') === '' ? null : round(fd.get('constructionCost')),
+          carpetArea: fd.get('carpetArea') === '' ? null : Number(fd.get('carpetArea')),
+          inlets: round(fd.get('inlets')), twoWheelers: round(fd.get('twoWheelers')), fourWheelers: round(fd.get('fourWheelers')),
           bpm: fd.get('bpm') === '' ? null : round(fd.get('bpm')), charges, active: Boolean(fd.get('active'))
         });
         await rebuildPublicDues(fb, dues.blocks);
@@ -418,6 +459,10 @@ async function openUnit(id) {
   form.category.value = categoryIdFor(u);
   form.liftGroup.value = liftGroupFor(u);
   form.constructionCost.value = u.constructionCost ?? '';
+  form.carpetArea.value = u.carpetArea ?? '';
+  form.inlets.value = u.inlets ?? '';
+  form.twoWheelers.value = u.twoWheelers ?? '';
+  form.fourWheelers.value = u.fourWheelers ?? '';
   form.bpm.value = u.bpm ?? '';
   form.active.checked = u.active !== false;
   for (const [c] of UNIT_OVERRIDES) form['ch_' + c].value = u.charges?.[c] ?? '';
@@ -645,6 +690,73 @@ const SOCIETY_FIELDS = [
   ['bank.name', 'Bank and branch'], ['bank.accountName', 'Account name'], ['bank.accountNo', 'Account number'], ['bank.ifsc', 'IFSC code']
 ];
 
+/* ----- Monthly Maintenance Calculation ----- */
+let draftExp = [];
+const APPLIES = [['all', 'All units'], ['C', 'C wing lift units'], ['D', 'D wing lift units'], ['CD', 'All lift units']];
+
+function renderMmcRows() {
+  $('#mmc-rows').innerHTML = draftExp.map((e, i) => `<tr>
+    <td><input type="text" class="exp-name" name="e_${i}_name" value="${esc(e.name)}" aria-label="Expense"></td>
+    <td class="num"><input type="number" min="0" step="1" name="e_${i}_monthly" value="${e.monthly ?? 0}" aria-label="${esc(e.name)} per month"></td>
+    <td><select name="e_${i}_applies" aria-label="${esc(e.name)} shared by">${APPLIES.map(([v, l]) => `<option value="${v}" ${e.appliesTo === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+    <td><button class="btn btn-small btn-danger" type="button" data-del-exp="${i}">Remove</button></td></tr>`).join('');
+  const total = draftExp.reduce((a, e) => a + (Number(e.monthly) || 0), 0);
+  $('#mmc-rows').insertAdjacentHTML('beforeend', `<tr><td><strong>Total per month</strong></td><td class="num"><strong>${fmt(total)}</strong></td><td colspan="2"></td></tr>`);
+}
+
+function readMmc(fd) {
+  draftExp = draftExp.map((e, i) => ({
+    ...e, name: String(fd.get(`e_${i}_name`) ?? e.name).trim() || e.name,
+    monthly: round(fd.get(`e_${i}_monthly`) ?? e.monthly), appliesTo: String(fd.get(`e_${i}_applies`) ?? e.appliesTo)
+  }));
+  const n = (k) => Number(fd.get(k)) || 0;
+  return {
+    expenses: draftExp, waterMonthly: n('waterMonthly'), costPerSqft: n('costPerSqft'),
+    propertyTaxYearly: n('propertyTaxYearly'), insuranceYearly: n('insuranceYearly'), parking2w: n('parking2w'), parking4w: n('parking4w')
+  };
+}
+
+function mmcSummary() {
+  const f = $('#mmc-form');
+  const mmc = readMmc(new FormData(f));
+  const ctx = buildContext(units);
+  const r = mmcRates({ mmc }, ctx);
+  const active = units.filter((u) => u.active !== false);
+  const noArea = active.filter((u) => !Number(u.carpetArea)).length;
+  const noInlets = active.filter((u) => !Number(u.inlets)).length;
+  $('#mmc-summary').innerHTML = `<dl>
+    <dt>Common expenses ÷ units</dt><dd>₹ ${fmt(r.serviceTotal)} ÷ ${ctx.units} = ₹ ${fmt(r.service)} service charge per unit</dd>
+    <dt>C wing lift</dt><dd>₹ ${fmt(r.liftTotal.C)}${r.liftTotal.CD ? ` + share of ₹ ${fmt(r.liftTotal.CD)}` : ''} ÷ ${ctx.lift.C || 0} units = ₹ ${fmt(r.lift.C)} per unit</dd>
+    <dt>D wing lift</dt><dd>₹ ${fmt(r.liftTotal.D)}${r.liftTotal.CD ? ` + share of ₹ ${fmt(r.liftTotal.CD)}` : ''} ÷ ${ctx.lift.D || 0} units = ₹ ${fmt(r.lift.D)} per unit</dd>
+    <dt>Water</dt><dd>₹ ${fmt(mmc.waterMonthly)} ÷ ${ctx.inlets} inlets = ₹ ${fmt(r.waterPerInlet)} per inlet${noInlets ? ` <span class="warn">${noInlets} units have no inlets, so they pay no water charges</span>` : ''}</dd>
+    <dt>Carpet area entered</dt><dd>${fmt(ctx.area)} sq ft${noArea ? ` <span class="warn">${noArea} units have no area entered</span>` : ''}</dd>
+    <dt>Sinking / repairs funds</dt><dd>${mmc.costPerSqft ? `₹ ${fmt(mmc.costPerSqft)}/sq ft × area × ${billing.sinkingPct}% and ${billing.repairsPct}% ÷ 12` : 'Enter construction cost per sq ft'}</dd>
+  </dl>`;
+}
+
+function previewBills() {
+  const mmc = readMmc(new FormData($('#mmc-form')));
+  const settings = { ...billing, method: 'mmc', mmc };
+  const ctx = buildContext(units);
+  const month = addMonths(lastBilled() || monthOf(todayIST()), lastBilled() ? 1 : 0);
+  const rows = units.filter((u) => u.active !== false).map((u) => {
+    const calc = computeBill({ unit: { ...u, balance: 0, interestDue: 0 }, settings, monthKey: month, ctx });
+    return { u, amounts: Object.fromEntries(calc.lines.map((l) => [l.code, l.amount])), total: calc.current };
+  });
+  const codes = PARTICULARS.map(([c]) => c).filter((c) => rows.some((r) => r.amounts[c]));
+  lastPreview = { month, codes, rows };
+  $('#mmc-preview-title').textContent = `Preview: ${monthLabel(month)} charges (before arrears)`;
+  $('#mmc-preview-head').innerHTML = `<tr><th>Unit</th><th>Name</th>${codes.map((c) => `<th class="num">${esc(LABEL[c])}</th>`).join('')}<th class="num">This month</th></tr>`;
+  $('#mmc-preview-rows').innerHTML = rows.map((r) => `<tr><td class="unit">${esc(r.u.unit)}</td><td>${esc(r.u.name)}</td>${codes.map((c) => `<td class="num">${r.amounts[c] ? fmt(r.amounts[c]) : ''}</td>`).join('')}<td class="num"><strong>${fmt(r.total)}</strong></td></tr>`).join('');
+  const sum = (c) => rows.reduce((a, r) => a + (r.amounts[c] || 0), 0);
+  const expTotal = mmc.expenses.reduce((a, e) => a + (Number(e.monthly) || 0), 0) + (mmc.waterMonthly || 0);
+  $('#mmc-preview-foot').innerHTML = `<tr><td colspan="2">Total collected</td>${codes.map((c) => `<td class="num">${fmt(sum(c))}</td>`).join('')}<td class="num">${fmt(rows.reduce((a, r) => a + r.total, 0))}</td></tr>
+    <tr><td colspan="${codes.length + 3}" class="muted">Monthly expenses entered (service, lift, water): ₹ ${fmt(expTotal)}. Small differences come from rounding to whole rupees.</td></tr>`;
+  $('#mmc-preview-box').hidden = false;
+  $('#mmc-preview-box').scrollIntoView({ behavior: 'smooth' });
+}
+let lastPreview = null;
+
 const CAT_COLS = [['maintenance', 'Maintenance / service'], ['water', 'Water'], ['liftYearly', 'Lift (per year)'],
   ['parking', 'Parking'], ['education', 'Education fund'], ['federation', 'Federation fund'], ['election', 'Election fund']];
 let draftCats = [];
@@ -659,6 +771,13 @@ function renderCategories() {
 
 async function loadSettings() {
   $('#import-box').hidden = units.length > 0;
+  const mf = $('#mmc-form');
+  const mmc = billing.mmc || MMC_TEMPLATE;
+  mf.method.value = billing.method || 'agm';
+  draftExp = structuredClone(mmc.expenses || MMC_TEMPLATE.expenses);
+  renderMmcRows();
+  for (const k of ['waterMonthly', 'costPerSqft', 'propertyTaxYearly', 'insuranceYearly', 'parking2w', 'parking4w']) mf[k].value = mmc[k] ?? 0;
+  mmcSummary();
   draftCats = structuredClone(billing.categories || []);
   renderCategories();
   const bf = $('#billing-form');
@@ -686,6 +805,50 @@ function readCategories(fd) {
 }
 
 function wireSettings() {
+  const mf = $('#mmc-form');
+  mf.addEventListener('input', () => mmcSummary());
+  $('#mmc-add').addEventListener('click', () => {
+    readMmc(new FormData(mf));
+    draftExp.push({ id: `exp${Date.now().toString(36)}`, name: 'New expense', monthly: 0, appliesTo: 'all' });
+    renderMmcRows();
+  });
+  $('#mmc-rows').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-del-exp]');
+    if (!b) return;
+    readMmc(new FormData(mf));
+    draftExp.splice(Number(b.dataset.delExp), 1);
+    renderMmcRows();
+    mmcSummary();
+  });
+  $('#mmc-preview').addEventListener('click', previewBills);
+  $('#mmc-csv').addEventListener('click', () => {
+    if (!lastPreview) return;
+    const { codes, rows, month } = lastPreview;
+    const head = ['Unit', 'Name', ...codes.map((c) => LABEL[c]), 'Total'];
+    const body = rows.map((r) => [r.u.unit, r.u.name, ...codes.map((c) => r.amounts[c] || 0), r.total]);
+    const csv = [head, ...body].map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
+    a.download = `maintenance-calculation-${month}.csv`;
+    a.click();
+  });
+  mf.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(mf);
+    const mmc = readMmc(fd);
+    const method = String(fd.get('method'));
+    if (method === 'mmc' && method !== billing.method && !confirm('Switch billing to the Monthly Maintenance Calculation? The next bills generated will use it. Check the preview first.')) return;
+    await busy($('button[type=submit]', mf), async () => {
+      try {
+        await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'billing'), { method, mmc }, { merge: true });
+        billing = await loadBilling(fb);
+        renderMmcRows();
+        mmcSummary();
+        setMsg(mf, method === 'mmc' ? 'Saved. New bills are calculated as per the 2026 Rules.' : 'Saved. New bills still use the AGM 2015 category rates.', true);
+      } catch (err) { setMsg(mf, esc(errorText(err))); }
+    });
+  });
+
   $('#import-btn').addEventListener('click', async (e) => {
     if (!confirm('Create all units with their 30 September 2026 balances? This can only be done once.')) return;
     const msg = $('#import-msg');

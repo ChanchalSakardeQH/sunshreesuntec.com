@@ -68,6 +68,31 @@ To try it on your PC first: `cd docs` then `python -m http.server 8000` and open
 5. **Website → Committee and contact.** Fill in Secretary and Treasurer names and the contact number printed on bills.
 6. **Bills → Generate bills** for November 2026 (the current month), then **Print all bills** to save one PDF for everyone.
 
+## 3a. Monthly Maintenance Calculation (MCS Rules 2026)
+
+**Settings → How bills are calculated** has two methods. Bills keep using the AGM 2015 category rates until you switch.
+
+| Head | How it is calculated | Basis |
+|---|---|---|
+| Service charges | Monthly common expenses ÷ number of units (equal) | Bye-laws 65(g), 66, 67; Rule 106C-12 |
+| Lift | Monthly lift expenses ÷ units served by that lift (shops without a lift excluded); AMC / repair invoices shared through the **Lift** tab | Rule 106C-12 |
+| Water | Monthly water expense ÷ total inlets × inlets of the unit | Bye-law 67(a)(2) |
+| Repairs & maintenance fund | Construction cost per sq ft × carpet area × 0.75% ÷ 12 | Bye-law 13(a) |
+| Sinking fund | Construction cost per sq ft × carpet area × 0.25% ÷ 12 | Bye-law 13(c) |
+| Property tax, insurance | Yearly amount × unit area ÷ total area ÷ 12 (only if the society pays them) | Bye-law 67(a) |
+| Non-occupancy | 10% of service charges for Rented / Tenant units | Bye-law 43, 67(a)(10) |
+| Parking | Vehicles × rate fixed by the General Body | Bye-law 67(a)(7) |
+| Major repairs fund | **Bills** → extra charge → "Total, by carpet area" | Rule 106C-12 |
+| Welfare fund | Voluntary amount on the unit | Rule 106C-12 |
+| Interest | Simple interest on unpaid principal, maximum 12% p.a. | Bye-law 71; Rule 106C-12 |
+| Penalty | At most ₹5,000 a year per member | Bye-law 165 |
+
+Steps:
+1. **Units → Enter area, inlets and parking for all units**: fill carpet area, water inlets, vehicles and lift for every unit → **Save all units**.
+2. **Settings → How bills are calculated**: enter the society's monthly expenses (service and lift), monthly water expense, construction cost per sq ft, property tax / insurance if paid by the society, and parking rates → **Save calculation**.
+3. **Preview next month's bills** and **Download CSV** to place before the General Body.
+4. After the General Body approves, set **Charge basis** to the Monthly Maintenance Calculation and save. Every bill shows how each line was worked out (e.g. "4 inlets × ₹78").
+
 ## 4. Monthly bills on GitHub (automatic)
 
 The workflow `.github/workflows/monthly-bills.yml` runs at 06:00 IST on the 1st of every month and creates that month's bills, exactly like **Bills → Generate bills**. A month is never billed twice, so running it by hand as well is safe.

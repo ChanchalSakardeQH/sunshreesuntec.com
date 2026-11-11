@@ -3,7 +3,7 @@
 
 import {
   computeBill, billNumber, billId, monthBounds, financialYear, receiptNumber, round, monthLabel, todayIST,
-  categoryIdFor, liftGroupFor, liftExpenseEndMonth
+  categoryIdFor, liftGroupFor, liftExpenseEndMonth, buildContext, prepareExtras, extrasForUnit
 } from './billing-core.js';
 import { DEFAULT_BILLING, DEFAULT_SITE, OCTOBER_2026_BILL } from './defaults.js';
 
@@ -11,7 +11,8 @@ import { DEFAULT_BILLING, DEFAULT_SITE, OCTOBER_2026_BILL } from './defaults.js'
 
 export async function loadBilling({ F, db }) {
   const s = await F.getDoc(F.doc(db, 'settings', 'billing'));
-  return s.exists() ? { ...DEFAULT_BILLING, ...s.data() } : { ...DEFAULT_BILLING };
+  const d = s.exists() ? s.data() : {};
+  return { ...DEFAULT_BILLING, ...d, mmc: { ...DEFAULT_BILLING.mmc, ...(d.mmc || {}) } };
 }
 
 export async function loadSite({ F, db }) {
@@ -69,7 +70,7 @@ function patchPublic(tx, F, pubRef, pubSnap, unit) {
  */
 export async function generateBill(fb, unitId, opts) {
   const { F, db, auth } = fb;
-  const { monthKey, billDate, dueDate, extras = [], liftExpenses = [], settings, periodFrom, periodTo, source = 'admin' } = opts;
+  const { monthKey, billDate, dueDate, extras = [], liftExpenses = [], ctx, settings, periodFrom, periodTo, source = 'admin' } = opts;
   const unitRef = F.doc(db, 'units', unitId);
   const billRef = F.doc(db, 'bills', billId(unitId, monthKey));
   const pubRef = F.doc(db, 'public', 'dues');
@@ -81,7 +82,7 @@ export async function generateBill(fb, unitId, opts) {
     const unit = { id: unitId, ...unitSnap.data() };
     if (unit.active === false) return null;
 
-    const calc = computeBill({ unit, settings, monthKey, extras, liftExpenses });
+    const calc = computeBill({ unit, settings, monthKey, extras, liftExpenses, ctx });
     const bounds = monthBounds(monthKey);
     const bill = {
       billNo: billNumber(unit.unit, billDate),
@@ -91,6 +92,7 @@ export async function generateBill(fb, unitId, opts) {
       arrears: calc.arrears, lines: calc.lines, current: calc.current, total: calc.total,
       unverified: Boolean(unit.unverified),
       liftNotes: calc.liftNotes, liftExpenseIds: calc.liftNotes.map((n) => n.id),
+      method: settings?.method || 'agm',
       source, createdAt: F.serverTimestamp(), createdBy: auth.currentUser?.uid || source
     };
     const newBalance = calc.arrears + calc.current;
@@ -110,13 +112,16 @@ export async function generateBill(fb, unitId, opts) {
 }
 
 export async function generateMonth(fb, opts, onProgress = () => {}) {
-  const units = (await loadUnits(fb)).filter((u) => u.active !== false);
+  const allUnits = await loadUnits(fb);
+  const units = allUnits.filter((u) => u.active !== false);
+  const ctx = buildContext(allUnits);
+  const prepared = prepareExtras(opts.extras, allUnits); // one-off charges: per unit, equal share or by area
   const liftExpenses = await loadLiftExpensesFor(fb, opts.monthKey);
   const made = [], skipped = [], failed = [];
   for (const [i, u] of units.entries()) {
     try {
-      const extras = opts.extrasBlock && opts.extrasBlock !== 'all' && u.block !== opts.extrasBlock ? [] : opts.extras;
-      const b = await generateBill(fb, u.id, { ...opts, extras, liftExpenses });
+      const extras = extrasForUnit(prepared, u);
+      const b = await generateBill(fb, u.id, { ...opts, extras, liftExpenses, ctx });
       (b ? made : skipped).push(u.unit);
     } catch (err) {
       failed.push({ unit: u.unit, error: err.message || String(err) });
@@ -274,6 +279,16 @@ export async function addAdjustment(fb, unitId, e) {
   });
 }
 
+/** Saves carpet area, inlets, vehicles and lift for many units at once. rows: [{ id, ...fields }] */
+export async function saveUnitMeasurements(fb, rows) {
+  const { F, db } = fb;
+  for (let i = 0; i < rows.length; i += 400) {
+    const batch = F.writeBatch(db);
+    for (const { id, ...fields } of rows.slice(i, i + 400)) batch.update(F.doc(db, 'units', id), { ...fields, updatedAt: F.serverTimestamp() });
+    await batch.commit();
+  }
+}
+
 export async function updateUnitDetails(fb, unitId, patch) {
   const { F, db } = fb;
   await F.updateDoc(F.doc(db, 'units', unitId), { ...patch, updatedAt: F.serverTimestamp() });
@@ -328,7 +343,7 @@ export async function importOpening(fb, dues, { includeOctober = true } = {}, on
       // October bill carries only the one-off Rs 6,500, not the monthly rates.
       await generateBill(fb, u.id, {
         monthKey: o.month, billDate: o.billDate, dueDate: '', extras: o.extras,
-        settings: { ...settings, categories: [], interestRatePA: 0, sinkingPct: 0, repairsPct: 0, nonOccupancyPct: 0 }, periodFrom: o.periodFrom, periodTo: o.periodTo, source: 'import'
+        settings: { ...settings, method: 'agm', mmc: {}, categories: [], interestRatePA: 0, sinkingPct: 0, repairsPct: 0, nonOccupancyPct: 0 }, periodFrom: o.periodFrom, periodTo: o.periodTo, source: 'import'
       });
       onProgress(dues.units.length + i + 1, dues.units.length * 2);
     }

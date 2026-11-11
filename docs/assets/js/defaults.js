@@ -23,6 +23,7 @@ export const DEFAULT_SITE = {
   ],
   contact: { hours: '' },
   chargesBasis: 'Charges as per AGM dated 25/01/2015 (amended 07/07/2015) and Bye-laws 65 to 71 of the Society.',
+  chargesBasisMmc: 'Charges calculated as per Bye-laws 65 to 71 and Rule 106C-12 of the MCS Rules, 1961 (as amended 2026), at rates approved by the General Body.',
   notices: []
 };
 
@@ -42,7 +43,41 @@ export const AGM_2015_CATEGORIES = [
   { id: 'SHOP_HEAVY', name: 'Shop: beauty parlour / pet shop / clinic / food shop / chicken centre', maintenance: 1000, water: 500, liftYearly: 0, parking: 0, education: 10, federation: 0, election: 0 }
 ];
 
+/**
+ * Monthly Maintenance Calculation (MMC) as per Bye-laws 65–71 and Rule 106C-12 of the MCS Rules (amended 2026).
+ * Fill in the society's actual monthly expenses; amounts start at 0 except the Education & Training Fund
+ * (Rs 10 per unit per month). appliesTo: 'all' = equal among all units; 'C' / 'D' / 'CD' = equal among
+ * units served by that lift (shops and units without a lift don't pay lift costs).
+ */
+export const MMC_TEMPLATE = {
+  expenses: [
+    { id: 'security', name: 'Security / watchmen salaries', monthly: 0, appliesTo: 'all' },
+    { id: 'housekeeping', name: 'Housekeeping and cleaning', monthly: 0, appliesTo: 'all' },
+    { id: 'commonElec', name: 'Common electricity (MSEB, excluding lifts and water pump)', monthly: 0, appliesTo: 'all' },
+    { id: 'office', name: 'Office, printing, stationery and postage', monthly: 0, appliesTo: 'all' },
+    { id: 'audit', name: 'Accounting and audit fees', monthly: 0, appliesTo: 'all' },
+    { id: 'meetings', name: 'General body and committee meeting expenses', monthly: 0, appliesTo: 'all' },
+    { id: 'legal', name: 'Legal and professional charges', monthly: 0, appliesTo: 'all' },
+    { id: 'education', name: 'Education & Training Fund (Rs 10 per unit)', monthly: 650, appliesTo: 'all' },
+    { id: 'federation', name: 'Housing Federation subscription', monthly: 0, appliesTo: 'all' },
+    { id: 'election', name: 'Election fund', monthly: 0, appliesTo: 'all' },
+    { id: 'drainage', name: 'Drainage, tank cleaning and pest control', monthly: 0, appliesTo: 'all' },
+    { id: 'safety', name: 'Fire fighting, CCTV and intercom maintenance', monthly: 0, appliesTo: 'all' },
+    { id: 'garden', name: 'Garden and common amenities', monthly: 0, appliesTo: 'all' },
+    { id: 'liftC', name: 'C wing lift: electricity and AMC (monthly)', monthly: 0, appliesTo: 'C' },
+    { id: 'liftD', name: 'D wing lift: electricity and AMC (monthly)', monthly: 0, appliesTo: 'D' }
+  ],
+  waterMonthly: 0,        // monthly water expense (PMC water bill, tanker, pump electricity) shared per inlet
+  costPerSqft: 0,         // construction cost per sq ft certified by the architect
+  propertyTaxYearly: 0,   // only if the society pays property tax for the building
+  insuranceYearly: 0,     // building insurance premium per year
+  parking2w: 0,           // per two-wheeler per month, as fixed by the General Body
+  parking4w: 0            // per four-wheeler per month
+};
+
 export const DEFAULT_BILLING = {
+  method: 'agm',            // 'agm' = AGM 2015 category rates; 'mmc' = calculated as per 2026 Rules
+  mmc: MMC_TEMPLATE,
   categories: AGM_2015_CATEGORIES,
   interestRatePA: 0,        // 0 = no penal interest; maximum 12% simple p.a. (MCS Rules as amended 2026)
   dueDays: 15,              // due date = bill date + this many days

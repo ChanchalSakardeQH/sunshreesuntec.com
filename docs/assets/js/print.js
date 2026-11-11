@@ -5,6 +5,7 @@ import { initFirebase, currentUser, errorText } from './firebase.js';
 import { loadSite } from './accounts.js';
 import { PARTICULARS, OPTIONAL, STATUSES, LIFT_GROUPS, money, amountInWords, ddmmyyyy, longDate, monthLabel } from './billing-core.js';
 import { esc } from './data.js';
+import { DEFAULT_SITE } from './defaults.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -90,8 +91,13 @@ function signBlock(site) {
   </div>`;
 }
 
+function basisText(b, site) {
+  return b.method === 'mmc' ? (site.chargesBasisMmc || DEFAULT_SITE.chargesBasisMmc) : site.chargesBasis;
+}
+
 function billHTML(b, site) {
   const amounts = Object.fromEntries((b.lines || []).map((l) => [l.code, l.amount]));
+  const details = Object.fromEntries((b.lines || []).filter((l) => l.detail).map((l) => [l.code, l.detail]));
   // Older bills may carry heads from before the bill format changed; show them under their own label.
   const known = new Set(PARTICULARS.map(([c]) => c));
   const legacy = (b.lines || []).filter((l) => !known.has(l.code)).map((l) => [l.code, l.label]);
@@ -104,7 +110,7 @@ function billHTML(b, site) {
     } else if (amounts[code]) {
       val = money(amounts[code]);
     }
-    return `<tr><td>${i + 1}.</td><td>${label}</td><td class="fill">${val}</td></tr>`;
+    return `<tr><td>${i + 1}.</td><td>${label}${details[code] ? `<span class="sub">${esc(details[code])}</span>` : ''}</td><td class="fill">${val}</td></tr>`;
   }).join('');
 
   const total = b.total;
@@ -136,7 +142,7 @@ function billHTML(b, site) {
     </table>
     ${(b.liftNotes || []).length ? `<div class="basis"><b>Lift AMC / repairs shared equally by the units served by the lift:</b> ${b.liftNotes.map((n) =>
       `${esc(n.lift === 'CD' ? 'C & D wing lifts' : LIFT_GROUPS[n.lift] || n.lift)} – ${esc(n.kind)}: ${esc(n.description)}${n.invoiceNo ? ` (inv. ${esc(n.invoiceNo)}, ${ddmmyyyy(n.date)})` : ''}, ₹ ${money(n.amount, { slash: false })} ÷ ${n.units} units${n.instalment !== '1/1' ? `, instalment ${n.instalment}` : ''} = ₹ ${money(n.share, { slash: false })}`).join('; ')}</div>` : ''}
-    ${site.chargesBasis ? `<div class="basis">${esc(site.chargesBasis)}</div>` : ''}
+    ${basisText(b, site) ? `<div class="basis">${esc(basisText(b, site))}</div>` : ''}
     <div class="words"><b>Rs. In words</b><span class="fill">${words}${b.unverified ? ' <span class="flag">Opening balance to be verified.</span>' : ''}</span></div>
     <div class="notes">
       <div class="left">
