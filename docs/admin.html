@@ -173,15 +173,16 @@
       <form id="measure-form" class="mt-sm" hidden novalidate>
         <p class="muted">Used by the Monthly Maintenance Calculation: carpet area for sinking, repairs, property tax, insurance and major repairs; water inlets (taps) for water charges; vehicles for parking.</p>
         <div class="callout">
-          <p><strong>Carpet areas from the Index II documents.</strong> <span id="index2-summary"></span></p>
+          <p><strong>Carpet areas from the Index II documents and the PMC-approved plans.</strong> <span id="index2-summary"></span></p>
           <div class="form-actions">
             <button class="btn" type="button" id="index2-fill">Fill carpet areas from Index II</button>
+            <button class="btn" type="button" id="plan-fill">Fill shops from approved plan</button>
             <label class="check"><input type="checkbox" id="index2-overwrite"> Also replace areas already entered</label>
           </div>
           <p class="muted small-note">Only areas written as carpet are filled. Built-up, saleable or unstated areas are shown under “Index II” for reference; enter the carpet figure from the member’s agreement. Lofts and terraces are not added. Nothing is saved until you click Save all units.</p>
         </div>
         <div class="table-scroll"><table class="rates">
-          <thead><tr><th>Unit</th><th>Name</th><th class="num">Carpet area (sq ft)</th><th>Area source</th><th>Index II</th><th class="num">Water inlets</th><th class="num">Two-wheelers</th><th class="num">Four-wheelers</th><th>Lift</th></tr></thead>
+          <thead><tr><th>Unit</th><th>Name</th><th class="num">Carpet area (sq ft)</th><th>Area source</th><th>Index II and plan</th><th class="num">Water inlets</th><th class="num">Two-wheelers</th><th class="num">Four-wheelers</th><th>Lift</th></tr></thead>
           <tbody id="measure-rows"></tbody>
         </table></div>
         <p class="form-msg" role="alert"></p>
@@ -233,6 +234,7 @@
           <div class="form-actions">
             <button class="btn btn-primary" type="submit" value="save" data-perm="editUnits">Save unit</button>
             <button class="btn" type="button" data-close>Close</button>
+            <button class="btn btn-danger" type="button" id="unit-remove" hidden>Remove this unit</button>
           </div>
         </form>
         <h3>Account</h3>
@@ -482,7 +484,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 2.6.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
+    <p class="muted mt" id="version-note">Software version 2.6.1. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

@@ -6,6 +6,24 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [2.6.1] – 2026-11-12 – Carpet areas checked against the PMC-approved plans
+
+### Added
+- `docs/data/plan-areas.json`: carpet of every shop and store from the dimensions written on the PMC-approved revised plans (Laxman Thite, Building 'T'): 21 lower ground stores (B 01–21) and 20 upper ground shops (GF 01–20). Main room only; attached WC / mori and loft not included.
+- Units → Enter area…: **Fill shops from approved plan** (41 units, source “PMC approved plan”) and the plan figure shown beside the Index II figure, flagged when they differ by more than 5%.
+- Unit dialog: **Remove this unit** (committee), only for a unit with no bills, payments or entries.
+
+### Fixed
+- **GF 21 was wrong.** The approved plan has only 20 upper ground shops. The Index II for “shop 21” (Murli Daryanomal, 492 sq ft, area type not stated) matches lower ground store 21 = **B 21** (society list: Dr Sagar Ganpat Bhogale). GF 21 removed from `data/dues.json` (back to 65 units) and the Index II entry moved to B 21. If GF 21 was added in the accounts, open it in Units and click Remove this unit.
+
+### Verification result (plan vs Index II carpet)
+- Within 2%: B 02, 03, 04, 07, 08, 09, 15, 16, 17, 18, 19, 20; GF 04, 05, 11, 12, 16, 19, 20.
+- 2–5%: B 11, B 14 (Index II higher).
+- More than 5%: B 01 (plan 278 vs 324; Index II likely includes the attached WC), B 05 (186.5 vs 247.22, type not stated), GF 06 (371.8 vs 650 saleable), GF 13 (164.5 vs 184), GF 14 (224.8 vs 380, type not stated), GF 15 (333.8 vs 450.1).
+- Flats and offices: the plans give room sizes and floor totals, not a carpet total per flat, so they are not verified here.
+
+---
+
 ## [2.6.0] – 2026-11-12 – Carpet areas from Index II; unit GF 21
 
 ### Added

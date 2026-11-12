@@ -1,0 +1,293 @@
+{
+ "source": "PMC-approved revised plans, Laxman Thite Architect, Building 'T', S.No. 20/1(part)+19/2 and 20/2(part), Kondhwa (photos IMG_9836\u20139848)",
+ "note": "Carpet of the main shop / store room from the dimensions written on the plan (length x width, 'AVG' where shown). Attached WC / mori and loft are not included. Flats and offices are not included: the plans give room sizes, not a carpet total per flat.",
+ "units": [
+  {
+   "id": "B-01",
+   "dims": "6.3 x 4.1 m",
+   "sqm": 25.83,
+   "area": 278.0,
+   "ref": "Lower ground floor plan, STORE 1"
+  },
+  {
+   "id": "B-02",
+   "dims": "6.3 x 2.75 m",
+   "sqm": 17.32,
+   "area": 186.5,
+   "ref": "Lower ground floor plan, STORE 2"
+  },
+  {
+   "id": "B-03",
+   "dims": "6.8 x 3.05 m",
+   "sqm": 20.74,
+   "area": 223.2,
+   "ref": "Lower ground floor plan, STORE 3"
+  },
+  {
+   "id": "B-04",
+   "dims": "6.8 x 3.05 m",
+   "sqm": 20.74,
+   "area": 223.2,
+   "ref": "Lower ground floor plan, STORE 4"
+  },
+  {
+   "id": "B-05",
+   "dims": "6.3 x 2.75 m",
+   "sqm": 17.32,
+   "area": 186.5,
+   "ref": "Lower ground floor plan, STORE 5"
+  },
+  {
+   "id": "B-06",
+   "dims": "7.35 x 4.7 m",
+   "sqm": 34.55,
+   "area": 371.8,
+   "ref": "Lower ground floor plan, STORE 6"
+  },
+  {
+   "id": "B-07",
+   "dims": "7.35 x 3.05 m",
+   "sqm": 22.42,
+   "area": 241.3,
+   "ref": "Lower ground floor plan, STORE 7"
+  },
+  {
+   "id": "B-08",
+   "dims": "7.35 x 3.1 m",
+   "sqm": 22.79,
+   "area": 245.3,
+   "ref": "Lower ground floor plan, STORE 8"
+  },
+  {
+   "id": "B-09",
+   "dims": "7.35 x 3.1 m",
+   "sqm": 22.79,
+   "area": 245.3,
+   "ref": "Lower ground floor plan, STORE 9"
+  },
+  {
+   "id": "B-10",
+   "dims": "5.2 x 7.3 m",
+   "sqm": 37.96,
+   "area": 408.6,
+   "ref": "Lower ground floor plan, STORE 10"
+  },
+  {
+   "id": "B-11",
+   "dims": "3.05 x 7.425 m",
+   "sqm": 22.65,
+   "area": 243.8,
+   "ref": "Lower ground floor plan, STORE 11"
+  },
+  {
+   "id": "B-12",
+   "dims": "3.05 x 7.525 m",
+   "sqm": 22.95,
+   "area": 247.0,
+   "ref": "Lower ground floor plan, STORE 12"
+  },
+  {
+   "id": "B-13",
+   "dims": "3.05 x 4.915 m",
+   "sqm": 14.99,
+   "area": 161.4,
+   "ref": "Lower ground floor plan, STORE 13"
+  },
+  {
+   "id": "B-14",
+   "dims": "3.05 x 5.015 m",
+   "sqm": 15.3,
+   "area": 164.6,
+   "ref": "Lower ground floor plan, STORE 14"
+  },
+  {
+   "id": "B-15",
+   "dims": "2.9 x 7.205 m",
+   "sqm": 20.89,
+   "area": 224.9,
+   "ref": "Lower ground floor plan, STORE 15"
+  },
+  {
+   "id": "B-16",
+   "dims": "4.24 x 7.375 m",
+   "sqm": 31.27,
+   "area": 336.6,
+   "ref": "Lower ground floor plan, STORE 16"
+  },
+  {
+   "id": "B-17",
+   "dims": "3.25 x 6.36 m",
+   "sqm": 20.67,
+   "area": 222.5,
+   "ref": "Lower ground floor plan, STORE 17"
+  },
+  {
+   "id": "B-18",
+   "dims": "3.05 x 6.975 m",
+   "sqm": 21.27,
+   "area": 229.0,
+   "ref": "Lower ground floor plan, STORE 18"
+  },
+  {
+   "id": "B-19",
+   "dims": "3.05 x 7.075 m",
+   "sqm": 21.58,
+   "area": 232.3,
+   "ref": "Lower ground floor plan, STORE 19"
+  },
+  {
+   "id": "B-20",
+   "dims": "3.05 x 6.66 m",
+   "sqm": 20.31,
+   "area": 218.6,
+   "ref": "Lower ground floor plan, STORE 20"
+  },
+  {
+   "id": "B-21",
+   "dims": "4.4 x 7.835 m",
+   "sqm": 34.47,
+   "area": 371.1,
+   "ref": "Lower ground floor plan, STORE 21"
+  },
+  {
+   "id": "GF-01",
+   "dims": "7.35 x 4.1 m",
+   "sqm": 30.13,
+   "area": 324.4,
+   "ref": "Upper ground floor plan, SHOP 1"
+  },
+  {
+   "id": "GF-02",
+   "dims": "6.3 x 2.75 m",
+   "sqm": 17.32,
+   "area": 186.5,
+   "ref": "Upper ground floor plan, SHOP 2"
+  },
+  {
+   "id": "GF-03",
+   "dims": "6.8 x 3.05 m",
+   "sqm": 20.74,
+   "area": 223.2,
+   "ref": "Upper ground floor plan, SHOP 3"
+  },
+  {
+   "id": "GF-04",
+   "dims": "6.8 x 3.05 m",
+   "sqm": 20.74,
+   "area": 223.2,
+   "ref": "Upper ground floor plan, SHOP 4"
+  },
+  {
+   "id": "GF-05",
+   "dims": "6.3 x 2.75 m",
+   "sqm": 17.32,
+   "area": 186.5,
+   "ref": "Upper ground floor plan, SHOP 5"
+  },
+  {
+   "id": "GF-06",
+   "dims": "7.35 x 4.7 m",
+   "sqm": 34.55,
+   "area": 371.8,
+   "ref": "Upper ground floor plan, SHOP 6"
+  },
+  {
+   "id": "GF-07",
+   "dims": "7.35 x 3.05 m",
+   "sqm": 22.42,
+   "area": 241.3,
+   "ref": "Upper ground floor plan, SHOP 7"
+  },
+  {
+   "id": "GF-08",
+   "dims": "7.35 x 3.1 m",
+   "sqm": 22.79,
+   "area": 245.3,
+   "ref": "Upper ground floor plan, SHOP 8"
+  },
+  {
+   "id": "GF-09",
+   "dims": "7.35 x 3.1 m",
+   "sqm": 22.79,
+   "area": 245.3,
+   "ref": "Upper ground floor plan, SHOP 9"
+  },
+  {
+   "id": "GF-10",
+   "dims": "5.2 x 7.3 m",
+   "sqm": 37.96,
+   "area": 408.6,
+   "ref": "Upper ground floor plan, SHOP 10"
+  },
+  {
+   "id": "GF-11",
+   "dims": "3.05 x 7.425 m",
+   "sqm": 22.65,
+   "area": 243.8,
+   "ref": "Upper ground floor plan, SHOP 11"
+  },
+  {
+   "id": "GF-12",
+   "dims": "3.05 x 7.525 m",
+   "sqm": 22.95,
+   "area": 247.0,
+   "ref": "Upper ground floor plan, SHOP 12"
+  },
+  {
+   "id": "GF-13",
+   "dims": "3.05 x 5.01 m",
+   "sqm": 15.28,
+   "area": 164.5,
+   "ref": "Upper ground floor plan, SHOP 13"
+  },
+  {
+   "id": "GF-14",
+   "dims": "2.9 x 7.2 m",
+   "sqm": 20.88,
+   "area": 224.8,
+   "ref": "Upper ground floor plan, SHOP 14"
+  },
+  {
+   "id": "GF-15",
+   "dims": "4.24 x 7.315 m",
+   "sqm": 31.02,
+   "area": 333.8,
+   "ref": "Upper ground floor plan, SHOP 15"
+  },
+  {
+   "id": "GF-16",
+   "dims": "3.25 x 6.36 m",
+   "sqm": 20.67,
+   "area": 222.5,
+   "ref": "Upper ground floor plan, SHOP 16"
+  },
+  {
+   "id": "GF-17",
+   "dims": "3.05 x 6.97 m",
+   "sqm": 21.26,
+   "area": 228.8,
+   "ref": "Upper ground floor plan, SHOP 17"
+  },
+  {
+   "id": "GF-18",
+   "dims": "3.05 x 7.07 m",
+   "sqm": 21.56,
+   "area": 232.1,
+   "ref": "Upper ground floor plan, SHOP 18"
+  },
+  {
+   "id": "GF-19",
+   "dims": "3.05 x 6.68 m",
+   "sqm": 20.37,
+   "area": 219.3,
+   "ref": "Upper ground floor plan, SHOP 19"
+  },
+  {
+   "id": "GF-20",
+   "dims": "4.4 x 7.83 m",
+   "sqm": 34.45,
+   "area": 370.8,
+   "ref": "Upper ground floor plan, SHOP 20"
+  }
+ ]
+}

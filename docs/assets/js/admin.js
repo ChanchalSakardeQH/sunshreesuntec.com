@@ -495,10 +495,21 @@ async function loadIndex2() {
   catch { index2 = { units: [] }; }
   return index2;
 }
-const SOURCES = ['Agreement', 'Measured', 'Other'];
+let planAreas = null;
+async function loadPlan() {
+  if (planAreas) return planAreas;
+  try { planAreas = await (await fetch('data/plan-areas.json', { cache: 'no-cache' })).json(); }
+  catch { planAreas = { units: [] }; }
+  return planAreas;
+}
+const SOURCES = ['PMC approved plan', 'Agreement', 'Measured', 'Other'];
 const BASIS_TEXT = { carpet: 'carpet', 'built-up': 'built-up, not carpet', saleable: 'saleable, not carpet', unstated: 'type not stated' };
 
-function index2Text(u, e) {
+function index2Text(u, e, pl) {
+  const plan = pl ? `<br>Plan: ${fmt2(pl.area)} sq ft (${esc(pl.dims)})${e?.basis === 'carpet' && Math.abs(e.area - pl.area) / pl.area > 0.05 ? ' <span class="area-warn">differs from Index II by more than 5%</span>' : ''}` : '';
+  return index2Only(u, e) + plan;
+}
+function index2Only(u, e) {
   if (!e) return '<span class="muted">No Index II</span>';
   const parts = [`${fmt2(e.area)} sq ft ${BASIS_TEXT[e.basis] || e.basis}`];
   if (e.loft) parts.push(`loft ${fmt2(e.loft)}`);
@@ -516,8 +527,9 @@ function sameName(a, b) {
 }
 
 async function renderMeasurements() {
-  const i2 = await loadIndex2();
+  const [i2, pa] = await Promise.all([loadIndex2(), loadPlan()]);
   const byId = Object.fromEntries(i2.units.map((e) => [e.id, e]));
+  const planById = Object.fromEntries(pa.units.map((e) => [e.id, e]));
   const count = (b) => i2.units.filter((e) => e.basis === b).length;
   const missing = units.filter((u) => !byId[u.id]).length;
   $('#index2-summary').textContent = `${i2.units.length} documents read: ${count('carpet')} with carpet area, ${count('built-up')} built-up, ${count('saleable')} saleable, ${count('unstated')} area type not stated. ${missing} units have no Index II yet.`;
@@ -526,13 +538,30 @@ async function renderMeasurements() {
     const n = (name, v) => `<td class="num"><input type="number" min="0" step="0.01" name="m_${id}_${name}" value="${v ?? ''}" aria-label="${esc(u.unit)} ${name}"></td>`;
     const src = u.areaSource || '';
     const opts = ['', ...(e ? [`Index II p. ${e.page}`] : []), ...SOURCES];
+    const pl = planById[u.id];
     if (src && !opts.includes(src)) opts.push(src);
     return `<tr data-id="${id}"><td class="unit">${esc(u.unit)}</td><td>${esc(u.name)}</td>${n('area', u.carpetArea)}
       <td><select class="src" name="m_${id}_src" aria-label="${esc(u.unit)} area source">${opts.map((o) => `<option value="${esc(o)}" ${o === src ? 'selected' : ''}>${o ? esc(o) : 'Not set'}</option>`).join('')}</select></td>
-      <td class="i2">${index2Text(u, e)}</td>
+      <td class="i2">${index2Text(u, e, pl)}</td>
       ${n('inlets', u.inlets)}${n('2w', u.twoWheelers)}${n('4w', u.fourWheelers)}
       <td><select name="m_${id}_lift" aria-label="${esc(u.unit)} lift"><option value="">None</option><option value="C" ${g === 'C' ? 'selected' : ''}>C</option><option value="D" ${g === 'D' ? 'selected' : ''}>D</option></select></td></tr>`;
   }).join('');
+}
+
+function fillFromPlan() {
+  const overwrite = $('#index2-overwrite').checked;
+  const f = $('#measure-form');
+  let filled = 0, kept = 0;
+  for (const p of planAreas?.units || []) {
+    const input = f.elements[`m_${p.id}_area`];
+    if (!input) continue;
+    if (input.value && !overwrite) { kept++; continue; }
+    input.value = p.area;
+    f.elements[`m_${p.id}_src`].value = 'PMC approved plan';
+    input.closest('tr').classList.add('filled');
+    filled++;
+  }
+  setMsg(f, `Filled ${filled} shop / store carpet areas from the approved plan${kept ? `; kept ${kept} already entered` : ''}. Check them, then click Save all units.`, true);
 }
 
 function fillFromIndex2() {
@@ -564,6 +593,7 @@ function wireUnits() {
     if (!f.hidden) renderMeasurements().catch((err) => alert(errorText(err)));
   });
   $('#index2-fill').addEventListener('click', fillFromIndex2);
+  $('#plan-fill').addEventListener('click', fillFromPlan);
   const af = $('#addunit-form');
   af.block.innerHTML = dues.blocks.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
   af.type.innerHTML = PREMISES_TYPES.map((t) => `<option>${esc(t)}</option>`).join('');
@@ -606,6 +636,19 @@ function wireUnits() {
     if (b) openUnit(b.dataset.edit).catch((err) => alert(errorText(err)));
   });
   $('[data-close]', form).addEventListener('click', () => $('#unit-dialog').close());
+  $('#unit-remove').addEventListener('click', async (e) => {
+    const u = units.find((x) => x.id === editing);
+    if (!u || !confirm(`Remove unit ${u.unit} from the accounts? It has no entries, so nothing else is affected.`)) return;
+    await busy(e.currentTarget, async () => {
+      try {
+        await fb.F.deleteDoc(fb.F.doc(fb.db, 'units', editing));
+        await rebuildPublicDues(fb, dues.blocks);
+        await refreshCore();
+        renderUnits();
+        $('#unit-dialog').close();
+      } catch (err) { alert(errorText(err)); }
+    });
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -690,6 +733,8 @@ async function openUnit(id) {
     return `<tr><td>${ddmmyyyy(e.date)}</td><td>${esc(e.particulars)}</td><td>${esc(e.receipt || '')}</td>
       <td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No entries.</td></tr>';
+  // A unit added by mistake can be removed only while it has no bills, payments or entries.
+  $('#unit-remove').hidden = !(canDo('committee') && entries.length === 0);
   if (!$('#unit-dialog').open) $('#unit-dialog').showModal();
 }
 

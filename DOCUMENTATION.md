@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 2.6.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 2.6.1).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -120,7 +120,7 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `staffAgreements/{id}` | Permanent acceptance record: name signed, email, role, permissions, agreement version and title, date-time, device | Staff member (create only; never changed or deleted) |
 | `settings/staffAgreement` | Current agreement: title, introduction, role responsibilities, commitments, closing, version, published by / on | Committee |
 
-Unit IDs: `A-100`, `C-402`, `D-101A`, `GF-05`, `B-01` and so on. 66 units: A wing 4, C wing 16, D wing 4, Upper Ground Floor shops 21 (GF 21 added from the Index II documents), Lower Basement shops 21.
+Unit IDs: `A-100`, `C-402`, `D-101A`, `GF-05`, `B-01` and so on. 65 units: A wing 4, C wing 16, D wing 4, Upper Ground Floor shops 20, Lower Basement shops 21 (as in the PMC-approved plan).
 
 ---
 
@@ -236,6 +236,7 @@ Worked example (sample figures): common expenses ₹47,650 ÷ 65 units = ₹733;
 ### Carpet area and its source
 - Carpet area drives the sinking fund, repairs fund, property tax, insurance and major repairs shares. Each unit stores the area and its **source** (e.g. “Index II p. 12”, Agreement, Measured).
 - `docs/data/index2.json` holds what was read from the Index II file: 31 units with carpet area are filled with one click (Units → Enter area… → Fill carpet areas from Index II). Built-up and saleable figures are not carpet and are never used automatically; get the carpet figure from the member's agreement.
+- `docs/data/plan-areas.json` holds the carpet of all 41 shops and stores worked out from the dimensions on the PMC-approved plans (main room only). Use **Fill shops from approved plan**; the grid shows plan and Index II side by side and flags differences over 5%.
 - Lofts and terraces are recorded separately in the Index II note and are **not** added to carpet area unless the General Body decides otherwise.
 - Units without a carpet area pay no area-wise charges until one is entered.
 
