@@ -172,13 +172,33 @@
       </div>
       <form id="measure-form" class="mt-sm" hidden novalidate>
         <p class="muted">Used by the Monthly Maintenance Calculation: carpet area for sinking, repairs, property tax, insurance and major repairs; water inlets (taps) for water charges; vehicles for parking.</p>
+        <div class="callout">
+          <p><strong>Carpet areas from the Index II documents.</strong> <span id="index2-summary"></span></p>
+          <div class="form-actions">
+            <button class="btn" type="button" id="index2-fill">Fill carpet areas from Index II</button>
+            <label class="check"><input type="checkbox" id="index2-overwrite"> Also replace areas already entered</label>
+          </div>
+          <p class="muted small-note">Only areas written as carpet are filled. Built-up, saleable or unstated areas are shown under “Index II” for reference; enter the carpet figure from the member’s agreement. Lofts and terraces are not added. Nothing is saved until you click Save all units.</p>
+        </div>
         <div class="table-scroll"><table class="rates">
-          <thead><tr><th>Unit</th><th>Name</th><th class="num">Carpet area (sq ft)</th><th class="num">Water inlets</th><th class="num">Two-wheelers</th><th class="num">Four-wheelers</th><th>Lift</th></tr></thead>
+          <thead><tr><th>Unit</th><th>Name</th><th class="num">Carpet area (sq ft)</th><th>Area source</th><th>Index II</th><th class="num">Water inlets</th><th class="num">Two-wheelers</th><th class="num">Four-wheelers</th><th>Lift</th></tr></thead>
           <tbody id="measure-rows"></tbody>
         </table></div>
         <p class="form-msg" role="alert"></p>
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save all units</button></div>
       </form>
+      <details class="glossary mt-sm" data-perm="committee">
+        <summary>Add a unit missing from the list</summary>
+        <form id="addunit-form" class="form entry-form" novalidate>
+          <label>Unit no. (as printed, e.g. GF 21)<input type="text" name="unit" required></label>
+          <label>Block<select name="block"></select></label>
+          <label>Premises type<select name="type"></select></label>
+          <label class="wide">Member / owner name<input type="text" name="name"></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Add unit</button></div>
+          <p class="muted small-note wide-all">The unit starts at ₹0 and is marked “Under verification”. Add its opening balance as a correction once checked.</p>
+        </form>
+      </details>
       <div class="table-scroll"><table>
         <thead><tr><th>Unit</th><th>Name</th><th>Charge category</th><th>Lift</th><th>Status</th><th class="num">Balance (₹)</th><th class="num">BPM (₹)</th><th></th></tr></thead>
         <tbody id="units-rows"></tbody>
@@ -462,7 +482,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 2.5.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
+    <p class="muted mt" id="version-note">Software version 2.6.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

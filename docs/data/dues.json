@@ -426,6 +426,16 @@
    "bpm": 26200
   },
   {
+   "id": "GF-21",
+   "unit": "GF 21",
+   "block": "GF",
+   "name": "Murli Daryanomal",
+   "type": "Ground-Floor Shop",
+   "owner": null,
+   "bpm": null,
+   "verify": true
+  },
+  {
    "id": "B-01",
    "unit": "B 01",
    "block": "B",

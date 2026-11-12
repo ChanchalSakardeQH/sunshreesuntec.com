@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Sunshree Suntec CHS – access rules (version 2.5)
+// Sunshree Suntec CHS – access rules (version 2.6)
 //
 //   public/dues, public/site        anyone can read (the website)
 //   admins/{uid}                    committee members (no "kind") and staff (kind: 'staff', role, perms)
@@ -113,7 +113,7 @@ service cloud.firestore {
       // Rates, charge category, per-unit amounts, BPM and billing on/off stay with the committee.
       allow update: if isCommittee()
         || (moneyPerm() && changes().hasOnly(['balance', 'interestDue', 'lastBillId', 'unverified', 'updatedAt']))
-        || (perm('editUnits') && changes().hasOnly(['name', 'type', 'status', 'carpetArea', 'inlets',
+        || (perm('editUnits') && changes().hasOnly(['name', 'type', 'status', 'carpetArea', 'areaSource', 'inlets',
                                                     'twoWheelers', 'fourWheelers', 'liftGroup', 'updatedAt']));
       match /ledger/{entryId} {
         allow read: if perm('view') || approvedFor(unitId);

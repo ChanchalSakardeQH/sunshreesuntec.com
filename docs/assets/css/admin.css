@@ -78,3 +78,7 @@ dialog h3 { margin-top: 1.5rem; }
   .agreement { border: 0; padding: 0; }
 }
 .entry-form .perm-grid input, .perm-grid input[type=checkbox] { width: 1rem; height: 1rem; min-width: 1rem; flex: none; }
+#measure-rows td.i2 { font-size: .82rem; color: var(--muted); white-space: normal; min-width: 16rem; }
+#measure-rows select.src { font-size: .85rem; }
+#measure-rows tr.filled td { background: var(--stamp-soft); }
+.area-warn { color: var(--warn-ink); }

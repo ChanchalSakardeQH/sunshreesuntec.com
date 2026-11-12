@@ -1,0 +1,417 @@
+{
+ "source": "SUNTEC_ALL_INDEX_2_-_66MEMBERS.pdf (44 pages; pages 42-44 repeat GF 11, GF 12, C 502)",
+ "readOn": "2026-11-12",
+ "note": "Areas in sq ft as written in each Index II. Only 'carpet' entries are filled automatically; others need the carpet figure from the member's agreement.",
+ "units": [
+  {
+   "id": "B-01",
+   "area": 324,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 1,
+   "owner": "Rehana & Imamuddin Inamdar",
+   "note": ""
+  },
+  {
+   "id": "B-02",
+   "area": 190,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 2,
+   "owner": "Ibrahim E. Poonawala",
+   "note": ""
+  },
+  {
+   "id": "B-03",
+   "area": 223,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 3,
+   "owner": "Ibrahim Ismail Poonawala",
+   "note": "Built-up 267.6 sq ft"
+  },
+  {
+   "id": "B-04",
+   "area": 228,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 4,
+   "owner": "Najarali & Quaizohar Majevediwala",
+   "note": "Document's sq m (25.42) does not match 228 sq ft"
+  },
+  {
+   "id": "B-05",
+   "area": 247.22,
+   "basis": "unstated",
+   "loft": null,
+   "terrace": null,
+   "page": 5,
+   "owner": "Pradeep Giriraj Giri",
+   "note": "Area type not stated (22.97 sq m)"
+  },
+  {
+   "id": "B-07",
+   "area": 242,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 6,
+   "owner": "Anand Viera",
+   "note": ""
+  },
+  {
+   "id": "B-08",
+   "area": 249.07,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 7,
+   "owner": "Komal Amarnath Ratlani",
+   "note": ""
+  },
+  {
+   "id": "B-09",
+   "area": 249.07,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 8,
+   "owner": "Umesh Balasaheb Pawar",
+   "note": "Built-up 299.64 sq ft"
+  },
+  {
+   "id": "B-11",
+   "area": 254.67,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 9,
+   "owner": "Sunita Dinesh Manchanda",
+   "note": ""
+  },
+  {
+   "id": "B-14",
+   "area": 172,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 10,
+   "owner": "Tasneem Shafik Shadab",
+   "note": "Built-up 206.4 sq ft"
+  },
+  {
+   "id": "B-15",
+   "area": 230.56,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 11,
+   "owner": "Rohit Ramesh Sujanani",
+   "note": ""
+  },
+  {
+   "id": "B-16",
+   "area": 342.77,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 12,
+   "owner": "Moiz Mustansir Burhanpurwala",
+   "note": "Built-up 38.22 sq m"
+  },
+  {
+   "id": "B-17",
+   "area": 223.21,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 13,
+   "owner": "",
+   "note": "Owner not shown on this page"
+  },
+  {
+   "id": "B-18",
+   "area": 229.17,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 14,
+   "owner": "Fatima & Hojefa Chunawala",
+   "note": "Document's sq m (25.55) does not match 229.17 sq ft"
+  },
+  {
+   "id": "B-19",
+   "area": 232.3,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 15,
+   "owner": "",
+   "note": "Owner not shown on this page"
+  },
+  {
+   "id": "B-20",
+   "area": 223,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 16,
+   "owner": "Shivaji Anant Nikam",
+   "note": ""
+  },
+  {
+   "id": "GF-04",
+   "area": 227.12,
+   "basis": "carpet",
+   "loft": 113.56,
+   "terrace": null,
+   "page": 17,
+   "owner": "Pawan Shyam Gupta",
+   "note": "Bought from Mazhar Shaikh, 2011"
+  },
+  {
+   "id": "GF-05",
+   "area": 186.48,
+   "basis": "carpet",
+   "loft": 46.72,
+   "terrace": null,
+   "page": 18,
+   "owner": "Anshu & Pooja Gupta",
+   "note": "Bought from Sajida & Naved Fakki, 2010; loft 4.34 sq m"
+  },
+  {
+   "id": "GF-06",
+   "area": 650,
+   "basis": "saleable",
+   "loft": null,
+   "terrace": null,
+   "page": 19,
+   "owner": "Mona Malkani & Barkha Shaukin",
+   "note": "Saleable area, not carpet"
+  },
+  {
+   "id": "GF-11",
+   "area": 243.95,
+   "basis": "carpet",
+   "loft": 121.97,
+   "terrace": null,
+   "page": 20,
+   "owner": "Chaitali Parikshit Shah",
+   "note": ""
+  },
+  {
+   "id": "GF-12",
+   "area": 246.84,
+   "basis": "carpet",
+   "loft": 123.42,
+   "terrace": null,
+   "page": 21,
+   "owner": "Chaitali Parikshit Shah",
+   "note": ""
+  },
+  {
+   "id": "GF-13",
+   "area": 184,
+   "basis": "carpet",
+   "loft": 92,
+   "terrace": null,
+   "page": 22,
+   "owner": "Sushila Kadam & Gauri Sawant",
+   "note": ""
+  },
+  {
+   "id": "GF-14",
+   "area": 380,
+   "basis": "unstated",
+   "loft": null,
+   "terrace": null,
+   "page": 23,
+   "owner": "Shilpa Ajay Nawani",
+   "note": "Area type not stated (35.82 sq m)"
+  },
+  {
+   "id": "GF-15",
+   "area": 450.1,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 24,
+   "owner": "Shabbir Sabir Husain Akolawala",
+   "note": "41.82 sq m carpet, with car parking"
+  },
+  {
+   "id": "GF-16",
+   "area": 223.91,
+   "basis": "carpet",
+   "loft": 111.95,
+   "terrace": null,
+   "page": 25,
+   "owner": "Arjun & Kanchan Punjabi",
+   "note": ""
+  },
+  {
+   "id": "GF-19",
+   "area": 222.7,
+   "basis": "carpet",
+   "loft": 111.35,
+   "terrace": null,
+   "page": 26,
+   "owner": "Kalpana Ajay Karnik",
+   "note": "Shop number partly cut off; matched by owner name"
+  },
+  {
+   "id": "GF-20",
+   "area": 370,
+   "basis": "carpet",
+   "loft": 185,
+   "terrace": null,
+   "page": 27,
+   "owner": "Amarjit Singh Khalsa & Harleen Kaur",
+   "note": ""
+  },
+  {
+   "id": "GF-21",
+   "area": 492,
+   "basis": "unstated",
+   "loft": null,
+   "terrace": null,
+   "page": 28,
+   "owner": "Murli Daryanomal",
+   "note": "Not in the society list; area type not stated (45.70 sq m)"
+  },
+  {
+   "id": "A-101",
+   "area": 1229,
+   "basis": "built-up",
+   "loft": null,
+   "terrace": null,
+   "page": 29,
+   "owner": "Salim S. Nurani",
+   "note": "Built-up incl. terrace and parking"
+  },
+  {
+   "id": "A-102",
+   "area": 1135,
+   "basis": "saleable",
+   "loft": null,
+   "terrace": null,
+   "page": 30,
+   "owner": "Anand Bhattacharya",
+   "note": "Saleable incl. balcony and car parking"
+  },
+  {
+   "id": "C-101",
+   "area": 877.15,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": 60,
+   "page": 31,
+   "owner": "Jyoti Ramesh Survase",
+   "note": "Terrace 120/2 sq ft"
+  },
+  {
+   "id": "C-201",
+   "area": 849.8,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": 36.33,
+   "page": 32,
+   "owner": "Anand Kamalkishor Rathi",
+   "note": "78.95 sq m; last digit of sq ft faint"
+  },
+  {
+   "id": "C-202",
+   "area": 1215,
+   "basis": "saleable",
+   "loft": null,
+   "terrace": null,
+   "page": 33,
+   "owner": "Gagan Jay Singh",
+   "note": "Saleable incl. terrace and parking"
+  },
+  {
+   "id": "C-203",
+   "area": 751,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": 126.9,
+   "page": 34,
+   "owner": "Deepak Pramod Gupta",
+   "note": ""
+  },
+  {
+   "id": "C-303",
+   "area": 944,
+   "basis": "built-up",
+   "loft": null,
+   "terrace": null,
+   "page": 35,
+   "owner": "Ram Govindram Moryani",
+   "note": "Built-up incl. terrace"
+  },
+  {
+   "id": "C-403",
+   "area": 712.2,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": 64,
+   "page": 36,
+   "owner": "Virkumar Vidyachandra",
+   "note": "Converted from 66.17 sq m; sq ft figure faded"
+  },
+  {
+   "id": "C-402",
+   "area": 1130,
+   "basis": "built-up",
+   "loft": null,
+   "terrace": 40,
+   "page": 37,
+   "owner": "Chanchal Sakarde",
+   "note": "Built-up, with car parking"
+  },
+  {
+   "id": "C-401",
+   "area": 1286,
+   "basis": "built-up",
+   "loft": null,
+   "terrace": null,
+   "page": 38,
+   "owner": "",
+   "note": "Owner not shown on this page"
+  },
+  {
+   "id": "C-502",
+   "area": 862,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": 62.21,
+   "page": 39,
+   "owner": "Tasneem Shafik Shadab",
+   "note": ""
+  },
+  {
+   "id": "D-101B",
+   "area": 514,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": 176,
+   "page": 40,
+   "owner": "Dr Amrut Abhimanyu Ingale",
+   "note": ""
+  },
+  {
+   "id": "D-101A",
+   "area": 1467.39,
+   "basis": "carpet",
+   "loft": null,
+   "terrace": null,
+   "page": 41,
+   "owner": "Dr Chandrashekhar & Swati Sanghvi",
+   "note": "With car parking"
+  }
+ ]
+}

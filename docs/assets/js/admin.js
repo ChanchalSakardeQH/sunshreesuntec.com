@@ -4,7 +4,7 @@ import { PERMS, PERM_LABEL, COMMITTEE_ONLY, STAFF_ROLES, permsFor, isCommitteeRe
 import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
   updateUnitDetails, importOpening, rebuildPublicDues,
-  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements
+  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit
 } from './accounts.js';
 import {
   LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
@@ -488,13 +488,68 @@ function renderUnits() {
   return Promise.resolve();
 }
 
-function renderMeasurements() {
+let index2 = null;
+async function loadIndex2() {
+  if (index2) return index2;
+  try { index2 = await (await fetch('data/index2.json', { cache: 'no-cache' })).json(); }
+  catch { index2 = { units: [] }; }
+  return index2;
+}
+const SOURCES = ['Agreement', 'Measured', 'Other'];
+const BASIS_TEXT = { carpet: 'carpet', 'built-up': 'built-up, not carpet', saleable: 'saleable, not carpet', unstated: 'type not stated' };
+
+function index2Text(u, e) {
+  if (!e) return '<span class="muted">No Index II</span>';
+  const parts = [`${fmt2(e.area)} sq ft ${BASIS_TEXT[e.basis] || e.basis}`];
+  if (e.loft) parts.push(`loft ${fmt2(e.loft)}`);
+  if (e.terrace) parts.push(`terrace ${fmt2(e.terrace)}`);
+  let t = `${parts.join(', ')} (p. ${e.page})`;
+  if (e.owner && u.name && !sameName(e.owner, u.name)) t += `<br><span class="area-warn">Index II owner: ${esc(e.owner)}</span>`;
+  if (e.note) t += `<br>${esc(e.note)}`;
+  return e.basis === 'carpet' ? t : `<span class="area-warn">${t}</span>`;
+}
+const fmt2 = (n) => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+function sameName(a, b) {
+  const words = (x) => new Set(String(x).toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !['mrs', 'smt', 'shri'].includes(w)));
+  const A = words(a), B = words(b);
+  return [...A].some((w) => B.has(w));
+}
+
+async function renderMeasurements() {
+  const i2 = await loadIndex2();
+  const byId = Object.fromEntries(i2.units.map((e) => [e.id, e]));
+  const count = (b) => i2.units.filter((e) => e.basis === b).length;
+  const missing = units.filter((u) => !byId[u.id]).length;
+  $('#index2-summary').textContent = `${i2.units.length} documents read: ${count('carpet')} with carpet area, ${count('built-up')} built-up, ${count('saleable')} saleable, ${count('unstated')} area type not stated. ${missing} units have no Index II yet.`;
   $('#measure-rows').innerHTML = units.map((u) => {
-    const id = esc(u.id), g = liftGroupFor(u);
-    const n = (name, v) => `<td class="num"><input type="number" min="0" step="1" name="m_${id}_${name}" value="${v ?? ''}" aria-label="${esc(u.unit)} ${name}"></td>`;
-    return `<tr><td class="unit">${esc(u.unit)}</td><td>${esc(u.name)}</td>${n('area', u.carpetArea)}${n('inlets', u.inlets)}${n('2w', u.twoWheelers)}${n('4w', u.fourWheelers)}
+    const id = esc(u.id), g = liftGroupFor(u), e = byId[u.id];
+    const n = (name, v) => `<td class="num"><input type="number" min="0" step="0.01" name="m_${id}_${name}" value="${v ?? ''}" aria-label="${esc(u.unit)} ${name}"></td>`;
+    const src = u.areaSource || '';
+    const opts = ['', ...(e ? [`Index II p. ${e.page}`] : []), ...SOURCES];
+    if (src && !opts.includes(src)) opts.push(src);
+    return `<tr data-id="${id}"><td class="unit">${esc(u.unit)}</td><td>${esc(u.name)}</td>${n('area', u.carpetArea)}
+      <td><select class="src" name="m_${id}_src" aria-label="${esc(u.unit)} area source">${opts.map((o) => `<option value="${esc(o)}" ${o === src ? 'selected' : ''}>${o ? esc(o) : 'Not set'}</option>`).join('')}</select></td>
+      <td class="i2">${index2Text(u, e)}</td>
+      ${n('inlets', u.inlets)}${n('2w', u.twoWheelers)}${n('4w', u.fourWheelers)}
       <td><select name="m_${id}_lift" aria-label="${esc(u.unit)} lift"><option value="">None</option><option value="C" ${g === 'C' ? 'selected' : ''}>C</option><option value="D" ${g === 'D' ? 'selected' : ''}>D</option></select></td></tr>`;
   }).join('');
+}
+
+function fillFromIndex2() {
+  const overwrite = $('#index2-overwrite').checked;
+  const f = $('#measure-form');
+  let filled = 0, kept = 0;
+  for (const e of index2?.units || []) {
+    if (e.basis !== 'carpet') continue;
+    const input = f.elements[`m_${e.id}_area`];
+    if (!input) continue;
+    if (input.value && !overwrite) { kept++; continue; }
+    input.value = e.area;
+    f.elements[`m_${e.id}_src`].value = `Index II p. ${e.page}`;
+    input.closest('tr').classList.add('filled');
+    filled++;
+  }
+  setMsg(f, `Filled ${filled} carpet areas from Index II${kept ? `; kept ${kept} already entered` : ''}. Check them, then click Save all units.`, true);
 }
 
 function wireUnits() {
@@ -506,14 +561,35 @@ function wireUnits() {
   $('#measure-toggle').addEventListener('click', () => {
     const f = $('#measure-form');
     f.hidden = !f.hidden;
-    if (!f.hidden) renderMeasurements();
+    if (!f.hidden) renderMeasurements().catch((err) => alert(errorText(err)));
+  });
+  $('#index2-fill').addEventListener('click', fillFromIndex2);
+  const af = $('#addunit-form');
+  af.block.innerHTML = dues.blocks.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
+  af.type.innerHTML = PREMISES_TYPES.map((t) => `<option>${esc(t)}</option>`).join('');
+  af.block.addEventListener('change', () => { if (['GF', 'B'].includes(af.block.value)) af.type.value = af.block.value === 'GF' ? 'Ground-Floor Shop' : 'Basement Shop'; });
+  af.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(af);
+    const unit = String(fd.get('unit')).trim().toUpperCase().replace(/\s+/g, ' ');
+    if (!/^[A-Z]{1,2}[ -]?\d{1,3}( ?[A-Z])?$/.test(unit)) return setMsg(af, 'Enter the unit number as printed, e.g. GF 21 or C 504.');
+    const id = unit.replace(/^([A-Z]+)[ -]?/, '$1-').replace(/ /g, '');
+    await busy($('button[type=submit]', af), async () => {
+      try {
+        const made = await addUnit(fb, { id, unit, block: String(fd.get('block')), type: String(fd.get('type')), name: String(fd.get('name')).trim() }, dues.blocks);
+        af.reset();
+        await refreshCore();
+        renderUnits();
+        setMsg(af, `Unit ${esc(made)} added. Open it to set its category and lift, and add its opening balance as a correction.`, true);
+      } catch (err) { setMsg(af, esc(errorText(err))); }
+    });
   });
   $('#measure-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = e.currentTarget, fd = new FormData(f);
     const num = (k) => (fd.get(k) === '' || fd.get(k) == null ? null : Number(fd.get(k)));
     const rows = units.map((u) => ({
-      id: u.id, carpetArea: num(`m_${u.id}_area`), inlets: round(num(`m_${u.id}_inlets`)),
+      id: u.id, carpetArea: num(`m_${u.id}_area`), areaSource: String(fd.get(`m_${u.id}_src`) ?? ''), inlets: round(num(`m_${u.id}_inlets`)),
       twoWheelers: round(num(`m_${u.id}_2w`)), fourWheelers: round(num(`m_${u.id}_4w`)), liftGroup: String(fd.get(`m_${u.id}_lift`) ?? '')
     }));
     await busy($('button[type=submit]', f), async () => {

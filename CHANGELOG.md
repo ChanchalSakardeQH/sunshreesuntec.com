@@ -6,6 +6,26 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [2.6.0] – 2026-11-12 – Carpet areas from Index II; unit GF 21
+
+### Added
+- `docs/data/index2.json`: areas read from the 44-page Index II file (41 documents; pages 42–44 repeat GF 11, GF 12 and C 502): area in sq ft, whether it is carpet / built-up / saleable / not stated, loft, terrace, page number, owner named in the Index II and remarks.
+- Units → Enter area, inlets and parking: **Fill carpet areas from Index II** (31 units with carpet area; optional “replace areas already entered”), an **Area source** column (e.g. “Index II p. 12”, Agreement, Measured) saved on each unit, and an **Index II** column showing the document's figure, page, loft / terrace, owner if different from the society list, and remarks. Built-up, saleable and unstated areas are shown but never filled automatically.
+- **Add a unit missing from the list** (committee): starts at ₹0, flagged “Under verification”.
+- Unit **GF 21** (Murli Daryanomal, per Index II p. 28, 492 sq ft, area type not stated) added to `data/dues.json`; the society now has 66 units.
+
+### Data notes from the Index II file
+- Carpet stated: B 01, 02, 03, 04, 07, 08, 09, 11, 14, 15, 16, 17, 18, 19, 20; GF 04, 05, 11, 12, 13, 15, 16, 19, 20; C 101, 201, 203, 403, 502; D 101 A, D 101 B.
+- Built-up only: A 101, C 303, C 401, C 402. Saleable only: A 102, C 202, GF 06. Type not stated: B 05, GF 14, GF 21.
+- Inconsistent sq m in document: B 04, B 18. Converted from sq m: C 403. Faint digit: C 201. Shop number cut off: GF 19 (matched by owner).
+- Owner differs from society list: GF 04 (sold to Pawan Shyam Gupta, 2011), GF 05 (sold to Anshu & Pooja Gupta, 2010), C 202, C 502, B 14, D 101 A.
+- No Index II yet: A 100, A 103, B 06, B 10, B 12, B 13, B 21, C 100, C 102, C 103, C 301, C 302, C 501, C 503, D 201, D 202, GF 01, 02, 03, 07, 08, 09, 10, 17, 18.
+
+### Changed
+- `firestore.rules`: staff with *edit units* may also set `areaSource` (re-publish the rules).
+
+---
+
 ## [2.5.0] – 2026-11-11 – Google sign-in, staff roles and agreement
 
 ### Added

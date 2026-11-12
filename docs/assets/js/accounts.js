@@ -279,6 +279,28 @@ export async function addAdjustment(fb, unitId, e) {
   });
 }
 
+/**
+ * Adds a unit that wasn't in the opening list (e.g. GF 21 found in the Index II documents).
+ * Starts at ₹0, flagged for verification; the committee adds the opening balance as a correction.
+ */
+export async function addUnit(fb, u, blocks) {
+  const { F, db } = fb;
+  const id = String(u.id).trim().toUpperCase().replace(/\s+/g, '-');
+  const ref = F.doc(db, 'units', id);
+  if ((await F.getDoc(ref)).exists()) throw new Error(`Unit ${id} already exists.`);
+  const all = await loadUnits(fb);
+  const sameBlock = all.filter((x) => x.block === u.block);
+  const order = sameBlock.length ? Math.max(...sameBlock.map((x) => x.order ?? 0)) + 0.5 : all.length;
+  await F.setDoc(ref, {
+    unit: u.unit, block: u.block, name: u.name || '', type: u.type, status: '',
+    balance: 0, interestDue: 0, bpm: null, unverified: true,
+    category: categoryIdFor({ ...u, id }), liftGroup: liftGroupFor(u), constructionCost: null,
+    charges: {}, active: true, order, updatedAt: F.serverTimestamp()
+  });
+  await rebuildPublicDues(fb, blocks);
+  return id;
+}
+
 /** Saves carpet area, inlets, vehicles and lift for many units at once. rows: [{ id, ...fields }] */
 export async function saveUnitMeasurements(fb, rows) {
   const { F, db } = fb;
