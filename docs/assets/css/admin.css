@@ -134,3 +134,13 @@ td .sub { display: block; color: var(--muted); font-size: .84rem; }
   .uf-pane[hidden] { display: block !important; }
   body.admin .wrap { width: 100%; }
 }
+#rp-body table td, #rp-body table th { white-space: nowrap; }
+#rp-body .num-big { font-size: 1.25rem; font-weight: 700; }
+#rp-body h2 { margin-top: 1.5rem; }
+.rp-print-head { display: none; }
+@media print {
+  body.admin .tab:not([data-tab="reports"]):not([data-tab="unitfile"]) { display: none !important; }
+  #rp-tabs, #rp-fy, #rp-print, #rp-csv, #rp-body .form-actions { display: none !important; }
+  .rp-print-head { display: block; }
+}
+.fy-line td { background: var(--paper); }

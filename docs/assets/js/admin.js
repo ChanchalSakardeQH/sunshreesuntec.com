@@ -4,12 +4,14 @@ import { PERMS, PERM_LABEL, COMMITTEE_ONLY, STAFF_ROLES, permsFor, isCommitteeRe
 import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
   updateUnitDetails, importOpening, rebuildPublicDues,
-  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit, publicDuesNeedMasking
+  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit, publicDuesNeedMasking,
+  loadAllLedgers, fyStatement, fyBills, fyPayments, closeFinancialYear, reopenFinancialYear
 } from './accounts.js';
 import {
   LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
   categoryIdFor, liftGroupFor, LIFT_GROUPS, LIFT_KINDS, addMonths, liftExpenseEndMonth, MAX_INTEREST_PA,
   PARTICULARS, buildContext, mmcRates, computeBill, prepareExtras, extrasForUnit, constructionCostOf,
+  financialYear, fyBounds, fyList, longDate,
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING } from './defaults.js';
@@ -17,8 +19,8 @@ import { getDues, getNotices, fmt, esc, fmtDate } from './data.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'members', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'members', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
@@ -233,7 +235,7 @@ function route() {
   $('#admin-nav').classList.remove('open');
   $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -247,6 +249,7 @@ function wireOnce() {
   wireLift();
   wireStaff();
   wireUnitFile();
+  wireReports();
   wireMembers();
   wireWebsite();
   wireSettings();
@@ -1481,11 +1484,12 @@ async function loadUnitFile() {
 
   // Account
   const entries = ledgerSnap.docs.map((d) => d.data()).sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
-  let bal = 0;
-  $('#uf-ledger').innerHTML = entries.map((e) => {
-    bal += (e.debit || 0) - (e.credit || 0);
-    return `<tr><td>${dd(e.date)}</td><td>${esc(e.particulars)}</td><td>${esc(e.receipt || '')}</td><td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="empty">No entries.</td></tr>';
+  ufEntries = entries;
+  const fys = entries.length ? fyList(entries[0].date, todayIST()) : [financialYear(todayIST())];
+  const pick = $('#uf-fy'), keep = pick.value;
+  pick.innerHTML = '<option value="">All years</option>' + fys.map((f) => `<option value="${f}">${f}</option>`).join('');
+  pick.value = fys.includes(keep) ? keep : '';
+  renderUfLedger();
   $('#uf-bills').innerHTML = billSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.month.localeCompare(a.month))
     .map((b) => `<tr><td>${esc(b.billNo)}</td><td>${monthLabel(b.month)}</td><td class="num">${amt(b.total)}</td><td><a href="print.html?bill=${encodeURIComponent(b.id)}" target="_blank" rel="noopener">View</a></td></tr>`).join('')
     || '<tr><td colspan="4" class="empty">No bills.</td></tr>';
@@ -1538,6 +1542,29 @@ async function loadUnitFile() {
   applyAccess();
 }
 
+let ufEntries = [];
+/** Unit ledger, all years or one financial year with its opening and closing balance. */
+function renderUfLedger() {
+  const fy = $('#uf-fy').value;
+  let bal = 0, rows = '';
+  const line = (e) => {
+    bal += (e.debit || 0) - (e.credit || 0);
+    return `<tr><td>${dd(e.date)}</td><td>${esc(e.particulars)}</td><td>${esc(e.receipt || '')}</td><td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
+  };
+  if (!fy) rows = ufEntries.map(line).join('');
+  else {
+    const { from, to } = fyBounds(fy);
+    const before = ufEntries.filter((e) => e.date < from);
+    bal = before.reduce((a, e) => a + (e.debit || 0) - (e.credit || 0), 0);
+    rows = `<tr class="fy-line"><td>${dd(from)}</td><td colspan="4"><strong>Opening balance on 1 April</strong></td><td class="num"><strong>${amt(bal)}</strong></td></tr>`
+      + ufEntries.filter((e) => e.date >= from && e.date <= to).map(line).join('')
+      + (to < todayIST()
+        ? `<tr class="fy-line"><td>${dd(to)}</td><td colspan="4"><strong>Closing balance on 31 March</strong></td><td class="num"><strong>${amt(bal)}</strong></td></tr>`
+        : `<tr class="fy-line"><td>${dd(todayIST())}</td><td colspan="4"><strong>Balance so far (year not yet ended)</strong></td><td class="num"><strong>${amt(bal)}</strong></td></tr>`);
+  }
+  $('#uf-ledger').innerHTML = rows || '<tr><td colspan="6" class="empty">No entries.</td></tr>';
+}
+
 function showUfPane(name) {
   ufPane = name;
   $$('#uf-tabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pane === name)));
@@ -1566,6 +1593,7 @@ function wireUnitFile() {
   $('#uf-tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-pane]'); if (b) showUfPane(b.dataset.pane); });
   $('#uf-pick').addEventListener('change', (e) => { fileUnit = e.target.value; sessionStorage.setItem('fileUnit', fileUnit); loadUnitFile().catch((err) => alert(errorText(err))); });
   $('#uf-print').addEventListener('click', () => window.print());
+  $('#uf-fy').addEventListener('change', renderUfLedger);
   $('#uf-pay').addEventListener('click', () => { payFor = fileUnit; location.hash = '#payments'; });
   $('#uf-edit').addEventListener('click', () => openUnit(fileUnit).catch((err) => alert(errorText(err))));
   $('section[data-tab="unitfile"]').addEventListener('click', (e) => {
@@ -1616,4 +1644,155 @@ async function syncOccupancy() {
   } else return;
   await refreshCore();
   await loadUnitFile();
+}
+
+/* ---------------- financial-year reports ---------------- */
+
+let rpKind = 'summary';
+let rpData = null;      // { fy, st, bills, pays, closing }
+let rpCsv = null;       // { name, rows }
+
+async function loadReports() {
+  const sel = $('#rp-fy');
+  const first = '2026-09-30';   // earliest entries: opening balances taken over on 30 Sep 2026
+  const fys = fyList(first, todayIST());
+  if (!sel.options.length) {
+    sel.innerHTML = fys.map((f) => `<option value="${f}">${f} (1 Apr ${f.slice(0, 4)} – 31 Mar ${Number(f.slice(0, 4)) + 1})</option>`).join('');
+  }
+  await buildReport(sel.value || fys[0]);
+}
+
+async function buildReport(fy) {
+  $('#rp-status').textContent = 'Working out the figures…';
+  $('#rp-body').innerHTML = '';
+  const [ledgers, bills, pays, closingSnap] = await Promise.all([
+    loadAllLedgers(fb, units), fyBills(fb, fy), fyPayments(fb, fy),
+    fb.F.getDoc(fb.F.doc(fb.db, 'fyClosing', fy)).catch(() => null)
+  ]);
+  rpData = { fy, st: fyStatement(units, ledgers, fy), bills, pays, closing: closingSnap?.exists() ? closingSnap.data() : null };
+  const lock = billing.lockedUpTo || '';
+  $('#rp-status').innerHTML = rpData.closing?.status === 'closed'
+    ? `<span class="pill past">Year closed</span> on ${esc(tsText(rpData.closing.closedAt))}. Entries dated up to ${longDate(lock || rpData.st.to)} are locked.`
+    : `<span class="pill ok">Open year</span>${lock ? ` Books are closed up to ${longDate(lock)}.` : ''}`;
+  renderReport();
+}
+
+function renderReport() {
+  $$('#rp-tabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.rp === rpKind)));
+  const { fy, st, bills, pays } = rpData;
+  const head = `<div class="rp-print-head"><h2>Sunshree Suntec Co-op. Hsg. Soc. Ltd.</h2><p>Financial year ${fy} (${longDate(st.from)} to ${longDate(st.to)})</p></div>`;
+  const okPays = pays.filter((p) => p.status !== 'cancelled');
+
+  if (rpKind === 'summary') {
+    const t = st.total;
+    const months = fyBounds(fy).months.map((m) => {
+      const b = bills.filter((x) => x.month === m).reduce((a, x) => a + x.current, 0);
+      const c = okPays.filter((p) => p.date.slice(0, 7) === m).reduce((a, p) => a + p.amount, 0);
+      return { m, b, c };
+    });
+    const due = st.rows.filter((r) => r.closing > 0).length;
+    $('#rp-body').innerHTML = head + `
+      <dl class="dues-summary">
+        <div><dt>Opening balance (₹)</dt><dd>${amt(t.opening)}</dd></div>
+        <div><dt>Billed in the year (₹)</dt><dd>${fmt(t.billed)}</dd></div>
+        <div><dt>Received in the year (₹)</dt><dd class="credit">${fmt(t.received - t.reversed)}</dd></div>
+        <div><dt>Corrections, net (₹)</dt><dd>${amt(t.adjDebit - t.adjCredit)}</dd></div>
+        <div><dt>${st.to < todayIST() ? 'Closing balance on 31 March' : 'Balance so far'} (₹)</dt><dd class="due">${amt(t.closing)}</dd></div>
+        <div><dt>Collection against billing</dt><dd>${t.billed ? Math.round(((t.received - t.reversed) / t.billed) * 100) + '%' : '—'}</dd></div>
+      </dl>
+      <p class="muted">${due} of ${st.rows.length} units have dues at the end of the period. Received is net of cancelled receipts (₹ ${fmt(t.reversed)}).</p>
+      <h2>Month by month</h2>
+      <div class="table-scroll"><table><thead><tr><th>Month</th><th class="num">Billed (₹)</th><th class="num">Received (₹)</th></tr></thead>
+      <tbody>${months.map((x) => `<tr><td>${monthLabel(x.m)}</td><td class="num">${x.b ? fmt(x.b) : ''}</td><td class="num">${x.c ? fmt(x.c) : ''}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total</td><td class="num">${fmt(months.reduce((a, x) => a + x.b, 0))}</td><td class="num">${fmt(months.reduce((a, x) => a + x.c, 0))}</td></tr></tfoot></table></div>`;
+    rpCsv = { name: `year-summary-${fy}`, rows: [['Month', 'Billed', 'Received'], ...months.map((x) => [monthLabel(x.m), x.b, x.c])] };
+  }
+
+  if (rpKind === 'members') {
+    const cols = [['opening', 'Opening'], ['billed', 'Billed'], ['received', 'Received'], ['reversed', 'Cancelled receipts'], ['adjDebit', 'Corrections +'], ['adjCredit', 'Corrections −'], ['closing', 'Closing']];
+    $('#rp-body').innerHTML = head + `<p class="muted">Like the Sundry Debtors group summary: each unit’s opening balance on 1 April (including balances taken over on 30 Sep 2026), what was billed and received during the year, and the closing balance on 31 March.</p>
+      <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Member</th>${cols.map(([, l]) => `<th class="num">${l} (₹)</th>`).join('')}</tr></thead>
+      <tbody>${st.rows.map((r) => `<tr><td class="unit">${esc(r.unit)}</td><td>${esc(r.name)}</td>${cols.map(([k]) => `<td class="num">${k === 'opening' || k === 'closing' ? amt(r[k]) : r[k] ? fmt(r[k]) : ''}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="2">Total, ${st.rows.length} units</td>${cols.map(([k]) => `<td class="num">${k === 'opening' || k === 'closing' ? amt(st.total[k]) : fmt(st.total[k])}</td>`).join('')}</tr></tfoot></table></div>`;
+    rpCsv = { name: `member-statement-${fy}`, rows: [['Unit', 'Member', ...cols.map(([, l]) => l)], ...st.rows.map((r) => [r.unit, r.name, ...cols.map(([k]) => r[k])]), ['Total', '', ...cols.map(([k]) => st.total[k])]] };
+  }
+
+  if (rpKind === 'heads') {
+    const sums = {};
+    for (const b of bills) for (const l of b.lines || []) sums[l.code] = (sums[l.code] || 0) + l.amount;
+    const heads = PARTICULARS.filter(([c]) => sums[c]);
+    const total = Object.values(sums).reduce((a, x) => a + x, 0);
+    $('#rp-body').innerHTML = head + `<p class="muted">What was billed under each head in ${bills.length} bills this year (arrears not included). Sinking fund and repairs fund lines show what has been raised for those funds.</p>
+      <div class="table-scroll"><table><thead><tr><th>Head</th><th class="num">Billed (₹)</th><th class="num">Share</th></tr></thead>
+      <tbody>${heads.map(([c, l]) => `<tr><td>${esc(l)}</td><td class="num">${fmt(sums[c])}</td><td class="num">${total ? Math.round((sums[c] / total) * 1000) / 10 + '%' : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">No bills in this year.</td></tr>'}</tbody>
+      <tfoot><tr><td>Total billed</td><td class="num">${fmt(total)}</td><td></td></tr></tfoot></table></div>`;
+    rpCsv = { name: `billing-by-head-${fy}`, rows: [['Head', 'Billed'], ...heads.map(([c, l]) => [l, sums[c]]), ['Total', total]] };
+  }
+
+  if (rpKind === 'collections') {
+    const byMode = {};
+    okPays.forEach((p) => { byMode[p.mode] = (byMode[p.mode] || 0) + p.amount; });
+    const cancelled = pays.filter((p) => p.status === 'cancelled');
+    const list = [...pays].sort((a, b) => a.date.localeCompare(b.date) || a.receiptNo.localeCompare(b.receiptNo));
+    $('#rp-body').innerHTML = head + `
+      <dl class="dues-summary">${Object.entries(byMode).map(([m, a]) => `<div><dt>${esc(m)} (₹)</dt><dd>${fmt(a)}</dd></div>`).join('')}
+        <div><dt>Total received (₹)</dt><dd class="credit">${fmt(okPays.reduce((a, p) => a + p.amount, 0))}</dd></div>
+        <div><dt>Cancelled receipts</dt><dd>${cancelled.length} <small class="muted">₹ ${fmt(cancelled.reduce((a, p) => a + p.amount, 0))}</small></dd></div></dl>
+      <h2>Receipt register</h2>
+      <div class="table-scroll"><table><thead><tr><th>Date</th><th>Receipt no.</th><th>Unit</th><th>Name</th><th>Mode / ref.</th><th class="num">Amount (₹)</th><th>Status</th></tr></thead>
+      <tbody>${list.map((p) => `<tr><td>${dd(p.date)}</td><td>${esc(p.receiptNo)}</td><td class="unit">${esc(p.unit)}</td><td>${esc(p.name)}</td><td>${esc(p.mode)} ${esc(p.reference || '')}</td><td class="num">${fmt(p.amount)}</td><td>${p.status === 'cancelled' ? '<span class="status-pill cancelled">Cancelled</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">No receipts in this year.</td></tr>'}</tbody></table></div>`;
+    rpCsv = { name: `receipts-${fy}`, rows: [['Date', 'Receipt No', 'Unit', 'Name', 'Mode', 'Reference', 'Amount', 'Status'], ...list.map((p) => [p.date, p.receiptNo, p.unit, p.name, p.mode, p.reference, p.amount, p.status])] };
+  }
+
+  if (rpKind === 'close') {
+    const c = rpData.closing;
+    const ended = todayIST() > st.to;
+    const committee = canDo('committee');
+    $('#rp-body').innerHTML = head + `
+      <p>Closing a financial year freezes it for audit: the member-wise closing balances on 31 March are saved as they stand, and no bill, payment or correction can be dated on or before 31 March of that year. The closing balances are the opening balances of the next year.</p>
+      ${c ? `<div class="callout"><p><strong>${c.status === 'closed' ? 'Closed' : 'Reopened'}.</strong> Closed on ${esc(tsText(c.closedAt))}; closing balance ₹ ${fmt(c.total?.closing || 0)} for ${c.units?.length || 0} units.${c.note ? ` Note: ${esc(c.note)}` : ''}${c.status === 'reopened' ? ` Reopened on ${esc(tsText(c.reopenedAt))}: ${esc(c.reopenReason || '')}` : ''}</p></div>` : ''}
+      ${!committee ? '<p class="muted">Only the committee can close or reopen a year.</p>'
+        : !ended ? `<p class="muted">This year ends on ${longDate(st.to)}. It can be closed after that, once all March payments are entered and the accounts are checked.</p>`
+        : c?.status === 'closed' ? `<div class="form-actions"><button class="btn btn-danger" type="button" id="rp-reopen">Reopen ${fy}</button></div>`
+        : `<label class="inline-label">Note for the record (e.g. audited by …)<input type="text" id="rp-note"></label>
+           <div class="form-actions"><button class="btn btn-primary" type="button" id="rp-close">Close financial year ${fy}</button></div>`}`;
+    rpCsv = null;
+  }
+}
+
+function wireReports() {
+  $('#rp-tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-rp]'); if (b && rpData) { rpKind = b.dataset.rp; renderReport(); } });
+  $('#rp-fy').addEventListener('change', (e) => buildReport(e.target.value).catch((err) => alert(errorText(err))));
+  $('#rp-print').addEventListener('click', () => window.print());
+  $('#rp-csv').addEventListener('click', () => {
+    if (!rpCsv) return alert('This page has nothing to download.');
+    const csv = rpCsv.rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
+    a.download = `${rpCsv.name}.csv`;
+    a.click();
+  });
+  $('#rp-body').addEventListener('click', async (e) => {
+    if (e.target.id === 'rp-close') {
+      if (!confirm(`Close financial year ${rpData.fy}? Entries dated on or before ${longDate(rpData.st.to)} will be locked.`)) return;
+      await busy(e.target, async () => {
+        try { await closeFinancialYear(fb, rpData.st, $('#rp-note').value.trim()); billing = await loadBilling(fb); await buildReport(rpData.fy); }
+        catch (err) { alert(errorText(err)); }
+      });
+    }
+    if (e.target.id === 'rp-reopen') {
+      const reason = prompt('Why is this year being reopened? (recorded)');
+      if (!reason) return;
+      await busy(e.target, async () => {
+        try {
+          // Go back to the end of the previous year if that one is closed, else no lock.
+          const prevFy = `${Number(rpData.fy.slice(0, 4)) - 1}-${rpData.fy.slice(2, 4)}`;
+          const prev = await fb.F.getDoc(fb.F.doc(fb.db, 'fyClosing', prevFy)).catch(() => null);
+          await reopenFinancialYear(fb, rpData.fy, reason, prev?.exists() && prev.data().status === 'closed' ? prev.data().to : '');
+          billing = await loadBilling(fb);
+          await buildReport(rpData.fy);
+        } catch (err) { alert(errorText(err)); }
+      });
+    }
+  });
 }

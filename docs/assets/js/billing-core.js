@@ -107,6 +107,25 @@ export function financialYear(iso) {
   return `${start}-${pad((start + 1) % 100)}`;
 }
 
+/** "2026-27" → { from: '2026-04-01', to: '2027-03-31', months: ['2026-04', … '2027-03'] } */
+export function fyBounds(fy) {
+  const y = Number(fy.slice(0, 4));
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const m = ((3 + i) % 12) + 1, yy = i < 9 ? y : y + 1;
+    return `${yy}-${String(m).padStart(2, '0')}`;
+  });
+  return { from: `${y}-04-01`, to: `${y + 1}-03-31`, months };
+}
+
+/** Financial years from the first one with data up to the current one, newest first. */
+export function fyList(firstIso, todayIso) {
+  const out = [];
+  let y = Number(financialYear(firstIso).slice(0, 4));
+  const last = Number(financialYear(todayIso).slice(0, 4));
+  for (; y <= last; y++) out.unshift(`${y}-${String((y + 1) % 100).padStart(2, '0')}`);
+  return out;
+}
+
 /* ---------- numbering ---------- */
 
 /** "C 402" + 2026-11-01 → "C402/01112026" (same pattern as the October 2026 bills). */

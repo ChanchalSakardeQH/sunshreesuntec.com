@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Sunshree Suntec CHS – access rules (version 2.7)
+// Sunshree Suntec CHS – access rules (version 2.8)
 //
 //   public/dues, public/site        anyone can read (the website); dues amounts are masked here
 //   private/dues                    real amounts: approved members and committee / staff
@@ -47,6 +47,12 @@ service cloud.firestore {
         && profile().unit == unitId;
     }
     function changes() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // Books closed up to this date (end of the last closed financial year); '' = nothing closed.
+    function lockDate() {
+      return exists(/databases/$(database)/documents/settings/billing)
+        ? get(/databases/$(database)/documents/settings/billing).data.get('lockedUpTo', '') : '';
+    }
 
     // Any approved member with a confirmed email (any unit).
     function approvedMember() {
@@ -132,7 +138,7 @@ service cloud.firestore {
                                                     'twoWheelers', 'fourWheelers', 'liftGroup', 'updatedAt']));
       match /ledger/{entryId} {
         allow read: if perm('view') || approvedFor(unitId);
-        allow create: if moneyPerm();
+        allow create: if moneyPerm() && request.resource.data.date > lockDate();
         allow update, delete: if false;   // ledger entries are permanent; mistakes are corrected by new entries
       }
       // Unit file: member register (I & J), tenants / rental history, communication.
@@ -145,13 +151,13 @@ service cloud.firestore {
 
     match /bills/{billId} {
       allow read: if perm('view') || approvedFor(resource.data.unitId);
-      allow create: if perm('generateBills');
+      allow create: if perm('generateBills') && request.resource.data.billDate > lockDate();
       allow update, delete: if false;     // a bill stays exactly as issued
     }
 
     match /payments/{paymentId} {
       allow read: if perm('view') || approvedFor(resource.data.unitId);
-      allow create: if perm('recordPayments');
+      allow create: if perm('recordPayments') && request.resource.data.date > lockDate();
       allow update: if perm('cancelReceipts')
         && changes().hasOnly(['status', 'cancelReason', 'cancelledAt', 'cancelledBy'])
         && request.resource.data.status == 'cancelled';
@@ -166,6 +172,12 @@ service cloud.firestore {
       allow read: if perm('view');
       allow create, delete: if perm('liftExpenses');
       allow update: if isCommittee();
+    }
+
+    // Frozen year-end statements (financial year closing).
+    match /fyClosing/{fy} {
+      allow read: if perm('view');
+      allow write: if isCommittee();
     }
 
     match /settings/{docId} {

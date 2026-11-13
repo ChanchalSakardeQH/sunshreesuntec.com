@@ -3,9 +3,20 @@
 
 import {
   computeBill, billNumber, billId, monthBounds, financialYear, receiptNumber, round, monthLabel, todayIST,
-  categoryIdFor, liftGroupFor, liftExpenseEndMonth, buildContext, prepareExtras, extrasForUnit, maskedDues
+  categoryIdFor, liftGroupFor, liftExpenseEndMonth, buildContext, prepareExtras, extrasForUnit, maskedDues,
+  fyBounds, longDate
 } from './billing-core.js';
 import { DEFAULT_BILLING, DEFAULT_SITE, OCTOBER_2026_BILL } from './defaults.js';
+
+/* ---------- financial year lock ---------- */
+
+/** Entries can't be dated on or before the last closed financial year's end (settings.lockedUpTo). */
+export function assertOpen(settings, dateIso) {
+  const lock = settings?.lockedUpTo || '';
+  if (lock && dateIso && dateIso <= lock) {
+    throw new Error(`The books are closed up to ${longDate(lock)}. Use a date after that, or ask the committee to reopen the year.`);
+  }
+}
 
 /* ---------- reads ---------- */
 
@@ -88,6 +99,7 @@ export async function generateBill(fb, unitId, opts) {
   const billRef = F.doc(db, 'bills', billId(unitId, monthKey));
   const pubRef = F.doc(db, 'private', 'dues');
 
+  assertOpen(settings, billDate);
   return F.runTransaction(db, async (tx) => {
     const [unitSnap, billSnap, pubSnap] = await Promise.all([tx.get(unitRef), tx.get(billRef), tx.get(pubRef)]);
     if (billSnap.exists()) return null;
@@ -212,6 +224,7 @@ export async function recordPayment(fb, p) {
   const { F, db, auth } = fb;
   const amount = round(p.amount);
   if (!(amount > 0)) throw new Error('Enter an amount greater than zero.');
+  assertOpen(await loadBilling(fb), p.date);
   const fy = financialYear(p.date);
   const unitRef = F.doc(db, 'units', p.unitId);
   const counterRef = F.doc(db, 'counters', `receipts-${fy}`);
@@ -277,6 +290,7 @@ export async function cancelPayment(fb, paymentId, reason) {
 export async function addAdjustment(fb, unitId, e) {
   const { F, db, auth } = fb;
   const debit = round(e.debit), credit = round(e.credit);
+  assertOpen(await loadBilling(fb), e.date);
   const unitRef = F.doc(db, 'units', unitId);
   const pubRef = F.doc(db, 'private', 'dues');
   return F.runTransaction(db, async (tx) => {
@@ -385,4 +399,76 @@ export async function importOpening(fb, dues, { includeOctober = true } = {}, on
     }
     await markBilled(fb, o.month, dues.units.length);
   }
+}
+
+/* ---------- financial-year reports ---------- */
+
+/** Every unit's ledger entries: { unitId: [entries sorted by date] } */
+export async function loadAllLedgers({ F, db }, units) {
+  const lists = await Promise.all(units.map((u) => F.getDocs(F.collection(db, 'units', u.id, 'ledger'))));
+  const out = {};
+  units.forEach((u, i) => {
+    out[u.id] = lists[i].docs.map((d) => d.data())
+      .sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
+  });
+  return out;
+}
+
+/**
+ * Member-wise statement for a financial year, like the Sundry Debtors group summary:
+ * opening (all entries before 1 April, plus opening balances taken over during the year),
+ * billed, payments, cancelled receipts, corrections, closing on 31 March.
+ */
+export function fyStatement(units, ledgers, fy) {
+  const { from, to } = fyBounds(fy);
+  const rows = units.map((u) => {
+    const r = { id: u.id, unit: u.unit, block: u.block, name: u.name || '', opening: 0, billed: 0, received: 0, reversed: 0, adjDebit: 0, adjCredit: 0 };
+    for (const e of ledgers[u.id] || []) {
+      const net = (e.debit || 0) - (e.credit || 0);
+      if (e.date < from || (e.kind === 'opening' && e.date <= to)) { r.opening += net; continue; }
+      if (e.date > to) continue;
+      if (e.kind === 'bill') r.billed += e.debit || 0;
+      else if (e.kind === 'payment') r.received += e.credit || 0;
+      else if (e.kind === 'reversal') r.reversed += e.debit || 0;
+      else { r.adjDebit += e.debit || 0; r.adjCredit += e.credit || 0; }
+    }
+    r.closing = r.opening + r.billed + r.reversed + r.adjDebit - r.received - r.adjCredit;
+    return r;
+  });
+  const total = rows.reduce((t, r) => {
+    for (const k of ['opening', 'billed', 'received', 'reversed', 'adjDebit', 'adjCredit', 'closing']) t[k] = (t[k] || 0) + r[k];
+    return t;
+  }, {});
+  return { fy, from, to, rows, total };
+}
+
+export async function fyBills({ F, db }, fy) {
+  const { months } = fyBounds(fy);
+  const snap = await F.getDocs(F.query(F.collection(db, 'bills'), F.where('month', '>=', months[0]), F.where('month', '<=', months[11])));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function fyPayments({ F, db }, fy) {
+  const { from, to } = fyBounds(fy);
+  const snap = await F.getDocs(F.query(F.collection(db, 'payments'), F.where('date', '>=', from), F.where('date', '<=', to)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Freezes the year: stores the closing statement and stops entries dated on or before 31 March of that year. */
+export async function closeFinancialYear(fb, statement, note) {
+  const { F, db, auth } = fb;
+  await F.setDoc(F.doc(db, 'fyClosing', statement.fy), {
+    fy: statement.fy, from: statement.from, to: statement.to, total: statement.total,
+    units: statement.rows.map((r) => ({ id: r.id, unit: r.unit, name: r.name, opening: r.opening, closing: r.closing })),
+    note: note || '', closedAt: F.serverTimestamp(), closedBy: auth.currentUser.uid, status: 'closed'
+  });
+  await F.setDoc(F.doc(db, 'settings', 'billing'), { lockedUpTo: statement.to }, { merge: true });
+}
+
+/** prevLock = lock date to go back to (end of the last year that stays closed, or '' if none). */
+export async function reopenFinancialYear(fb, fy, reason, prevLock) {
+  const { F, db, auth } = fb;
+  const prevEnd = prevLock || '';
+  await F.setDoc(F.doc(db, 'fyClosing', fy), { status: 'reopened', reopenReason: reason, reopenedAt: F.serverTimestamp(), reopenedBy: auth.currentUser.uid }, { merge: true });
+  await F.setDoc(F.doc(db, 'settings', 'billing'), { lockedUpTo: prevEnd }, { merge: true });
 }

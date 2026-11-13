@@ -26,6 +26,7 @@
         <a href="#payments" data-need="view">Payments</a>
         <a href="#units" data-need="view">Units</a>
         <a href="#lift" data-need="view">Lift</a>
+        <a href="#reports" data-need="view">Reports</a>
         <a href="#members" data-need="members">Members</a>
         <a href="#website" data-need="website">Website</a>
         <a href="#staff" data-need="committee">Staff</a>
@@ -263,6 +264,27 @@
       </dialog>
     </section>
 
+    <!-- REPORTS (financial year) -->
+    <section class="tab" data-tab="reports" hidden>
+      <div class="account-head">
+        <div><h1>Reports</h1><p class="muted">All figures for one financial year (1 April to 31 March), worked out from the unit ledgers, bills and receipts.</p></div>
+        <div class="form-actions">
+          <label class="inline-label">Financial year<select id="rp-fy"></select></label>
+          <button class="btn" type="button" id="rp-print">Print</button>
+          <button class="btn" type="button" id="rp-csv">Download CSV</button>
+        </div>
+      </div>
+      <div class="segmented uf-tabs" id="rp-tabs" role="group" aria-label="Report">
+        <button type="button" data-rp="summary" aria-pressed="true">Year summary</button>
+        <button type="button" data-rp="members" aria-pressed="false">Member-wise statement</button>
+        <button type="button" data-rp="heads" aria-pressed="false">Billing by head</button>
+        <button type="button" data-rp="collections" aria-pressed="false">Collections</button>
+        <button type="button" data-rp="close" aria-pressed="false">Year closing</button>
+      </div>
+      <p class="muted" id="rp-status"></p>
+      <div id="rp-body"></div>
+    </section>
+
     <!-- LIFT -->
     <section class="tab" data-tab="lift" hidden>
       <h1>Lift expenses</h1>
@@ -315,7 +337,8 @@
           <button class="btn btn-primary" type="button" id="uf-pay" data-perm="recordPayments">Record a payment</button>
           <button class="btn" type="button" id="uf-edit">Edit unit details / add correction</button>
         </div>
-        <h3 class="mt-sm">Ledger (every bill, payment and correction)</h3>
+        <div class="account-head mt-sm"><h3>Ledger (every bill, payment and correction)</h3>
+          <label class="inline-label">Financial year<select id="uf-fy"><option value="">All years</option></select></label></div>
         <div class="table-scroll"><table class="ledger"><thead><tr><th>Date</th><th>Particulars</th><th>Receipt</th><th class="num">Debit (₹)</th><th class="num">Credit (₹)</th><th class="num">Balance (₹)</th></tr></thead><tbody id="uf-ledger"></tbody></table></div>
         <div class="two-col mt-sm">
           <section><h3>Bills</h3><div class="table-scroll"><table><thead><tr><th>Bill no.</th><th>Month</th><th class="num">Total (₹)</th><th></th></tr></thead><tbody id="uf-bills"></tbody></table></div></section>
@@ -558,7 +581,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 2.7.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
+    <p class="muted mt" id="version-note">Software version 2.8.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

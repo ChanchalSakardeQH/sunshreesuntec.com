@@ -6,6 +6,27 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [2.8.0] – 2026-11-13 – Financial-year accounts and reports
+
+### Added
+- **Reports** tab (anyone with *view accounts*), for a chosen financial year (1 April – 31 March):
+  - **Year summary:** opening balance, billed, received (net of cancelled receipts), net corrections, closing balance (or balance so far for the current year), collection percentage, and month-by-month billed vs received.
+  - **Member-wise statement:** for every unit, opening on 1 April (including balances taken over on 30 Sep 2026), billed, received, cancelled receipts, corrections + / −, closing on 31 March, with totals; laid out like the Sundry Debtors group summary.
+  - **Billing by head:** total billed under each bill head (maintenance, sinking fund, repairs fund, water, lift, non-occupancy, interest, one-off heads) with share of the total.
+  - **Collections:** received by mode (NEFT, UPI, cheque, cash …), cancelled receipts, and the full receipt register for the year.
+  - **Year closing** (committee): after 31 March, close the year with a note (e.g. “audited by …”). The member-wise closing balances are frozen in `fyClosing/{year}` and no bill, payment or correction can be dated on or before that 31 March. A closed year can be reopened with a recorded reason.
+  - Every report can be printed or downloaded as CSV.
+- Unit file → Account: **Financial year** filter on the ledger, with opening balance on 1 April and closing balance on 31 March (or balance so far).
+
+### Changed – security rules (`firestore.rules`, must be re-published)
+- Ledger entries, bills and payments can't be created with a date on or before the closed-year date (`settings/billing.lockedUpTo`).
+- New `fyClosing` collection: read with *view accounts*, written by the committee.
+
+### Checked
+- The member-wise closing total equals the sum of all unit balances (reconciles to the rupee on test data).
+
+---
+
 ## [2.7.0] – 2026-11-13 – Hidden amounts, water usage, unit file
 
 ### Added

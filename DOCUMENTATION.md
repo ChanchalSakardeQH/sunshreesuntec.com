@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 2.7.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 2.8.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -361,6 +361,22 @@ The **Commitment, Confidentiality and Work Responsibilities Agreement** shows th
 ### Changing or ending access
 Staff → Edit: change role or permissions, untick **Access active** to suspend, or **Remove access** (removes the login's access and the invitation; their past entries and agreement record remain).
 
+## 12B. Financial year and reports
+
+The books follow the Indian financial year, 1 April to 31 March. Everything is stored with its date, so any year can be reported at any time.
+
+| Report (Accounts → Reports) | Shows |
+|---|---|
+| Year summary | Opening, billed, received, corrections, closing; collection %; month by month |
+| Member-wise statement | Per unit: opening on 1 April, billed, received, cancelled receipts, corrections, closing on 31 March |
+| Billing by head | Total billed under each bill head in the year |
+| Collections | Received by payment mode; full receipt register |
+| Year closing | Freeze the year after audit; reopen with a reason |
+
+- **Opening balance** of a year = every entry before 1 April. In 2026-27 the balances taken over on 30 Sep 2026 are shown as part of the opening.
+- **Closing a year** (committee, after 31 March): saves the member-wise closing balances in `fyClosing/{year}` and locks the books up to that 31 March (`settings/billing.lockedUpTo`). The rules then refuse any bill, payment or correction dated on or before it. Reopening records who, when and why.
+- Each unit's ledger can be viewed for one year (Unit file → Account → Financial year), with opening and closing lines.
+
 ## 13. Monthly and yearly procedures
 
 ### Every month
@@ -371,6 +387,7 @@ Staff → Edit: change role or permissions, untick **Access active** to suspend,
 5. Month end: Payments → **Download CSV**; reconcile with the IDBI bank statement.
 
 ### Every year
+- After 31 March: enter all March payments, check Reports → Member-wise statement against the bank, download the reports for the auditor, then Reports → Year closing → Close financial year.
 - April: yearly lift charge (AGM method) is billed automatically; receipt numbers restart (`SS/2027-28/0001`).
 - Before the AGM: Settings → Preview next month's bills → CSV for the General Body; update rates and expenses after the AGM resolution; record the resolution date in **Basis of charges**.
 - Update the committee on the Website tab after elections.
