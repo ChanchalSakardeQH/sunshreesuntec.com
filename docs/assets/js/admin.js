@@ -535,17 +535,40 @@ async function renderMeasurements() {
   $('#index2-summary').textContent = `${i2.units.length} documents read: ${count('carpet')} with carpet area, ${count('built-up')} built-up, ${count('saleable')} saleable, ${count('unstated')} area type not stated. ${missing} units have no Index II yet.`;
   $('#measure-rows').innerHTML = units.map((u) => {
     const id = esc(u.id), g = liftGroupFor(u), e = byId[u.id];
-    const n = (name, v) => `<td class="num"><input type="number" min="0" step="0.01" name="m_${id}_${name}" value="${v ?? ''}" aria-label="${esc(u.unit)} ${name}"></td>`;
+    const n = (name, v, label, step = '1') => `<td class="num" data-label="${label}"><input type="number" min="0" step="${step}" inputmode="decimal" name="m_${id}_${name}" value="${v ?? ''}" aria-label="${esc(u.unit)} ${label}"></td>`;
     const src = u.areaSource || '';
     const opts = ['', ...(e ? [`Index II p. ${e.page}`] : []), ...SOURCES];
     const pl = planById[u.id];
     if (src && !opts.includes(src)) opts.push(src);
-    return `<tr data-id="${id}"><td class="unit">${esc(u.unit)}</td><td>${esc(u.name)}</td>${n('area', u.carpetArea)}
-      <td><select class="src" name="m_${id}_src" aria-label="${esc(u.unit)} area source">${opts.map((o) => `<option value="${esc(o)}" ${o === src ? 'selected' : ''}>${o ? esc(o) : 'Not set'}</option>`).join('')}</select></td>
-      <td class="i2">${index2Text(u, e, pl)}</td>
-      ${n('inlets', u.inlets)}${n('2w', u.twoWheelers)}${n('4w', u.fourWheelers)}
-      <td><select name="m_${id}_lift" aria-label="${esc(u.unit)} lift"><option value="">None</option><option value="C" ${g === 'C' ? 'selected' : ''}>C</option><option value="D" ${g === 'D' ? 'selected' : ''}>D</option></select></td></tr>`;
+    const hint = (e || pl) ? index2Text(u, e, pl) : '<span class="muted">No Index II or plan figure. Use the member’s agreement.</span>';
+    return `<tr class="m-row" data-id="${id}" data-find="${esc((u.unit + ' ' + u.name).toLowerCase())}">
+      <td class="who"><strong>${esc(u.unit)}</strong><span>${esc(u.name)}</span></td>
+      ${n('area', u.carpetArea, 'Carpet area (sq ft)', '0.01')}
+      <td data-label="Where the area comes from"><select class="src" name="m_${id}_src" aria-label="${esc(u.unit)} area source">${opts.map((o) => `<option value="${esc(o)}" ${o === src ? 'selected' : ''}>${o ? esc(o) : 'Not set'}</option>`).join('')}</select></td>
+      ${n('inlets', u.inlets, 'Water taps')}${n('2w', u.twoWheelers, 'Two-wheelers')}${n('4w', u.fourWheelers, 'Four-wheelers')}
+      <td data-label="Lift"><select name="m_${id}_lift" aria-label="${esc(u.unit)} lift"><option value="">None</option><option value="C" ${g === 'C' ? 'selected' : ''}>C wing</option><option value="D" ${g === 'D' ? 'selected' : ''}>D wing</option></select></td></tr>
+    <tr class="m-note" data-for="${id}"><td colspan="7">${hint}</td></tr>`;
   }).join('');
+  filterMeasurements();
+}
+
+/** Search and "missing only" filter for the measurement grid (keeps each unit's note row with it). */
+function filterMeasurements() {
+  const q = ($('#measure-search').value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const missingOnly = $('#measure-missing').checked;
+  const f = $('#measure-form');
+  let shown = 0;
+  for (const row of $$('#measure-rows tr.m-row')) {
+    const id = row.dataset.id;
+    const area = f.elements[`m_${id}_area`]?.value;
+    const ok = (!q || row.dataset.find.includes(q) || row.dataset.find.replace(/\s/g, '').includes(q.replace(/\s/g, ''))) && (!missingOnly || !area);
+    row.hidden = !ok;
+    const note = row.nextElementSibling;
+    if (note?.classList.contains('m-note')) note.hidden = !ok;
+    if (ok) shown++;
+  }
+  const withArea = $$('#measure-rows tr.m-row').filter((r) => f.elements[`m_${r.dataset.id}_area`]?.value).length;
+  $('#measure-count').textContent = `${shown} shown. ${withArea} of ${units.length} units have a carpet area.`;
 }
 
 function fillFromPlan() {
@@ -592,8 +615,10 @@ function wireUnits() {
     f.hidden = !f.hidden;
     if (!f.hidden) renderMeasurements().catch((err) => alert(errorText(err)));
   });
-  $('#index2-fill').addEventListener('click', fillFromIndex2);
-  $('#plan-fill').addEventListener('click', fillFromPlan);
+  $('#index2-fill').addEventListener('click', () => { fillFromIndex2(); filterMeasurements(); });
+  $('#measure-search').addEventListener('input', filterMeasurements);
+  $('#measure-missing').addEventListener('change', filterMeasurements);
+  $('#plan-fill').addEventListener('click', () => { fillFromPlan(); filterMeasurements(); });
   const af = $('#addunit-form');
   af.block.innerHTML = dues.blocks.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
   af.type.innerHTML = PREMISES_TYPES.map((t) => `<option>${esc(t)}</option>`).join('');

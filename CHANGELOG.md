@@ -6,6 +6,18 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [2.6.2] – 2026-11-12 – Easier area grid
+
+### Changed
+- Units → Enter area, inlets and parking: all columns now fit on a laptop screen (1366 px) without sideways scrolling. Unit number and member name are shown together, and the Index II / plan note sits on its own line under each unit.
+- Plain column names: “Where the area comes from”, “Water taps”, lift shown as “C wing” / “D wing”.
+- **Find unit or name** box, **Show only units without a carpet area**, and a count of how many units have an area.
+- **Save all units** bar stays at the bottom of the screen while scrolling.
+- On phones and narrow windows each unit is shown as a card with labelled fields.
+- Accounts pages use a wider layout (up to 1320 px).
+
+---
+
 ## [2.6.1] – 2026-11-12 – Carpet areas checked against the PMC-approved plans
 
 ### Added

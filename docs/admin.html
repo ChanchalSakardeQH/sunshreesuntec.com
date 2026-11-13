@@ -181,12 +181,20 @@
           </div>
           <p class="muted small-note">Only areas written as carpet are filled. Built-up, saleable or unstated areas are shown under “Index II” for reference; enter the carpet figure from the member’s agreement. Lofts and terraces are not added. Nothing is saved until you click Save all units.</p>
         </div>
-        <div class="table-scroll"><table class="rates">
-          <thead><tr><th>Unit</th><th>Name</th><th class="num">Carpet area (sq ft)</th><th>Area source</th><th>Index II and plan</th><th class="num">Water inlets</th><th class="num">Two-wheelers</th><th class="num">Four-wheelers</th><th>Lift</th></tr></thead>
+        <div class="grid-tools">
+          <label class="search"><span class="visually-hidden">Find a unit</span><input type="search" id="measure-search" placeholder="Find unit or name, e.g. C 402"></label>
+          <label class="check"><input type="checkbox" id="measure-missing"> Show only units without a carpet area</label>
+          <span class="muted" id="measure-count"></span>
+        </div>
+        <div class="table-scroll"><table class="measure">
+          <thead><tr><th>Unit and member</th><th class="num">Carpet area<br>(sq ft)</th><th>Where the area comes from</th><th class="num">Water<br>taps</th><th class="num">Two-<br>wheelers</th><th class="num">Four-<br>wheelers</th><th>Lift</th></tr></thead>
           <tbody id="measure-rows"></tbody>
         </table></div>
-        <p class="form-msg" role="alert"></p>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">Save all units</button></div>
+        <div class="save-bar">
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Save all units</button>
+            <span class="muted small-note">Nothing is saved until you click this.</span></div>
+        </div>
       </form>
       <details class="glossary mt-sm" data-perm="committee">
         <summary>Add a unit missing from the list</summary>
@@ -484,7 +492,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 2.6.1. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
+    <p class="muted mt" id="version-note">Software version 2.6.2. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>
