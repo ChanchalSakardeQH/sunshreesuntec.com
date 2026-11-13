@@ -3,6 +3,7 @@
 import { initFirebase, errorText, googleSignIn } from './firebase.js';
 import { getDues, fmt, esc, ownerCell } from './data.js';
 import { ddmmyyyy, monthLabel, money } from './billing-core.js';
+import { mergeLedger } from './accounts.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -241,11 +242,12 @@ async function loadAccount() {
   $('#account-unit').textContent = unitLabel(unitId);
   $('#account-name').textContent = profile.name;
 
-  const [unitSnap, billSnap, paySnap, ledgerSnap] = await Promise.all([
+  const [unitSnap, billSnap, paySnap, ledgerSnap, histSnap] = await Promise.all([
     F.getDoc(F.doc(db, 'units', unitId)).catch(() => null),
     F.getDocs(F.query(F.collection(db, 'bills'), F.where('unitId', '==', unitId))),
     F.getDocs(F.query(F.collection(db, 'payments'), F.where('unitId', '==', unitId))),
-    F.getDocs(F.collection(db, 'units', unitId, 'ledger'))
+    F.getDocs(F.collection(db, 'units', unitId, 'ledger')),
+    F.getDoc(F.doc(db, 'units', unitId, 'history', 'tally')).catch(() => null)
   ]);
   const unit = unitSnap?.exists() ? unitSnap.data() : dues.units.find((u) => u.id === unitId);
   const balance = unit?.balance ?? unit?.owner ?? null;
@@ -268,8 +270,10 @@ async function loadAccount() {
     <td><a href="print.html?receipt=${p.id}" target="_blank" rel="noopener">View / download</a></td></tr>`).join('')
     || '<tr><td colspan="5" class="empty">No payments recorded yet.</td></tr>';
 
-  const entries = ledgerSnap.docs.map((d) => d.data())
+  const liveEntries = ledgerSnap.docs.map((d) => d.data())
     .sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
+  // Full history: the Society's Tally ledger up to 30 Sep 2026, then these accounts.
+  const entries = mergeLedger(liveEntries, histSnap?.exists() ? histSnap.data() : null);
   let bal = 0;
   $('#account-ledger').innerHTML = entries.map((e) => {
     bal += (e.debit || 0) - (e.credit || 0);

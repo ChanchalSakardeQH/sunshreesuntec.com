@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Sunshree Suntec CHS – access rules (version 2.8)
+// Sunshree Suntec CHS – access rules (version 2.9)
 //
 //   public/dues, public/site        anyone can read (the website); dues amounts are masked here
 //   private/dues                    real amounts: approved members and committee / staff
@@ -140,6 +140,11 @@ service cloud.firestore {
         allow read: if perm('view') || approvedFor(unitId);
         allow create: if moneyPerm() && request.resource.data.date > lockDate();
         allow update, delete: if false;   // ledger entries are permanent; mistakes are corrected by new entries
+      }
+      // Tally ledger history up to the takeover date (read-only, loaded by the committee).
+      match /history/{docId} {
+        allow read: if perm('view') || approvedFor(unitId);
+        allow write: if isCommittee();
       }
       // Unit file: member register (I & J), tenants / rental history, communication.
       match /{record}/{recordId} {

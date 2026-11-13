@@ -508,6 +508,18 @@
         <p class="form-msg" id="import-msg" role="alert"></p>
       </div>
 
+      <div class="callout" id="tally-box">
+        <h2>Tally ledger history (1 April 2018 – 30 September 2026)</h2>
+        <p>Load the Society’s Tally ledger of every unit so that each unit file and the yearly reports show the full history before these accounts started. Choose the file <strong>tally-ledgers-2018-2026.json</strong> (kept privately, not on the website). Loading again replaces the history; balances today are not changed.</p>
+        <div class="form-actions">
+          <input type="file" id="tally-file" accept=".json,application/json">
+          <button class="btn btn-primary" type="button" id="tally-import">Load Tally history</button>
+          <span id="tally-progress" class="muted"></span>
+        </div>
+        <p class="form-msg" id="tally-msg" role="alert"></p>
+        <div id="tally-result"></div>
+      </div>
+
       <form id="mmc-form" class="form wide-form" novalidate>
         <h2>How bills are calculated</h2>
         <label>Charge basis
@@ -581,7 +593,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 2.8.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
+    <p class="muted mt" id="version-note">Software version 2.9.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 2.8.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 2.9.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -360,6 +360,13 @@ The **Commitment, Confidentiality and Work Responsibilities Agreement** shows th
 
 ### Changing or ending access
 Staff → Edit: change role or permissions, untick **Access active** to suspend, or **Remove access** (removes the login's access and the invitation; their past entries and agreement record remain).
+
+## 12A-2. Tally ledger history (2018–2026)
+
+- Before these accounts started, the Society kept its books in Tally. Each unit's Tally ledger from 1 Apr 2018 to 30 Sep 2026 is stored in `units/{id}/history/tally` and shown before the new entries, marked *Tally*.
+- Source: the Tally ledger PDFs (Ledger_statement.zip), converted to `tally-ledgers-2018-2026.json`. That file contains member balances, so it is kept privately and loaded from Settings by the committee; it is never put on the website or in the GitHub repository.
+- The opening balance of these accounts on 30 Sep 2026 came from the Sundry Debtors group summary. If it differs from the Tally ledger, the unit ledger shows a *Difference* line marked Check; the committee decides and adds a correction if needed.
+- Entries in Tally after 30 Sep 2026 are listed for reference and not carried over.
 
 ## 12B. Financial year and reports
 

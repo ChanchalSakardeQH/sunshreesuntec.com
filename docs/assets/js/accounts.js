@@ -472,3 +472,72 @@ export async function reopenFinancialYear(fb, fy, reason, prevLock) {
   await F.setDoc(F.doc(db, 'fyClosing', fy), { status: 'reopened', reopenReason: reason, reopenedAt: F.serverTimestamp(), reopenedBy: auth.currentUser.uid }, { merge: true });
   await F.setDoc(F.doc(db, 'settings', 'billing'), { lockedUpTo: prevEnd }, { merge: true });
 }
+
+/* ---------- Tally ledger history (1 Apr 2018 to the takeover date) ---------- */
+
+export const TAKEOVER_DATE = '2026-09-30';
+
+/** Saves each unit's Tally ledger (up to the takeover date) to units/{id}/history/tally. */
+export async function importTallyHistory(fb, data, units, onProgress = () => {}) {
+  const { F, db, auth } = fb;
+  const take = data.takeoverDate || TAKEOVER_DATE;
+  const done = [], missing = [], diffs = [];
+  for (const [i, u] of units.entries()) {
+    const h = data.units?.[u.id];
+    onProgress(i + 1, units.length);
+    if (!h) { missing.push(u.unit); continue; }
+    const entries = h.entries.filter((e) => e.date <= take);
+    const after = h.entries.filter((e) => e.date > take);
+    await F.setDoc(F.doc(db, 'units', u.id, 'history', 'tally'), {
+      source: data.source || 'Tally', file: h.file || '', period: h.period || '', takeoverDate: take,
+      opening: h.opening, entries, after, balanceAtTakeover: h.balanceAtTakeover,
+      importedAt: F.serverTimestamp(), importedBy: auth.currentUser.uid
+    });
+    done.push(u.unit);
+  }
+  return { done, missing, diffs };
+}
+
+/**
+ * One ledger for a unit: the Tally history up to the takeover date, then the new accounts.
+ * The new accounts' "opening balance" entry is replaced by the Tally history; if the two balances
+ * differ, a "difference" line keeps the final balance equal to the unit's balance today.
+ */
+export function mergeLedger(live, history) {
+  if (!history) return live;
+  const take = history.takeoverDate || TAKEOVER_DATE;
+  const out = [];
+  if (history.opening?.amount) {
+    const a = history.opening.amount;
+    out.push({ date: history.opening.date, particulars: 'Opening balance (Tally)', receipt: '', debit: a > 0 ? a : 0, credit: a < 0 ? -a : 0, kind: 'opening', source: 'tally' });
+  }
+  for (const e of history.entries || []) {
+    const kind = e.vchType === 'Receipt' && e.credit ? 'payment' : e.vchType === 'Journal' && e.debit ? 'bill' : 'adjustment';
+    out.push({
+      date: e.date, particulars: `${e.particulars}${e.vchType ? ` (${e.vchType} ${e.vchNo || ''})`.replace(' )', ')') : ''}`,
+      receipt: e.vchType === 'Receipt' ? `Tally ${e.vchNo}` : '', debit: e.debit || 0, credit: e.credit || 0, kind, source: 'tally'
+    });
+  }
+  const takenOver = live.filter((e) => e.kind === 'opening').reduce((a, e) => a + (e.debit || 0) - (e.credit || 0), 0);
+  const diff = Math.round(takenOver - (history.balanceAtTakeover || 0));
+  if (diff) {
+    out.push({ date: take, particulars: `Difference: opening balance taken over ₹ ${takenOver} vs Tally ₹ ${history.balanceAtTakeover} on ${take}`,
+      receipt: '', debit: diff > 0 ? diff : 0, credit: diff < 0 ? -diff : 0, kind: 'adjustment', source: 'difference' });
+  }
+  out.push(...live.filter((e) => e.kind !== 'opening'));
+  return out.sort((a, b) => a.date.localeCompare(b.date) || ((a.source === 'tally' ? 0 : 1) - (b.source === 'tally' ? 0 : 1))
+    || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
+}
+
+export async function loadHistory({ F, db }, unitId) {
+  const s = await F.getDoc(F.doc(db, 'units', unitId, 'history', 'tally')).catch(() => null);
+  return s?.exists() ? s.data() : null;
+}
+
+/** Live ledgers merged with Tally history, for every unit. */
+export async function loadMergedLedgers(fb, units) {
+  const [live, hist] = await Promise.all([loadAllLedgers(fb, units), Promise.all(units.map((u) => loadHistory(fb, u.id)))]);
+  const out = {}, histories = {};
+  units.forEach((u, i) => { histories[u.id] = hist[i]; out[u.id] = mergeLedger(live[u.id] || [], hist[i]); });
+  return { ledgers: out, histories };
+}

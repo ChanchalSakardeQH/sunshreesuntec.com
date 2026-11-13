@@ -6,6 +6,24 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [2.9.0] – 2026-11-13 – Tally ledger history 2018–2026
+
+### Added
+- **Tally ledger history.** Settings → *Tally ledger history*: the committee loads `tally-ledgers-2018-2026.json` (kept privately, never on the website). Each unit gets its Tally ledger from 1 Apr 2018 up to 30 Sep 2026 in `units/{id}/history/tally` (2,329 entries for 63 units).
+  - Unit file → Account and the member's own account show one continuous ledger: Tally entries (marked *Tally*, with voucher type and number) up to 30 Sep 2026, then these accounts. The Financial year filter now goes back to 2018-19.
+  - Reports cover every year from 2018-19: year summary and month-by-month from the merged ledgers; member-wise statement; billing by head (Tally ledger names for old years); collections including Tally receipts.
+  - Where the Tally balance on 30 Sep 2026 differs from the opening balance taken over, the ledger shows a *Difference* line marked **Check** so today's balance stays the same; the loader lists those units.
+- `firestore.rules`: `units/{id}/history/*` readable by the accounts team and the approved member of that unit; written by the committee only.
+
+### Data notes (from Ledger_statement.zip)
+- 63 unit ledgers read (no Tally ledger for A 100 and D 202). Every ledger reconciles with Tally's own opening and closing balance for every year.
+- 56 units: Tally balance on 30 Sep 2026 = opening balance taken over, to the rupee.
+- 7 units differ (Tally higher): A 101 +8,100; A 102 +8,100; A 103 +3,900; C 100 +16,000; D 101 A +16,200; D 101 B +16,200; D 201 +16,200 — each equal to one or two quarterly maintenance entries of 2026 in Tally.
+- Tally also has the 1 Oct 2026 quarterly maintenance entry for all 63 units; entries after 30 Sep 2026 are shown for reference and not carried over.
+- Builder Pending Maintenance group summary (1 Oct 2026): all 47 BPM figures match the units.
+
+---
+
 ## [2.8.0] – 2026-11-13 – Financial-year accounts and reports
 
 ### Added

@@ -5,7 +5,8 @@ import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
   updateUnitDetails, importOpening, rebuildPublicDues,
   loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit, publicDuesNeedMasking,
-  loadAllLedgers, fyStatement, fyBills, fyPayments, closeFinancialYear, reopenFinancialYear
+  loadAllLedgers, fyStatement, fyBills, fyPayments, closeFinancialYear, reopenFinancialYear,
+  importTallyHistory, mergeLedger, loadHistory, loadMergedLedgers, TAKEOVER_DATE
 } from './accounts.js';
 import {
   LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
@@ -1097,7 +1098,45 @@ function readCategories(fd) {
   });
 }
 
+function wireTallyImport() {
+  $('#tally-box').hidden = !canDo('committee');
+  $('#tally-import').addEventListener('click', async (e) => {
+    const file = $('#tally-file').files[0];
+    const msg = $('#tally-msg');
+    if (!file) { msg.className = 'form-msg'; msg.textContent = 'Choose the tally-ledgers-2018-2026.json file first.'; return; }
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { msg.textContent = 'That file isn’t a valid Tally history file.'; return; }
+    if (!data.units) { msg.textContent = 'That file has no unit ledgers.'; return; }
+    if (!confirm(`Load Tally history for ${Object.keys(data.units).length} units?`)) return;
+    await busy(e.currentTarget, async () => {
+      try {
+        const r = await importTallyHistory(fb, data, units, (i, n) => { $('#tally-progress').textContent = `${i} of ${n}…`; });
+        $('#tally-progress').textContent = '';
+        msg.className = 'form-msg ok';
+        msg.textContent = `Loaded ${r.done.length} units.${r.missing.length ? ` No Tally ledger for: ${r.missing.join(', ')}.` : ''}`;
+        // Compare the Tally balance on the takeover date with the opening balance taken over.
+        const live = await loadAllLedgers(fb, units);
+        const rows = units.map((u) => {
+          const h = data.units[u.id];
+          if (!h) return null;
+          const taken = (live[u.id] || []).filter((x) => x.kind === 'opening').reduce((a, x) => a + (x.debit || 0) - (x.credit || 0), 0);
+          return { u, taken, tally: h.balanceAtTakeover, diff: Math.round(taken - h.balanceAtTakeover) };
+        }).filter((x) => x && x.diff);
+        $('#tally-result').innerHTML = rows.length ? `<p><strong>${rows.length} units</strong> have a different Tally balance on ${ddmmyyyy(data.takeoverDate || TAKEOVER_DATE)} from the opening balance taken over. Their unit ledgers show a “Difference” line marked Check, so today’s balance is unchanged. Decide each one and add a correction if needed.</p>
+          <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Member</th><th class="num">Tally balance (₹)</th><th class="num">Taken over (₹)</th><th class="num">Difference (₹)</th></tr></thead>
+          <tbody>${rows.map((x) => `<tr><td class="unit"><a href="#unitfile" data-file-link="${esc(x.u.id)}">${esc(x.u.unit)}</a></td><td>${esc(x.u.name)}</td><td class="num">${amt(x.tally)}</td><td class="num">${amt(x.taken)}</td><td class="num">${amt(x.diff)}</td></tr>`).join('')}</tbody></table></div>`
+          : '<p>Every unit’s Tally balance matches the opening balance taken over.</p>';
+      } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+    });
+  });
+  $('#tally-result').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-file-link]');
+    if (a) { fileUnit = a.dataset.fileLink; sessionStorage.setItem('fileUnit', fileUnit); }
+  });
+}
+
 function wireSettings() {
+  wireTallyImport();
   const mf = $('#mmc-form');
   mf.addEventListener('input', () => mmcSummary());
   $('#mmc-add').addEventListener('click', () => {
@@ -1483,7 +1522,9 @@ async function loadUnitFile() {
     <div><dt>Last bill</dt><dd>${lastBill ? `${esc(lastBill.billNo)}<small class="muted"> ₹ ${fmt(lastBill.total)}</small>` : '—'}</dd></div>`;
 
   // Account
-  const entries = ledgerSnap.docs.map((d) => d.data()).sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
+  const liveEntries = ledgerSnap.docs.map((d) => d.data()).sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
+  ufHistory = await loadHistory(fb, fileUnit);
+  const entries = mergeLedger(liveEntries, ufHistory);
   ufEntries = entries;
   const fys = entries.length ? fyList(entries[0].date, todayIST()) : [financialYear(todayIST())];
   const pick = $('#uf-fy'), keep = pick.value;
@@ -1543,15 +1584,18 @@ async function loadUnitFile() {
 }
 
 let ufEntries = [];
+let ufHistory = null;
 /** Unit ledger, all years or one financial year with its opening and closing balance. */
 function renderUfLedger() {
   const fy = $('#uf-fy').value;
   let bal = 0, rows = '';
   const line = (e) => {
     bal += (e.debit || 0) - (e.credit || 0);
-    return `<tr><td>${dd(e.date)}</td><td>${esc(e.particulars)}</td><td>${esc(e.receipt || '')}</td><td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
+    const tag = e.source === 'tally' ? ' <span class="pill past">Tally</span>' : e.source === 'difference' ? ' <span class="pill warn">Check</span>' : '';
+    return `<tr><td>${dd(e.date)}</td><td>${esc(e.particulars)}${tag}</td><td>${esc(e.receipt || '')}</td><td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
   };
-  if (!fy) rows = ufEntries.map(line).join('');
+  const note = ufHistory ? `<tr class="fy-line"><td colspan="6" class="muted">Entries up to ${dd(ufHistory.takeoverDate)} are from the Society’s Tally ledger (${esc(ufHistory.period || '')}); later entries are from these accounts.${(ufHistory.after || []).length ? ` Tally also has ${ufHistory.after.length} entr${ufHistory.after.length > 1 ? 'ies' : 'y'} after that date, not carried over: ${esc(ufHistory.after.map((e) => `${dd(e.date)} ${e.particulars} ₹ ${fmt(e.debit || e.credit)}`).join('; '))}.` : ''}</td></tr>` : '';
+  if (!fy) rows = note + ufEntries.map(line).join('');
   else {
     const { from, to } = fyBounds(fy);
     const before = ufEntries.filter((e) => e.date < from);
@@ -1654,7 +1698,7 @@ let rpCsv = null;       // { name, rows }
 
 async function loadReports() {
   const sel = $('#rp-fy');
-  const first = '2026-09-30';   // earliest entries: opening balances taken over on 30 Sep 2026
+  const first = '2018-04-01';   // Tally history starts 1 Apr 2018 (years without data show zeros)
   const fys = fyList(first, todayIST());
   if (!sel.options.length) {
     sel.innerHTML = fys.map((f) => `<option value="${f}">${f} (1 Apr ${f.slice(0, 4)} – 31 Mar ${Number(f.slice(0, 4)) + 1})</option>`).join('');
@@ -1665,11 +1709,15 @@ async function loadReports() {
 async function buildReport(fy) {
   $('#rp-status').textContent = 'Working out the figures…';
   $('#rp-body').innerHTML = '';
-  const [ledgers, bills, pays, closingSnap] = await Promise.all([
-    loadAllLedgers(fb, units), fyBills(fb, fy), fyPayments(fb, fy),
+  const [{ ledgers, histories }, bills, pays, closingSnap] = await Promise.all([
+    loadMergedLedgers(fb, units), fyBills(fb, fy), fyPayments(fb, fy),
     fb.F.getDoc(fb.F.doc(fb.db, 'fyClosing', fy)).catch(() => null)
   ]);
-  rpData = { fy, st: fyStatement(units, ledgers, fy), bills, pays, closing: closingSnap?.exists() ? closingSnap.data() : null };
+  // Tally entries for this year: bills by particulars, receipts for the register.
+  const { from: fyFrom, to: fyTo } = fyBounds(fy);
+  const tally = Object.entries(histories).flatMap(([uid, h]) => (h?.entries || []).filter((e) => e.date >= fyFrom && e.date <= fyTo)
+    .map((e) => ({ ...e, unitId: uid, unit: units.find((x) => x.id === uid)?.unit, name: units.find((x) => x.id === uid)?.name })));
+  rpData = { fy, st: fyStatement(units, ledgers, fy), ledgers, bills, pays, tally, closing: closingSnap?.exists() ? closingSnap.data() : null };
   const lock = billing.lockedUpTo || '';
   $('#rp-status').innerHTML = rpData.closing?.status === 'closed'
     ? `<span class="pill past">Year closed</span> on ${esc(tsText(rpData.closing.closedAt))}. Entries dated up to ${longDate(lock || rpData.st.to)} are locked.`
@@ -1685,9 +1733,12 @@ function renderReport() {
 
   if (rpKind === 'summary') {
     const t = st.total;
+    // Month by month from the merged ledgers (Tally history and these accounts alike).
+    const all = Object.values(rpData.ledgers).flat();
     const months = fyBounds(fy).months.map((m) => {
-      const b = bills.filter((x) => x.month === m).reduce((a, x) => a + x.current, 0);
-      const c = okPays.filter((p) => p.date.slice(0, 7) === m).reduce((a, p) => a + p.amount, 0);
+      const inM = all.filter((e) => e.date.slice(0, 7) === m);
+      const b = inM.filter((e) => e.kind === 'bill').reduce((a, e) => a + (e.debit || 0), 0);
+      const c = inM.filter((e) => e.kind === 'payment').reduce((a, e) => a + (e.credit || 0), 0) - inM.filter((e) => e.kind === 'reversal').reduce((a, e) => a + (e.debit || 0), 0);
       return { m, b, c };
     });
     const due = st.rows.filter((r) => r.closing > 0).length;
@@ -1721,8 +1772,14 @@ function renderReport() {
     const sums = {};
     for (const b of bills) for (const l of b.lines || []) sums[l.code] = (sums[l.code] || 0) + l.amount;
     const heads = PARTICULARS.filter(([c]) => sums[c]);
+    // Tally years: group the journal debits by their Tally ledger name.
+    for (const e of rpData.tally.filter((x) => x.vchType === 'Journal' && x.debit)) {
+      const key = `tally:${e.particulars}`;
+      if (!sums[key]) heads.push([key, `${e.particulars} (Tally)`]);
+      sums[key] = (sums[key] || 0) + e.debit;
+    }
     const total = Object.values(sums).reduce((a, x) => a + x, 0);
-    $('#rp-body').innerHTML = head + `<p class="muted">What was billed under each head in ${bills.length} bills this year (arrears not included). Sinking fund and repairs fund lines show what has been raised for those funds.</p>
+    $('#rp-body').innerHTML = head + `<p class="muted">What was billed under each head this year (arrears not included)${rpData.tally.length ? '; heads marked Tally come from the Society’s Tally ledger' : ''}. Sinking fund and repairs fund lines show what has been raised for those funds.</p>
       <div class="table-scroll"><table><thead><tr><th>Head</th><th class="num">Billed (₹)</th><th class="num">Share</th></tr></thead>
       <tbody>${heads.map(([c, l]) => `<tr><td>${esc(l)}</td><td class="num">${fmt(sums[c])}</td><td class="num">${total ? Math.round((sums[c] / total) * 1000) / 10 + '%' : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">No bills in this year.</td></tr>'}</tbody>
       <tfoot><tr><td>Total billed</td><td class="num">${fmt(total)}</td><td></td></tr></tfoot></table></div>`;
@@ -1733,7 +1790,11 @@ function renderReport() {
     const byMode = {};
     okPays.forEach((p) => { byMode[p.mode] = (byMode[p.mode] || 0) + p.amount; });
     const cancelled = pays.filter((p) => p.status === 'cancelled');
-    const list = [...pays].sort((a, b) => a.date.localeCompare(b.date) || a.receiptNo.localeCompare(b.receiptNo));
+    const tallyRcpts = rpData.tally.filter((e) => e.vchType === 'Receipt' && e.credit)
+      .map((e) => ({ date: e.date, receiptNo: `Tally ${e.vchNo}`, unit: e.unit, name: e.name, mode: e.particulars, reference: '', amount: e.credit, status: 'ok' }));
+    tallyRcpts.forEach((p) => { byMode[`${p.mode} (Tally)`] = (byMode[`${p.mode} (Tally)`] || 0) + p.amount; });
+    okPays.push(...tallyRcpts);
+    const list = [...pays, ...tallyRcpts].sort((a, b) => a.date.localeCompare(b.date) || String(a.receiptNo).localeCompare(String(b.receiptNo)));
     $('#rp-body').innerHTML = head + `
       <dl class="dues-summary">${Object.entries(byMode).map(([m, a]) => `<div><dt>${esc(m)} (₹)</dt><dd>${fmt(a)}</dd></div>`).join('')}
         <div><dt>Total received (₹)</dt><dd class="credit">${fmt(okPays.reduce((a, p) => a + p.amount, 0))}</dd></div>
