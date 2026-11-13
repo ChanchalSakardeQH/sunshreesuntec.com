@@ -203,7 +203,7 @@ export function buildContext(units) {
   for (const u of active) {
     const g = liftGroupFor(u);
     if (g) lift[g] = (lift[g] || 0) + 1;
-    inlets += Number(u.inlets) || 0;
+    inlets += Number(u.inlets) > 0 ? 1 : 0; // water usage: Yes counts once
     area += Number(u.carpetArea) || 0;
   }
   return { units: active.length, lift, inlets, area };
@@ -213,7 +213,7 @@ export function buildContext(units) {
  * Per-unit rates under the 2026 Rules (Rule 106C-12, Bye-laws 65–71):
  *  service charge  = monthly common expenses ÷ number of units (equal contribution)
  *  lift            = monthly lift expenses ÷ units served by that lift (shops without lift excluded)
- *  water           = monthly water expenses ÷ total inlets, × inlets of the unit
+ *  water           = monthly water expenses ÷ number of units using water (Water usage = Yes)
  */
 export function mmcRates(settings, ctx) {
   const m = settings?.mmc || {};
@@ -261,9 +261,9 @@ export function chargesFor(unit, settings, monthKey, ctx = { units: 0, lift: {},
       out.lift = round(own.liftMonthly ?? r.lift[g]);
       details.lift = `${LIFT_GROUPS[g]}, equal among ${ctx.lift[g]} units`;
     }
-    const inlets = Number(unit.inlets) || 0;
-    out.water = round(own.water ?? inlets * r.waterPerInlet);
-    if (inlets && own.water == null) details.water = `${inlets} inlet${inlets > 1 ? 's' : ''} × ₹${r.waterPerInlet}`;
+    const usesWater = Number(unit.inlets) > 0;
+    out.water = round(own.water ?? (usesWater ? r.waterPerInlet : 0));
+    if (usesWater && own.water == null) details.water = `Equal share among ${ctx.inlets} units using water`;
     for (const code of ['education', 'federation', 'election']) out[code] = round(own[code] ?? 0);
 
     // Area-wise: property tax and building insurance paid by the society, in proportion to carpet area.
@@ -427,4 +427,34 @@ export function amountInWords(amount) {
   if (thousand) parts.push(`${below100(thousand)} Thousand`);
   if (n) parts.push(below1000(n));
   return `Rupees ${parts.join(' ')} Only.`;
+}
+
+/* ---------- masked amounts for the public website ---------- */
+
+/** 117500 → "x,xx,xxx" (one x per digit, Indian grouping), so visitors see the size but not the figure. */
+export function maskAmount(n) {
+  if (round(n) === 0) return '0';
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.abs(round(n))).replace(/\d/g, 'x');
+}
+
+/**
+ * Builds the public (masked) dues document from the full one kept in private/dues.
+ * full = { asOn, blocks, units: [{ id, unit, block, name, type, owner, bpm, verify }] }
+ */
+export function maskedDues(full) {
+  const units = (full.units || []).map((u) => ({
+    id: u.id, unit: u.unit, block: u.block, name: u.name || '', type: u.type,
+    ...(u.verify ? { verify: true } : {}),
+    ownerMask: u.owner == null ? null : maskAmount(u.owner), cr: Number(u.owner) < 0,
+    bpmMask: u.bpm ? maskAmount(u.bpm) : null
+  }));
+  const sum = (list, f) => list.reduce((a, u) => a + f(u), 0);
+  const tot = (list) => ({
+    due: maskAmount(sum(list, (u) => Math.max(0, Number(u.owner) || 0))),
+    credit: maskAmount(sum(list, (u) => Math.max(0, -(Number(u.owner) || 0)))),
+    bpm: maskAmount(sum(list, (u) => Number(u.bpm) || 0))
+  });
+  const blocks = {};
+  for (const b of full.blocks || []) blocks[b.id] = tot((full.units || []).filter((u) => u.block === b.id));
+  return { statement: full.statement || 'Society maintenance ledger', asOn: full.asOn, blocks: full.blocks || [], units, masks: { all: tot(full.units || []), blocks }, masked: true };
 }

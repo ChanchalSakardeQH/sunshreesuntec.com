@@ -3,7 +3,7 @@
 
 import {
   computeBill, billNumber, billId, monthBounds, financialYear, receiptNumber, round, monthLabel, todayIST,
-  categoryIdFor, liftGroupFor, liftExpenseEndMonth, buildContext, prepareExtras, extrasForUnit
+  categoryIdFor, liftGroupFor, liftExpenseEndMonth, buildContext, prepareExtras, extrasForUnit, maskedDues
 } from './billing-core.js';
 import { DEFAULT_BILLING, DEFAULT_SITE, OCTOBER_2026_BILL } from './defaults.js';
 
@@ -34,17 +34,28 @@ export async function loadUnits({ F, db }) {
 
 /* ---------- public dues (what the website shows) ---------- */
 
+/**
+ * Dues are kept twice: private/dues has the amounts (signed-in members and committee only);
+ * public/dues has names with masked amounts ("x,xx,xxx") for visitors.
+ */
 export async function rebuildPublicDues(fb, blocks) {
   const { F, db } = fb;
   const units = await loadUnits(fb);
   const prev = await F.getDoc(F.doc(db, 'public', 'dues'));
-  await F.setDoc(F.doc(db, 'public', 'dues'), {
+  const full = {
     statement: 'Society maintenance ledger',
     asOn: todayIST(),
     blocks: blocks || (prev.exists() ? prev.data().blocks : []),
-    units: units.map(publicRow),
-    updatedAt: F.serverTimestamp()
-  });
+    units: units.map(publicRow)
+  };
+  await F.setDoc(F.doc(db, 'private', 'dues'), { ...full, updatedAt: F.serverTimestamp() });
+  await F.setDoc(F.doc(db, 'public', 'dues'), { ...maskedDues(full), updatedAt: F.serverTimestamp() });
+}
+
+/** True if public/dues still carries real amounts (written by version 2.6 or earlier). */
+export async function publicDuesNeedMasking({ F, db }) {
+  const s = await F.getDoc(F.doc(db, 'public', 'dues'));
+  return s.exists() && !s.data().masked;
 }
 
 function publicRow(u) {
@@ -54,12 +65,14 @@ function publicRow(u) {
   };
 }
 
-/** Patches one unit's row inside public/dues within a running transaction (read must already be done). */
-function patchPublic(tx, F, pubRef, pubSnap, unit) {
-  if (!pubSnap.exists()) return;
-  const data = pubSnap.data();
+/** Patches one unit's row in private/dues and rewrites the masked public/dues, inside a running transaction. */
+function patchPublic(tx, F, privRef, privSnap, unit) {
+  if (!privSnap.exists()) return;
+  const data = privSnap.data();
   const units = data.units.map((r) => (r.id === unit.id ? publicRow(unit) : r));
-  tx.update(pubRef, { units, asOn: todayIST(), updatedAt: F.serverTimestamp() });
+  const full = { ...data, units, asOn: todayIST() };
+  tx.update(privRef, { units, asOn: full.asOn, updatedAt: F.serverTimestamp() });
+  tx.set(F.doc(privRef.firestore, 'public', 'dues'), { ...maskedDues(full), updatedAt: F.serverTimestamp() });
 }
 
 /* ---------- bills ---------- */
@@ -73,7 +86,7 @@ export async function generateBill(fb, unitId, opts) {
   const { monthKey, billDate, dueDate, extras = [], liftExpenses = [], ctx, settings, periodFrom, periodTo, source = 'admin' } = opts;
   const unitRef = F.doc(db, 'units', unitId);
   const billRef = F.doc(db, 'bills', billId(unitId, monthKey));
-  const pubRef = F.doc(db, 'public', 'dues');
+  const pubRef = F.doc(db, 'private', 'dues');
 
   return F.runTransaction(db, async (tx) => {
     const [unitSnap, billSnap, pubSnap] = await Promise.all([tx.get(unitRef), tx.get(billRef), tx.get(pubRef)]);
@@ -202,7 +215,7 @@ export async function recordPayment(fb, p) {
   const fy = financialYear(p.date);
   const unitRef = F.doc(db, 'units', p.unitId);
   const counterRef = F.doc(db, 'counters', `receipts-${fy}`);
-  const pubRef = F.doc(db, 'public', 'dues');
+  const pubRef = F.doc(db, 'private', 'dues');
   const payRef = F.doc(F.collection(db, 'payments'));
 
   return F.runTransaction(db, async (tx) => {
@@ -239,7 +252,7 @@ export async function recordPayment(fb, p) {
 export async function cancelPayment(fb, paymentId, reason) {
   const { F, db, auth } = fb;
   const payRef = F.doc(db, 'payments', paymentId);
-  const pubRef = F.doc(db, 'public', 'dues');
+  const pubRef = F.doc(db, 'private', 'dues');
   return F.runTransaction(db, async (tx) => {
     const paySnap = await tx.get(payRef);
     if (!paySnap.exists()) throw new Error('Receipt not found.');
@@ -265,7 +278,7 @@ export async function addAdjustment(fb, unitId, e) {
   const { F, db, auth } = fb;
   const debit = round(e.debit), credit = round(e.credit);
   const unitRef = F.doc(db, 'units', unitId);
-  const pubRef = F.doc(db, 'public', 'dues');
+  const pubRef = F.doc(db, 'private', 'dues');
   return F.runTransaction(db, async (tx) => {
     const [unitSnap, pubSnap] = await Promise.all([tx.get(unitRef), tx.get(pubRef)]);
     const unit = { id: unitId, ...unitSnap.data() };
@@ -326,6 +339,7 @@ export async function importOpening(fb, dues, { includeOctober = true } = {}, on
   const { F, db, auth } = fb;
   const existing = await F.getDocs(F.collection(db, 'units'));
   if (!existing.empty) throw new Error('Units already exist. The opening import can only run once.');
+  if (dues.openingRemoved) throw new Error('The opening balances were removed from the website files for privacy. Restore data/dues.json from GitHub history (version 2.6.2) to import again.');
 
   await F.setDoc(F.doc(db, 'settings', 'billing'), DEFAULT_BILLING, { merge: true });
   const siteSnap = await F.getDoc(F.doc(db, 'public', 'site'));

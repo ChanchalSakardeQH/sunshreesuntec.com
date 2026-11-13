@@ -6,6 +6,29 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [2.7.0] – 2026-11-13 – Hidden amounts, water usage, unit file
+
+### Added
+- **Unit file** (Accounts → Units → *Unit file*, or `#unitfile`): everything about one unit on one page, printable.
+  - **Account:** balance, unpaid interest, BPM, occupancy, last bill; full ledger with running balance; all bills and receipts; buttons to record a payment for the unit or edit it / add a correction.
+  - **Members (I & J register):** every member of the unit, current and past: type of membership, name, address, contact, occupation, age on admission, admission date, entrance fee date and receipt, share certificate no., share numbers and value, I and J register serial nos., nominee and nomination date, cessation date and reason, document link, remarks.
+  - **Tenants and rental history:** every tenancy, current and past: tenant, contact, residential / commercial use and business name, occupied from / vacated on, leave and licence agreement (type, registration no., date, valid from / till), police verification (date, police station, acknowledgement no.), society NOC date, document link, remarks. Warnings for an expired agreement, missing police verification or missing agreement. Adding or ending a tenancy offers to set the unit to Rented / Own Occupied, which drives non-occupancy charges.
+  - **Communication:** letters, notices, emails, WhatsApp, SMS, calls, registered post and meetings, with direction, subject, details, reference no., follow-up date (highlighted when due) and document link.
+- New staff permission **Maintain unit files** (default for Society Manager and Office Assistant).
+
+### Changed
+- **Maintenance amounts are hidden on the public website.** Visitors see each amount as x's with the same number of digits and commas (₹ 1,17,500 → x,xx,xxx), including totals. The **eye** button (and *Show amounts*) shows the real figures to a signed-in, approved member with a confirmed email, or to committee / staff; anyone else is taken to Member login and returned to the dues once approved and signed in.
+  - Real amounts now live in `private/dues`, readable only by approved members and the accounts team (enforced by `firestore.rules`). `public/dues` keeps names and masks only. The switch happens automatically the first time a committee member opens Accounts after updating.
+  - `data/dues.json` no longer contains amounts. Note: earlier versions of that file, with amounts, remain in the GitHub repository history.
+- **Water usage is Yes / No** instead of a tap count. Under the Monthly Maintenance Calculation, the monthly water expense is shared equally among units marked Yes. Units → area grid: “Water usage” column; Two-wheelers and Four-wheelers columns removed (vehicles can still be set per unit under Edit, for parking).
+- Masked totals of zero show as 0.
+
+### Security rules (`firestore.rules`, must be re-published)
+- New `private/dues` (approved members and accounts team read; money / unit editors write).
+- New unit-file records `units/{id}/members`, `/tenants`, `/comms`: read by accounts team and the approved member of that unit; create / update with *Maintain unit files*; delete by committee only.
+
+---
+
 ## [2.6.2] – 2026-11-12 – Easier area grid
 
 ### Changed

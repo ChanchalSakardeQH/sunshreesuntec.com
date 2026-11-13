@@ -4,7 +4,7 @@ import { PERMS, PERM_LABEL, COMMITTEE_ONLY, STAFF_ROLES, permsFor, isCommitteeRe
 import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
   updateUnitDetails, importOpening, rebuildPublicDues,
-  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit
+  loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit, publicDuesNeedMasking
 } from './accounts.js';
 import {
   LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
@@ -17,8 +17,8 @@ import { getDues, getNotices, fmt, esc, fmtDate } from './data.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'lift', 'members', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'members', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
@@ -161,6 +161,10 @@ async function startSession(user) {
   $('#admin-nav').hidden = false;
   applyAccess();
   await refreshCore();
+  // One-time switch to masked public dues (version 2.7): moves amounts to private/dues.
+  if (isCommitteeRecord(me) && units.length && await publicDuesNeedMasking(fb).catch(() => false)) {
+    await rebuildPublicDues(fb, dues.blocks).catch((err) => console.warn('Could not mask public dues', err));
+  }
   wireOnce();
   route();
 }
@@ -229,7 +233,7 @@ function route() {
   $('#admin-nav').classList.remove('open');
   $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -242,6 +246,7 @@ function wireOnce() {
   wireUnits();
   wireLift();
   wireStaff();
+  wireUnitFile();
   wireMembers();
   wireWebsite();
   wireSettings();
@@ -445,6 +450,7 @@ function wirePayments() {
 let lastPayments = [];
 async function loadPayments() {
   $('#pay-unit').innerHTML = '<option value="">Choose unit</option>' + unitOptions(true);
+  if (payFor) { $('#pay-unit').value = payFor; $('#pay-unit').dispatchEvent(new Event('change')); payFor = null; }
   await listPayments($('#pay-month').value || monthOf(todayIST()));
 }
 
@@ -483,7 +489,7 @@ function renderUnits() {
     <td>${esc(u.name)}${u.unverified ? '<span class="flag">To verify</span>' : ''}${u.active === false ? ' <span class="status-pill">Not billed</span>' : ''}</td>
     <td class="type">${esc(catName(u))}</td><td>${liftGroupFor(u) || '—'}</td><td>${esc(u.status || '')}</td>
     <td class="num">${amt(u.balance)}</td><td class="num">${u.bpm ? fmt(u.bpm) : '—'}</td>
-    <td><button class="btn btn-small" type="button" data-edit="${esc(u.id)}">Open</button></td></tr>`).join('')
+    <td><div class="row-actions"><a class="btn btn-small btn-primary" href="#unitfile" data-file="${esc(u.id)}">Unit file</a><button class="btn btn-small" type="button" data-edit="${esc(u.id)}">Edit</button></div></td></tr>`).join('')
     || `<tr><td colspan="8" class="empty">${units.length ? 'No unit matches.' : 'No units yet. Import the opening balances in Settings.'}</td></tr>`;
   return Promise.resolve();
 }
@@ -545,9 +551,9 @@ async function renderMeasurements() {
       <td class="who"><strong>${esc(u.unit)}</strong><span>${esc(u.name)}</span></td>
       ${n('area', u.carpetArea, 'Carpet area (sq ft)', '0.01')}
       <td data-label="Where the area comes from"><select class="src" name="m_${id}_src" aria-label="${esc(u.unit)} area source">${opts.map((o) => `<option value="${esc(o)}" ${o === src ? 'selected' : ''}>${o ? esc(o) : 'Not set'}</option>`).join('')}</select></td>
-      ${n('inlets', u.inlets, 'Water taps')}${n('2w', u.twoWheelers, 'Two-wheelers')}${n('4w', u.fourWheelers, 'Four-wheelers')}
+      <td data-label="Water usage"><select name="m_${id}_inlets" aria-label="${esc(u.unit)} water usage"><option value="0">No</option><option value="1" ${Number(u.inlets) > 0 ? 'selected' : ''}>Yes</option></select></td>
       <td data-label="Lift"><select name="m_${id}_lift" aria-label="${esc(u.unit)} lift"><option value="">None</option><option value="C" ${g === 'C' ? 'selected' : ''}>C wing</option><option value="D" ${g === 'D' ? 'selected' : ''}>D wing</option></select></td></tr>
-    <tr class="m-note" data-for="${id}"><td colspan="7">${hint}</td></tr>`;
+    <tr class="m-note" data-for="${id}"><td colspan="5">${hint}</td></tr>`;
   }).join('');
   filterMeasurements();
 }
@@ -644,8 +650,8 @@ function wireUnits() {
     const f = e.currentTarget, fd = new FormData(f);
     const num = (k) => (fd.get(k) === '' || fd.get(k) == null ? null : Number(fd.get(k)));
     const rows = units.map((u) => ({
-      id: u.id, carpetArea: num(`m_${u.id}_area`), areaSource: String(fd.get(`m_${u.id}_src`) ?? ''), inlets: round(num(`m_${u.id}_inlets`)),
-      twoWheelers: round(num(`m_${u.id}_2w`)), fourWheelers: round(num(`m_${u.id}_4w`)), liftGroup: String(fd.get(`m_${u.id}_lift`) ?? '')
+      id: u.id, carpetArea: num(`m_${u.id}_area`), areaSource: String(fd.get(`m_${u.id}_src`) ?? ''), inlets: Number(fd.get(`m_${u.id}_inlets`)) > 0 ? 1 : 0,
+      liftGroup: String(fd.get(`m_${u.id}_lift`) ?? '')
     }));
     await busy($('button[type=submit]', f), async () => {
       try {
@@ -657,6 +663,8 @@ function wireUnits() {
     });
   });
   $('#units-rows').addEventListener('click', (e) => {
+    const f = e.target.closest('[data-file]');
+    if (f) { fileUnit = f.dataset.file; sessionStorage.setItem('fileUnit', fileUnit); return; }
     const b = e.target.closest('[data-edit]');
     if (b) openUnit(b.dataset.edit).catch((err) => alert(errorText(err)));
   });
@@ -687,7 +695,7 @@ function wireUnits() {
           category: fd.get('category'), liftGroup: String(fd.get('liftGroup')),
           constructionCost: fd.get('constructionCost') === '' ? null : round(fd.get('constructionCost')),
           carpetArea: fd.get('carpetArea') === '' ? null : Number(fd.get('carpetArea')),
-          inlets: round(fd.get('inlets')), twoWheelers: round(fd.get('twoWheelers')), fourWheelers: round(fd.get('fourWheelers')),
+          inlets: Number(fd.get('inlets')) > 0 ? 1 : 0, twoWheelers: round(fd.get('twoWheelers')), fourWheelers: round(fd.get('fourWheelers')),
           bpm: fd.get('bpm') === '' ? null : round(fd.get('bpm')), charges, active: Boolean(fd.get('active'))
         };
         // Staff who may edit units change only descriptive details; rates and amounts stay with the committee.
@@ -736,7 +744,7 @@ async function openUnit(id) {
   form.liftGroup.value = liftGroupFor(u);
   form.constructionCost.value = u.constructionCost ?? '';
   form.carpetArea.value = u.carpetArea ?? '';
-  form.inlets.value = u.inlets ?? '';
+  form.inlets.value = Number(u.inlets) > 0 ? '1' : '0';
   form.twoWheelers.value = u.twoWheelers ?? '';
   form.fourWheelers.value = u.fourWheelers ?? '';
   form.bpm.value = u.bpm ?? '';
@@ -1005,12 +1013,12 @@ function mmcSummary() {
   const r = mmcRates({ mmc }, ctx);
   const active = units.filter((u) => u.active !== false);
   const noArea = active.filter((u) => !Number(u.carpetArea)).length;
-  const noInlets = active.filter((u) => !Number(u.inlets)).length;
+  const noInlets = active.filter((u) => !(Number(u.inlets) > 0)).length;
   $('#mmc-summary').innerHTML = `<dl>
     <dt>Common expenses ÷ units</dt><dd>₹ ${fmt(r.serviceTotal)} ÷ ${ctx.units} = ₹ ${fmt(r.service)} service charge per unit</dd>
     <dt>C wing lift</dt><dd>₹ ${fmt(r.liftTotal.C)}${r.liftTotal.CD ? ` + share of ₹ ${fmt(r.liftTotal.CD)}` : ''} ÷ ${ctx.lift.C || 0} units = ₹ ${fmt(r.lift.C)} per unit</dd>
     <dt>D wing lift</dt><dd>₹ ${fmt(r.liftTotal.D)}${r.liftTotal.CD ? ` + share of ₹ ${fmt(r.liftTotal.CD)}` : ''} ÷ ${ctx.lift.D || 0} units = ₹ ${fmt(r.lift.D)} per unit</dd>
-    <dt>Water</dt><dd>₹ ${fmt(mmc.waterMonthly)} ÷ ${ctx.inlets} inlets = ₹ ${fmt(r.waterPerInlet)} per inlet${noInlets ? ` <span class="warn">${noInlets} units have no inlets, so they pay no water charges</span>` : ''}</dd>
+    <dt>Water</dt><dd>₹ ${fmt(mmc.waterMonthly)} ÷ ${ctx.inlets} units using water = ₹ ${fmt(r.waterPerInlet)} per unit${noInlets ? ` <span class="muted">(${noInlets} units marked No pay none)</span>` : ''}</dd>
     <dt>Carpet area entered</dt><dd>${fmt(ctx.area)} sq ft${noArea ? ` <span class="warn">${noArea} units have no area entered</span>` : ''}</dd>
     <dt>Sinking / repairs funds</dt><dd>${mmc.costPerSqft ? `₹ ${fmt(mmc.costPerSqft)}/sq ft × area × ${billing.sinkingPct}% and ${billing.repairsPct}% ÷ 12` : 'Enter construction cost per sq ft'}</dd>
   </dl>`;
@@ -1376,4 +1384,236 @@ async function loadProfile() {
   $('#profile-agreement').innerHTML = committee || !agreement ? ''
     : `<details class="glossary"><summary>Read my accepted agreement</summary><article class="agreement mt-sm">${agreementHTML(agreement, me,
       { name: me.agreementName || '', when: tsText(me.agreementAcceptedAt), version: me.agreementVersion })}</article></details>`;
+}
+
+/* ---------------- unit file: account, I & J register, tenants, communication ---------------- */
+
+let fileUnit = sessionStorage.getItem('fileUnit') || null;
+let payFor = null;
+let ufPane = 'account';
+const ufCache = { members: [], tenants: [], comms: [] };
+
+const opt = (list) => list.map((v) => ({ v, l: v }));
+const RECORDS = {
+  members: {
+    title: 'Member record',
+    fields: [
+      ['h', 'Member'],
+      ['role', 'Type of membership', 'select', opt(['Member (owner)', 'Joint member', 'Associate member', 'Nominal member'])],
+      ['name', 'Full name', 'text', null, true], ['address', 'Address', 'text', null, false, true],
+      ['mobile', 'Mobile', 'tel'], ['email', 'Email', 'email'], ['occupation', 'Occupation', 'text'], ['ageAtAdmission', 'Age on admission', 'number'],
+      ['h', 'Admission and shares (I register)'],
+      ['admissionDate', 'Date of admission', 'date'], ['entranceFeeDate', 'Entrance fee paid on', 'date'], ['entranceFeeReceipt', 'Entrance fee receipt no.', 'text'],
+      ['shareCertNo', 'Share certificate no.', 'text'], ['shareNos', 'Share numbers (from – to)', 'text'], ['shareValue', 'Value of shares (₹)', 'number'],
+      ['iRegisterNo', 'I register serial no.', 'text'], ['jRegisterNo', 'J register serial no.', 'text'],
+      ['h', 'Nomination'],
+      ['nominee', 'Nominee name', 'text'], ['nomineeRelation', 'Relationship', 'text'], ['nominationDate', 'Nomination date', 'date'],
+      ['h', 'Cessation (leave blank for a current member)'],
+      ['cessationDate', 'Ceased to be a member on', 'date'], ['cessationReason', 'Reason (sale, transfer, death …)', 'text'],
+      ['docLink', 'Document link (Index II, share certificate, nomination form)', 'url', null, false, true],
+      ['remarks', 'Remarks', 'textarea', null, false, true]
+    ]
+  },
+  tenants: {
+    title: 'Tenancy',
+    fields: [
+      ['h', 'Tenant'],
+      ['name', 'Tenant / licensee name(s)', 'text', null, true], ['mobile', 'Mobile', 'tel'], ['email', 'Email', 'email'],
+      ['use', 'Use', 'select', opt(['Residential', 'Commercial / business'])], ['business', 'Business name (if commercial)', 'text'],
+      ['from', 'Occupied from', 'date', null, true], ['to', 'Vacated on (blank if still there)', 'date'],
+      ['h', 'Leave and licence agreement'],
+      ['agreementType', 'Agreement type', 'select', opt(['Registered leave and licence', 'Notarised / unregistered', 'Other'])],
+      ['agreementNo', 'Registration / document no.', 'text'], ['agreementDate', 'Agreement date', 'date'],
+      ['agreementFrom', 'Agreement valid from', 'date'], ['agreementTo', 'Agreement valid till', 'date'],
+      ['h', 'Police verification and society intimation'],
+      ['policeDate', 'Police verification submitted on', 'date'], ['policeStation', 'Police station', 'text'], ['policeRef', 'Acknowledgement / ref. no.', 'text'],
+      ['societyNocDate', 'Society NOC / intimation date', 'date'],
+      ['docLink', 'Documents link (agreement, police verification, ID proof)', 'url', null, false, true],
+      ['remarks', 'Remarks', 'textarea', null, false, true]
+    ]
+  },
+  comms: {
+    title: 'Communication',
+    fields: [
+      ['date', 'Date', 'date', null, true],
+      ['channel', 'How', 'select', opt(['Letter', 'Notice', 'Email', 'WhatsApp', 'SMS', 'Phone call', 'Registered post', 'Meeting / visit'])],
+      ['direction', 'Direction', 'select', opt(['Sent to member', 'Received from member', 'Sent to tenant', 'Received from tenant'])],
+      ['subject', 'Subject', 'text', null, true, true],
+      ['summary', 'Details', 'textarea', null, false, true],
+      ['refNo', 'Reference / letter no.', 'text'], ['followUp', 'Follow up on', 'date'],
+      ['docLink', 'Document link (copy of letter, email, acknowledgement)', 'url', null, false, true]
+    ]
+  }
+};
+
+const dd = (iso) => (iso ? ddmmyyyy(iso) : '');
+const linkHTML = (u) => (u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">Document</a>` : '');
+
+async function loadUnitFile() {
+  if (!fileUnit || !units.find((u) => u.id === fileUnit)) fileUnit = units[0]?.id;
+  if (!fileUnit) { $('#uf-title').textContent = 'No units yet'; return; }
+  $('#uf-pick').innerHTML = unitOptions(false);
+  $('#uf-pick').value = fileUnit;
+  const u = units.find((x) => x.id === fileUnit);
+  const { F, db } = fb;
+  const [ledgerSnap, billSnap, paySnap, memSnap, tenSnap, comSnap] = await Promise.all([
+    F.getDocs(F.collection(db, 'units', fileUnit, 'ledger')),
+    F.getDocs(F.query(F.collection(db, 'bills'), F.where('unitId', '==', fileUnit))),
+    F.getDocs(F.query(F.collection(db, 'payments'), F.where('unitId', '==', fileUnit))),
+    F.getDocs(F.collection(db, 'units', fileUnit, 'members')).catch(() => ({ docs: [] })),
+    F.getDocs(F.collection(db, 'units', fileUnit, 'tenants')).catch(() => ({ docs: [] })),
+    F.getDocs(F.collection(db, 'units', fileUnit, 'comms')).catch(() => ({ docs: [] }))
+  ]);
+  ufCache.members = memSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.admissionDate || '').localeCompare(a.admissionDate || ''));
+  ufCache.tenants = tenSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.from || '').localeCompare(a.from || ''));
+  ufCache.comms = comSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  const currentTenants = ufCache.tenants.filter((t) => !t.to);
+  $('#uf-title').textContent = `${u.unit}, ${blockName(u.block)}`;
+  $('#uf-sub').innerHTML = [esc(u.name || 'No name on record'), esc(u.type), esc(catName(u)), `Lift: ${liftGroupFor(u) || 'none'}`, `Water: ${Number(u.inlets) > 0 ? 'yes' : 'no'}`, u.carpetArea ? `${fmt(u.carpetArea)} sq ft carpet` : ''].filter(Boolean).join(' &nbsp;|&nbsp; ');
+  const lastBill = billSnap.docs.map((d) => d.data()).sort((a, b) => b.month.localeCompare(a.month))[0];
+  $('#uf-cards').innerHTML = `
+    <div><dt>Balance today (₹)</dt><dd>${amt(u.balance)}</dd></div>
+    <div><dt>Unpaid interest included (₹)</dt><dd>${fmt(u.interestDue || 0)}</dd></div>
+    <div><dt>Builder pending maintenance (₹)</dt><dd>${u.bpm ? fmt(u.bpm) : '—'}</dd></div>
+    <div><dt>Occupancy</dt><dd>${currentTenants.length ? `<span class="pill warn">Rented</span> <small>${esc(currentTenants.map((t) => t.name).join(', '))}</small>` : `<span class="pill ok">${esc(u.status || 'Own / not set')}</span>`}</dd></div>
+    <div><dt>Last bill</dt><dd>${lastBill ? `${esc(lastBill.billNo)}<small class="muted"> ₹ ${fmt(lastBill.total)}</small>` : '—'}</dd></div>`;
+
+  // Account
+  const entries = ledgerSnap.docs.map((d) => d.data()).sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
+  let bal = 0;
+  $('#uf-ledger').innerHTML = entries.map((e) => {
+    bal += (e.debit || 0) - (e.credit || 0);
+    return `<tr><td>${dd(e.date)}</td><td>${esc(e.particulars)}</td><td>${esc(e.receipt || '')}</td><td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">No entries.</td></tr>';
+  $('#uf-bills').innerHTML = billSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.month.localeCompare(a.month))
+    .map((b) => `<tr><td>${esc(b.billNo)}</td><td>${monthLabel(b.month)}</td><td class="num">${amt(b.total)}</td><td><a href="print.html?bill=${encodeURIComponent(b.id)}" target="_blank" rel="noopener">View</a></td></tr>`).join('')
+    || '<tr><td colspan="4" class="empty">No bills.</td></tr>';
+  $('#uf-receipts').innerHTML = paySnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.date.localeCompare(a.date))
+    .map((p) => `<tr><td>${esc(p.receiptNo)}${p.status === 'cancelled' ? ' <span class="status-pill cancelled">Cancelled</span>' : ''}</td><td>${dd(p.date)}</td><td>${esc(p.mode)}</td><td class="num">${fmt(p.amount)}</td><td><a href="print.html?receipt=${p.id}" target="_blank" rel="noopener">View</a></td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">No receipts.</td></tr>';
+
+  const editBtn = (kind, id) => (canDo('unitRecords') ? `<button class="btn btn-small" type="button" data-rec="${kind}" data-id="${esc(id)}">Edit</button>` : '');
+
+  // Members (I & J register)
+  $('#uf-members').innerHTML = ufCache.members.map((m) => `<tr>
+    <td><strong>${esc(m.name)}</strong>${m.address ? `<span class="sub">${esc(m.address)}</span>` : ''}${linkHTML(m.docLink)}</td>
+    <td>${esc(m.role || '')}</td>
+    <td>${m.mobile ? `<a href="tel:+91${esc(m.mobile)}">${esc(m.mobile)}</a>` : ''}${m.email ? `<span class="sub">${esc(m.email)}</span>` : ''}</td>
+    <td>${dd(m.admissionDate)}${m.entranceFeeDate ? `<span class="sub">Entrance fee ${dd(m.entranceFeeDate)}</span>` : ''}</td>
+    <td>${esc(m.shareCertNo || '')}${m.shareNos ? `<span class="sub">Shares ${esc(m.shareNos)}</span>` : ''}</td>
+    <td>${esc(m.iRegisterNo || '—')} / ${esc(m.jRegisterNo || '—')}</td>
+    <td>${esc(m.nominee || '')}${m.nomineeRelation ? `<span class="sub">${esc(m.nomineeRelation)}</span>` : ''}</td>
+    <td>${m.cessationDate ? `<span class="pill past">Ceased ${dd(m.cessationDate)}</span><span class="sub">${esc(m.cessationReason || '')}</span>` : '<span class="pill ok">Current</span>'}</td>
+    <td>${editBtn('members', m.id)}</td></tr>`).join('')
+    || '<tr><td colspan="9" class="empty">No member records yet. Add the details from the I and J registers.</td></tr>';
+
+  // Tenants
+  const today = todayIST();
+  $('#uf-tenants').innerHTML = ufCache.tenants.map((t) => {
+    const current = !t.to;
+    const warns = [];
+    if (current && t.agreementTo && t.agreementTo < today) warns.push('Agreement expired');
+    if (current && !t.policeDate) warns.push('No police verification');
+    if (current && !t.agreementNo) warns.push('No agreement on record');
+    return `<tr>
+      <td><strong>${esc(t.name)}</strong>${t.mobile ? `<span class="sub">${esc(t.mobile)}</span>` : ''}${linkHTML(t.docLink)}</td>
+      <td>${esc(t.use || '')}${t.business ? `<span class="sub">${esc(t.business)}</span>` : ''}</td>
+      <td>${dd(t.from)} – ${t.to ? dd(t.to) : 'now'}</td>
+      <td>${esc(t.agreementType || '')}${t.agreementNo ? `<span class="sub">No. ${esc(t.agreementNo)}</span>` : ''}${t.agreementTo ? `<span class="sub">Valid ${t.agreementFrom ? `${dd(t.agreementFrom)} – ` : 'till '}${dd(t.agreementTo)}</span>` : ''}</td>
+      <td>${t.policeDate ? `${dd(t.policeDate)}<span class="sub">${esc(t.policeStation || '')} ${esc(t.policeRef || '')}</span>` : '—'}</td>
+      <td>${current ? '<span class="pill ok">Current</span>' : '<span class="pill past">Past</span>'}${warns.map((w) => ` <span class="pill warn">${w}</span>`).join('')}</td>
+      <td>${editBtn('tenants', t.id)}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">No tenancies recorded.</td></tr>';
+
+  // Communication
+  $('#uf-comms').innerHTML = ufCache.comms.map((c) => `<tr>
+    <td>${dd(c.date)}</td><td>${esc(c.channel || '')}</td><td>${esc(c.direction || '')}</td>
+    <td><strong>${esc(c.subject)}</strong>${c.summary ? `<span class="sub">${esc(c.summary)}</span>` : ''}${linkHTML(c.docLink)}</td>
+    <td>${esc(c.refNo || '')}</td><td>${c.followUp ? `<span class="${c.followUp <= today ? 'pill warn' : ''}">${dd(c.followUp)}</span>` : ''}</td>
+    <td>${editBtn('comms', c.id)}</td></tr>`).join('')
+    || '<tr><td colspan="7" class="empty">No communication recorded.</td></tr>';
+
+  showUfPane(ufPane);
+  applyAccess();
+}
+
+function showUfPane(name) {
+  ufPane = name;
+  $$('#uf-tabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pane === name)));
+  $$('.uf-pane').forEach((p) => (p.hidden = p.dataset.pane !== name));
+}
+
+let recKind = null, recId = null;
+function openRecord(kind, id) {
+  recKind = kind; recId = id || null;
+  const def = RECORDS[kind];
+  const data = id ? ufCache[kind].find((r) => r.id === id) || {} : (kind === 'comms' ? { date: todayIST() } : {});
+  $('#rec-title').textContent = `${id ? 'Edit' : 'Add'} ${def.title.toLowerCase()}: ${units.find((u) => u.id === fileUnit)?.unit || ''}`;
+  $('#rec-fields').innerHTML = def.fields.map(([k, label, type, options, req, wide]) => {
+    if (k === 'h') return `<h3>${esc(label)}</h3>`;
+    const v = data[k] ?? '';
+    const cls = wide ? ' class="full"' : '';
+    if (type === 'select') return `<label${cls}>${esc(label)}<select name="${k}"><option value=""></option>${options.map((o) => `<option ${o.v === v ? 'selected' : ''}>${esc(o.v)}</option>`).join('')}</select></label>`;
+    if (type === 'textarea') return `<label${cls}>${esc(label)}<textarea name="${k}" rows="3">${esc(v)}</textarea></label>`;
+    return `<label${cls}>${esc(label)}${req ? ' *' : ''}<input type="${type}" name="${k}" value="${esc(v)}" ${req ? 'required' : ''}></label>`;
+  }).join('');
+  setMsg($('#rec-form'), '');
+  $('#rec-dialog').showModal();
+}
+
+function wireUnitFile() {
+  $('#uf-tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-pane]'); if (b) showUfPane(b.dataset.pane); });
+  $('#uf-pick').addEventListener('change', (e) => { fileUnit = e.target.value; sessionStorage.setItem('fileUnit', fileUnit); loadUnitFile().catch((err) => alert(errorText(err))); });
+  $('#uf-print').addEventListener('click', () => window.print());
+  $('#uf-pay').addEventListener('click', () => { payFor = fileUnit; location.hash = '#payments'; });
+  $('#uf-edit').addEventListener('click', () => openUnit(fileUnit).catch((err) => alert(errorText(err))));
+  $('section[data-tab="unitfile"]').addEventListener('click', (e) => {
+    const add = e.target.closest('[data-add]');
+    if (add) return openRecord(add.dataset.add);
+    const ed = e.target.closest('[data-rec]');
+    if (ed) openRecord(ed.dataset.rec, ed.dataset.id);
+  });
+  const f = $('#rec-form');
+  $('[data-close]', f).addEventListener('click', () => $('#rec-dialog').close());
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(f);
+    const rec = {};
+    for (const [k, , type, , req] of RECORDS[recKind].fields) {
+      if (k === 'h') continue;
+      let v = String(fd.get(k) ?? '').trim();
+      if (req && !v) return setMsg(f, 'Fill in the fields marked *.');
+      if (type === 'number') v = v === '' ? null : Number(v);
+      if (k === 'mobile') v = v.replace(/\D/g, '').slice(-10);
+      rec[k] = v;
+    }
+    if (recKind === 'tenants' && rec.to && rec.from && rec.to < rec.from) return setMsg(f, 'Vacated date is before the occupied-from date.');
+    const { F, db } = fb;
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        const col = F.collection(db, 'units', fileUnit, recKind);
+        if (recId) await F.updateDoc(F.doc(col, recId), { ...rec, updatedAt: F.serverTimestamp(), updatedBy: uid });
+        else await F.addDoc(col, { ...rec, createdAt: F.serverTimestamp(), createdBy: uid });
+        $('#rec-dialog').close();
+        await loadUnitFile();
+        if (recKind === 'tenants') await syncOccupancy();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+}
+
+/** Keeps the unit's status (which drives non-occupancy charges) in line with the tenancy records. */
+async function syncOccupancy() {
+  const u = units.find((x) => x.id === fileUnit);
+  if (!u || !canDo('editUnits')) return;
+  const rented = ufCache.tenants.some((t) => !t.to);
+  const letOut = ['Rented', 'Tenant'].includes(u.status);
+  if (rented && !letOut && confirm(`${u.unit} has a current tenant. Mark the unit as Rented? (Non-occupancy charges apply from the next bill.)`)) {
+    await updateUnitDetails(fb, u.id, { status: 'Rented' });
+  } else if (!rented && letOut && confirm(`${u.unit} has no current tenant. Mark the unit as Own Occupied?`)) {
+    await updateUnitDetails(fb, u.id, { status: 'Own Occupied' });
+  } else return;
+  await refreshCore();
+  await loadUnitFile();
 }

@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 2.6.2).
+**Software version:** see `CHANGELOG.md` (this document describes version 2.7.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -211,7 +211,7 @@ Starting categories: A & C wing residential → Residential flat; A 100, A 101, 
 |---|---|
 | Service charges | Σ monthly common expenses marked “All units” ÷ number of active units |
 | Lift | Σ monthly lift expenses of that lift ÷ units served by that lift (+ “all lift units” items ÷ all lift units). Shops / units without lift pay none |
-| Water | round(monthly water expense ÷ total inlets) × inlets of the unit |
+| Water | Monthly water expense ÷ number of units with Water usage = Yes (units marked No pay none) |
 | Property tax | Yearly tax × unit carpet area ÷ total carpet area ÷ 12 (only if the society pays it) |
 | Insurance | Yearly premium × unit carpet area ÷ total carpet area ÷ 12 |
 
@@ -301,11 +301,23 @@ Units → Open → Add a correction: debit (adds to dues) or credit (reduces due
 
 ## 11. The public dues page
 
-- Shows every unit with member name, premises, **member outstanding** (balance today) and **BPM**, grouped by wing and shop floor, with search.
+- Shows every unit with member name and premises, grouped by wing and shop floor, with search. **Amounts are masked** for visitors: one x per digit with Indian commas (₹ 1,17,500 shows as x,xx,xxx), totals too.
+- The **eye** button / **Show amounts** reveals the real figures only to a signed-in, approved member with a confirmed email, or to committee / staff. Others are sent to Member login and brought back once signed in.
+- Real amounts are stored in `private/dues` (protected by the rules); `public/dues` holds names and masks only.
 - Data comes from `public/dues`, rewritten in the same transaction as every bill, payment, cancellation and correction. If Firebase is unreachable, the page shows the 30 Sep 2026 statement from `data/dues.json`.
 - “Cr” means the member has paid in advance. “Under verification” means the opening balance is still being checked.
 
 ---
+
+## 11A. Unit file
+
+Accounts → Units → **Unit file** shows, for one unit:
+- **Account:** balance, unpaid interest, BPM, occupancy, last bill, full ledger, bills and receipts.
+- **Members (I & J register):** current and past members with admission, entrance fee, share certificate and share numbers, I / J serial nos., nomination and cessation.
+- **Tenants and rental history:** each tenancy with period, leave and licence agreement, police verification, society NOC and document links; warnings for expired agreements and missing police verification. The unit's status (Rented / Own Occupied) can be updated from here, which drives non-occupancy charges.
+- **Communication:** every letter, notice, email, message, call or meeting, with reference and follow-up date.
+
+Documents are stored as links (e.g. Google Drive), because file uploads would need Firebase's paid plan. Records are never deleted except by the committee. *Print unit file* prints all four sections.
 
 ## 12. Member access
 

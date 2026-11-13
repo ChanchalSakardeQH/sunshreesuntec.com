@@ -290,3 +290,10 @@ main { min-height: 65vh; }
 .or-line { display: flex; align-items: center; gap: .75rem; color: var(--muted); font-size: .9rem; margin: .25rem 0 0; }
 .or-line::before, .or-line::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .small-note { font-size: .88rem; margin: 0; }
+.masked { letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.eye { display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-left: .3rem; vertical-align: middle;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--stamp); cursor: pointer; padding: 0; }
+.eye:hover { border-color: var(--stamp); }
+.amounts-bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin-top: 1rem; }
+.amounts-bar .btn { gap: .4rem; }
+.amounts-bar svg { color: var(--stamp); }

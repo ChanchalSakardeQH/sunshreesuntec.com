@@ -11,6 +11,7 @@ export const PERMS = [
   ['corrections', 'Add corrections (debit / credit) to unit accounts'],
   ['editUnits', 'Edit unit details: name, status, area, inlets, vehicles, lift (not balances)'],
   ['liftExpenses', 'Record lift AMC / repair expenses'],
+  ['unitRecords', 'Maintain unit files: member register (I & J), tenants and rental history, communication'],
   ['members', 'Approve or remove member logins'],
   ['website', 'Publish notices and contact details on the website']
 ];
@@ -26,8 +27,8 @@ export const COMMITTEE_ONLY = [
 
 export const STAFF_ROLES = {
   'Accountant': ['view', 'recordPayments', 'cancelReceipts', 'generateBills', 'corrections', 'liftExpenses'],
-  'Society Manager': ['view', 'recordPayments', 'editUnits', 'liftExpenses', 'members', 'website'],
-  'Office Assistant': ['view', 'recordPayments']
+  'Society Manager': ['view', 'recordPayments', 'editUnits', 'liftExpenses', 'unitRecords', 'members', 'website'],
+  'Office Assistant': ['view', 'recordPayments', 'unitRecords']
 };
 
 export const permsFor = (role) => Object.fromEntries(PERMS.map(([k]) => [k, (STAFF_ROLES[role] || []).includes(k)]));

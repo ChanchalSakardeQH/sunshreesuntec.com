@@ -8,7 +8,7 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
-  computeBill, billNumber, billId, monthBounds, monthLabel, todayIST, addDays, round, liftExpenseEndMonth, buildContext
+  computeBill, billNumber, billId, monthBounds, monthLabel, todayIST, addDays, round, liftExpenseEndMonth, buildContext, maskedDues
 } from '../docs/assets/js/billing-core.js';
 import { DEFAULT_BILLING } from '../docs/assets/js/defaults.js';
 
@@ -45,7 +45,7 @@ const failed = [];
 for (const doc of unitsSnap.docs) {
   const unitRef = doc.ref;
   const billRef = db.doc(`bills/${billId(doc.id, monthKey)}`);
-  const pubRef = db.doc('public/dues');
+  const pubRef = db.doc('private/dues');      // full amounts; public/dues gets the masked copy
   try {
     const created = await db.runTransaction(async (tx) => {
       const [unitSnap, billSnap, pubSnap] = await Promise.all([tx.get(unitRef), tx.get(billRef), tx.get(pubRef)]);
@@ -74,8 +74,10 @@ for (const doc of unitsSnap.docs) {
         lastBillId: billRef.id, updatedAt: FieldValue.serverTimestamp()
       });
       if (pubSnap.exists) {
-        const units = pubSnap.data().units.map((r) => (r.id === unit.id ? { ...r, owner: round(newBalance) } : r));
+        const data = pubSnap.data();
+        const units = data.units.map((r) => (r.id === unit.id ? { ...r, owner: round(newBalance) } : r));
         tx.update(pubRef, { units, asOn: todayIST(), updatedAt: FieldValue.serverTimestamp() });
+        tx.set(db.doc('public/dues'), { ...maskedDues({ ...data, units, asOn: todayIST() }), updatedAt: FieldValue.serverTimestamp() });
       }
       return true;
     });

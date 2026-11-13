@@ -1,8 +1,9 @@
 rules_version = '2';
 
-// Sunshree Suntec CHS – access rules (version 2.6)
+// Sunshree Suntec CHS – access rules (version 2.7)
 //
-//   public/dues, public/site        anyone can read (the website)
+//   public/dues, public/site        anyone can read (the website); dues amounts are masked here
+//   private/dues                    real amounts: approved members and committee / staff
 //   admins/{uid}                    committee members (no "kind") and staff (kind: 'staff', role, perms)
 //   staffInvites/{email}            staff invited by the committee; claimed on first sign-in
 //   staffAgreements/{id}            permanent log of staff accepting the agreement
@@ -47,12 +48,26 @@ service cloud.firestore {
     }
     function changes() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
+    // Any approved member with a confirmed email (any unit).
+    function approvedMember() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().status == 'approved';
+    }
+
     // ---------- website ----------
     match /public/{docId} {
       allow read: if true;
       allow write: if isCommittee()
         || (docId == 'dues' && (moneyPerm() || perm('editUnits')))
         || (docId == 'site' && perm('website'));
+    }
+
+    // Real amounts: signed-in approved members and committee / staff with view access.
+    match /private/{docId} {
+      allow read: if perm('view') || approvedMember();
+      allow write: if isCommittee() || (docId == 'dues' && (moneyPerm() || perm('editUnits')));
     }
 
     // ---------- committee and staff ----------
@@ -119,6 +134,12 @@ service cloud.firestore {
         allow read: if perm('view') || approvedFor(unitId);
         allow create: if moneyPerm();
         allow update, delete: if false;   // ledger entries are permanent; mistakes are corrected by new entries
+      }
+      // Unit file: member register (I & J), tenants / rental history, communication.
+      match /{record}/{recordId} {
+        allow read: if record in ['members', 'tenants', 'comms'] && (perm('view') || approvedFor(unitId));
+        allow create, update: if record in ['members', 'tenants', 'comms'] && perm('unitRecords');
+        allow delete: if record in ['members', 'tenants', 'comms'] && isCommittee();
       }
     }
 

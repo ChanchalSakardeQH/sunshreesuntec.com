@@ -91,6 +91,10 @@
         <h1 id="dues-title">Maintenance dues</h1>
         <p class="lede" id="dues-lede">Loading the latest statement…</p>
 
+        <div class="amounts-bar">
+          <button type="button" class="btn btn-small" id="amounts-toggle">Show amounts</button>
+          <span class="muted" id="amounts-note"></span>
+        </div>
         <div class="dues-tools">
           <div class="segmented" id="block-filter" role="group" aria-label="Show block"></div>
           <label class="search">
@@ -154,6 +158,7 @@
         <h1 id="member-title">Member access</h1>
         <p>Registered members can see the full maintenance account for their own unit. Continue with Google, or register with email and password; then add your unit and mobile number. The committee checks each request against the member register before approving it.</p>
 
+        <p class="callout" id="member-note" hidden></p>
         <p class="callout" id="member-unavailable" hidden>Member login isn’t switched on yet. Please check back soon.</p>
 
         <div id="auth-panels" hidden>

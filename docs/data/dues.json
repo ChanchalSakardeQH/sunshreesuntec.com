@@ -32,9 +32,10 @@
    "block": "A",
    "name": "Mr/Mrs Patwari",
    "type": "Commercial Office",
-   "owner": null,
-   "bpm": null,
-   "verify": true
+   "verify": true,
+   "ownerMask": null,
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "A-101",
@@ -42,8 +43,9 @@
    "block": "A",
    "name": "Salim S Nurani",
    "type": "Residential, using as Commercial",
-   "owner": 32400,
-   "bpm": null
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "A-102",
@@ -51,8 +53,9 @@
    "block": "A",
    "name": "Dr Anand Bhattacharya",
    "type": "Residential, using as Commercial",
-   "owner": 134900,
-   "bpm": null
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "A-103",
@@ -60,8 +63,9 @@
    "block": "A",
    "name": "Mr. Mustakim Rafique Shaikh",
    "type": "Residential Flat",
-   "owner": 3900,
-   "bpm": null
+   "ownerMask": "x,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "C-100",
@@ -69,9 +73,10 @@
    "block": "C",
    "name": "Mrs Tejsheree Pramod Doshi",
    "type": "Commercial Office",
-   "owner": null,
-   "bpm": null,
-   "verify": true
+   "verify": true,
+   "ownerMask": null,
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "C-101",
@@ -79,8 +84,9 @@
    "block": "C",
    "name": "Smt Jyoti Ramesh Survase",
    "type": "Residential Flat",
-   "owner": 117500,
-   "bpm": 43000
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-102",
@@ -88,8 +94,9 @@
    "block": "C",
    "name": "SOM Solution (Runal R Sakla)",
    "type": "Commercial Office",
-   "owner": 16000,
-   "bpm": null
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "C-103",
@@ -97,8 +104,9 @@
    "block": "C",
    "name": "Smt Leela Mohal Gulwani (Kavita)",
    "type": "Residential Flat",
-   "owner": 46200,
-   "bpm": null
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "C-201",
@@ -106,8 +114,9 @@
    "block": "C",
    "name": "Mr Anand Rathi / Kamal Kishor Rathi",
    "type": "Residential Flat",
-   "owner": 101000,
-   "bpm": 7000
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "x,xxx"
   },
   {
    "id": "C-202",
@@ -115,8 +124,9 @@
    "block": "C",
    "name": "Mr Om Prakash Singh",
    "type": "Residential Flat",
-   "owner": 45800,
-   "bpm": 25000
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-203",
@@ -124,8 +134,9 @@
    "block": "C",
    "name": "Mr Deepak Pramod Gupta",
    "type": "Residential Flat",
-   "owner": 8300,
-   "bpm": 31000
+   "ownerMask": "x,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-301",
@@ -133,8 +144,9 @@
    "block": "C",
    "name": "Govardhan D Lakhani / Neeta / Padma Gulwani",
    "type": "Residential Flat",
-   "owner": 108300,
-   "bpm": 60000
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-302",
@@ -142,8 +154,9 @@
    "block": "C",
    "name": "Mr Sandeep Tejraj Singh",
    "type": "Residential Flat",
-   "owner": 22900,
-   "bpm": 31000
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-303",
@@ -151,8 +164,9 @@
    "block": "C",
    "name": "Mr Ram Moryani",
    "type": "Residential Flat",
-   "owner": 51300,
-   "bpm": 42000
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-401",
@@ -160,8 +174,9 @@
    "block": "C",
    "name": "Mrs Vijayan Rajendra Prasad",
    "type": "Residential Flat",
-   "owner": 14200,
-   "bpm": 14000
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-402",
@@ -169,8 +184,9 @@
    "block": "C",
    "name": "Mr Chanchal Sakarde",
    "type": "Residential Flat",
-   "owner": 1731,
-   "bpm": null
+   "ownerMask": "x,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "C-403",
@@ -178,8 +194,9 @@
    "block": "C",
    "name": "Veerkumar Vidyachandra",
    "type": "Residential Flat",
-   "owner": 137900,
-   "bpm": 49000
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-501",
@@ -187,8 +204,9 @@
    "block": "C",
    "name": "Mrs Usha Ramesh Mane / Mrs Lokhndwala",
    "type": "Residential Flat",
-   "owner": 98200,
-   "bpm": 43000
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-502",
@@ -196,8 +214,9 @@
    "block": "C",
    "name": "Mr Lokandwala",
    "type": "Residential Flat",
-   "owner": 39200,
-   "bpm": 60000
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "C-503",
@@ -205,8 +224,9 @@
    "block": "C",
    "name": "Mr Saji Rajan",
    "type": "Residential Flat",
-   "owner": -9430,
-   "bpm": 26000
+   "ownerMask": "x,xxx",
+   "cr": true,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "D-101A",
@@ -214,8 +234,9 @@
    "block": "D",
    "name": "Mr. Solanki",
    "type": "Commercial Office",
-   "owner": 212400,
-   "bpm": null
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "D-101B",
@@ -223,8 +244,9 @@
    "block": "D",
    "name": "Dr Ingale",
    "type": "Commercial Office",
-   "owner": 356400,
-   "bpm": null
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "D-201",
@@ -232,8 +254,9 @@
    "block": "D",
    "name": "Ramesh Mani",
    "type": "Commercial Office",
-   "owner": 356400,
-   "bpm": null
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "D-202",
@@ -241,9 +264,10 @@
    "block": "D",
    "name": "Mr Mahmood",
    "type": "Hotel Terrace",
-   "owner": null,
-   "bpm": null,
-   "verify": true
+   "verify": true,
+   "ownerMask": null,
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "GF-01",
@@ -251,8 +275,9 @@
    "block": "GF",
    "name": "Premkumar Mahindru",
    "type": "Ground-Floor Shop",
-   "owner": 186000,
-   "bpm": 55000
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-02",
@@ -260,8 +285,9 @@
    "block": "GF",
    "name": "Premkumar Maindru",
    "type": "Ground-Floor Shop",
-   "owner": 186000,
-   "bpm": 55000
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-03",
@@ -269,8 +295,9 @@
    "block": "GF",
    "name": "Premkumar Mahindru",
    "type": "Ground-Floor Shop",
-   "owner": 186000,
-   "bpm": 55000
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-04",
@@ -278,8 +305,9 @@
    "block": "GF",
    "name": "Mazhar Shaikh",
    "type": "Ground-Floor Shop",
-   "owner": 226400,
-   "bpm": 3200
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "x,xxx"
   },
   {
    "id": "GF-05",
@@ -287,8 +315,9 @@
    "block": "GF",
    "name": "Sajid Faikh",
    "type": "Ground-Floor Shop",
-   "owner": 219200,
-   "bpm": 12800
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-06",
@@ -296,8 +325,9 @@
    "block": "GF",
    "name": "Rashmi / Bharkha Shownkeen",
    "type": "Ground-Floor Shop",
-   "owner": 194100,
-   "bpm": null
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "GF-07",
@@ -305,8 +335,9 @@
    "block": "GF",
    "name": "Asit Chandrakant Shah",
    "type": "Ground-Floor Shop",
-   "owner": 68700,
-   "bpm": null
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "GF-08",
@@ -314,8 +345,9 @@
    "block": "GF",
    "name": "Dipti Sharma",
    "type": "Ground-Floor Shop",
-   "owner": 110000,
-   "bpm": 55000
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-09",
@@ -323,8 +355,9 @@
    "block": "GF",
    "name": "Hatim Shabbir Fakhar",
    "type": "Ground-Floor Shop",
-   "owner": 192000,
-   "bpm": 24800
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-10",
@@ -332,8 +365,9 @@
    "block": "GF",
    "name": "Prem Kumar Sareen",
    "type": "Ground-Floor Shop",
-   "owner": 118200,
-   "bpm": 35300
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-11",
@@ -341,8 +375,9 @@
    "block": "GF",
    "name": "Chaitali Shah Pareekshit",
    "type": "Ground-Floor Shop",
-   "owner": 85800,
-   "bpm": 2400
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "x,xxx"
   },
   {
    "id": "GF-12",
@@ -350,8 +385,9 @@
    "block": "GF",
    "name": "Chaitali Shah Pareekshit",
    "type": "Ground-Floor Shop",
-   "owner": 139500,
-   "bpm": 27300
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-13",
@@ -359,8 +395,9 @@
    "block": "GF",
    "name": "Kadam S Anandrao",
    "type": "Ground-Floor Shop",
-   "owner": -9600,
-   "bpm": 42800
+   "ownerMask": "x,xxx",
+   "cr": true,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-14",
@@ -368,8 +405,9 @@
    "block": "GF",
    "name": "Shilpa Nawani",
    "type": "Ground-Floor Shop",
-   "owner": 57600,
-   "bpm": 29600
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-15",
@@ -377,8 +415,9 @@
    "block": "GF",
    "name": "Shabbir Akolawala",
    "type": "Ground-Floor Shop",
-   "owner": 220800,
-   "bpm": 20800
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-16",
@@ -386,8 +425,9 @@
    "block": "GF",
    "name": "Kanchan Arjun Punjabi",
    "type": "Ground-Floor Shop",
-   "owner": 24000,
-   "bpm": 16800
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-17",
@@ -395,8 +435,9 @@
    "block": "GF",
    "name": "Harminder Singh / Viquar Alam",
    "type": "Ground-Floor Shop",
-   "owner": 49500,
-   "bpm": 22400
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-18",
@@ -404,8 +445,9 @@
    "block": "GF",
    "name": "Zahir Asif Jawed",
    "type": "Ground-Floor Shop",
-   "owner": 25000,
-   "bpm": 31300
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-19",
@@ -413,8 +455,9 @@
    "block": "GF",
    "name": "Kalpana A Karnik",
    "type": "Ground-Floor Shop",
-   "owner": 67200,
-   "bpm": 24300
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "GF-20",
@@ -422,8 +465,9 @@
    "block": "GF",
    "name": "Amarjeet Khalsa / Harleen Kaur",
    "type": "Ground-Floor Shop",
-   "owner": 47000,
-   "bpm": 26200
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-01",
@@ -431,8 +475,9 @@
    "block": "B",
    "name": "Rehana Inamdar",
    "type": "Basement Shop",
-   "owner": 206500,
-   "bpm": 24800
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-02",
@@ -440,8 +485,9 @@
    "block": "B",
    "name": "Ibrahim Poonawala",
    "type": "Basement Shop",
-   "owner": 58500,
-   "bpm": 18400
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-03",
@@ -449,8 +495,9 @@
    "block": "B",
    "name": "Ibrahim Poonawala",
    "type": "Basement Shop",
-   "owner": 58500,
-   "bpm": 5600
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "x,xxx"
   },
   {
    "id": "B-04",
@@ -458,8 +505,9 @@
    "block": "B",
    "name": "Quaizohar Majevediwala",
    "type": "Basement Shop",
-   "owner": 117000,
-   "bpm": null
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "B-05",
@@ -467,8 +515,9 @@
    "block": "B",
    "name": "Pradeep Giri / Laxman Rahida",
    "type": "Basement Shop",
-   "owner": 55500,
-   "bpm": 36800
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-06",
@@ -476,8 +525,9 @@
    "block": "B",
    "name": "Bhuraram Choudhary",
    "type": "Basement Shop",
-   "owner": 207700,
-   "bpm": 23300
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-07",
@@ -485,8 +535,9 @@
    "block": "B",
    "name": "A Vieyra",
    "type": "Basement Shop",
-   "owner": 53900,
-   "bpm": null
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "B-08",
@@ -494,8 +545,9 @@
    "block": "B",
    "name": "Komal Ratnani",
    "type": "Basement Shop",
-   "owner": 30600,
-   "bpm": 24800
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-09",
@@ -503,8 +555,9 @@
    "block": "B",
    "name": "Umesh Pawar",
    "type": "Basement Shop",
-   "owner": 68200,
-   "bpm": 13600
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-10",
@@ -512,8 +565,9 @@
    "block": "B",
    "name": "Raj Sarin",
    "type": "Basement Shop",
-   "owner": 35000,
-   "bpm": 9300
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "x,xxx"
   },
   {
    "id": "B-11",
@@ -521,8 +575,9 @@
    "block": "B",
    "name": "Sunita Dinesh Manchanda",
    "type": "Basement Shop",
-   "owner": 76800,
-   "bpm": 14400
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-12",
@@ -530,8 +585,9 @@
    "block": "B",
    "name": "Chhotelal Tamjeevan Pardeshi",
    "type": "Basement Shop",
-   "owner": 168000,
-   "bpm": null
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "B-13",
@@ -539,8 +595,9 @@
    "block": "B",
    "name": "Bhopendra Rai",
    "type": "Basement Shop",
-   "owner": 48200,
-   "bpm": null
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": null
   },
   {
    "id": "B-14",
@@ -548,8 +605,9 @@
    "block": "B",
    "name": "Shri Tasneem S Lokhandwala",
    "type": "Basement Shop",
-   "owner": 72900,
-   "bpm": 46800
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-15",
@@ -557,8 +615,9 @@
    "block": "B",
    "name": "Rohit Ramesh Sujanani / Parmar Chemist",
    "type": "Basement Shop",
-   "owner": 54000,
-   "bpm": 1300
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "x,xxx"
   },
   {
    "id": "B-16",
@@ -566,8 +625,9 @@
    "block": "B",
    "name": "Moiz Burhanpurwala",
    "type": "Basement Shop",
-   "owner": 144500,
-   "bpm": 47300
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-17",
@@ -575,8 +635,9 @@
    "block": "B",
    "name": "Sulochana Mane",
    "type": "Basement Shop",
-   "owner": 78000,
-   "bpm": 41300
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-18",
@@ -584,8 +645,9 @@
    "block": "B",
    "name": "Ateka Chunawala",
    "type": "Basement Shop",
-   "owner": 54400,
-   "bpm": 27300
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-19",
@@ -593,8 +655,9 @@
    "block": "B",
    "name": "Manju Pradip Kapoor",
    "type": "Basement Shop",
-   "owner": 129600,
-   "bpm": 33800
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-20",
@@ -602,8 +665,9 @@
    "block": "B",
    "name": "Shivaji Nikam",
    "type": "Basement Shop",
-   "owner": 102000,
-   "bpm": 34800
+   "ownerMask": "x,xx,xxx",
+   "cr": false,
+   "bpmMask": "xx,xxx"
   },
   {
    "id": "B-21",
@@ -611,8 +675,11 @@
    "block": "B",
    "name": "Dr. Sagar Ganpat Bhogale",
    "type": "Basement Shop",
-   "owner": 51000,
-   "bpm": 500
+   "ownerMask": "xx,xxx",
+   "cr": false,
+   "bpmMask": "xxx"
   }
- ]
+ ],
+ "openingRemoved": true,
+ "note": "Amounts removed for privacy (version 2.7). Real balances are in the accounts (Firestore). Opening balances as on 30 Sep 2026 remain in each unit ledger."
 }
