@@ -6,6 +6,16 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.2.1] – 2026-11-15 – No hosting or data-location details on the website
+
+### Changed
+- Accounts footer shows only “Software version 3.2.1” (no links or mentions of the documentation, changelog or repository).
+- Messages shown on screen no longer name the hosting or database services, setup files or access rules: the monthly-bills note, the “accounts not available” and “no permission” messages, the two Google sign-in errors, the opening-balances import error, and the note in the public `data/dues.json`. Members and staff are referred to the committee instead.
+- Code comments in the published scripts no longer name the hosting or database services.
+- Not changeable: the browser must load the sign-in/database library and connect with the site's configuration, so these remain visible to anyone reading the page source. Data stays protected by the server's access rules, not by hiding where it is.
+
+---
+
 ## [3.2.0] – 2026-11-15 – Past committee's receipts (2011–2016) in every unit ledger
 
 ### Added

@@ -1,6 +1,6 @@
 // Staff roles (Accountant, Society Manager …), what each permission allows, and the default
 // Commitment, Confidentiality and Work Responsibilities Agreement that staff accept before working.
-// Permissions are enforced on the server by firestore.rules; the pages only hide what isn't allowed.
+// Permissions are enforced on the server by the access rules; the pages only hide what isn't allowed.
 
 /** Every permission a staff member can be given. Committee members have all of them. */
 export const PERMS = [

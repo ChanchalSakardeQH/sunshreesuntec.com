@@ -1,8 +1,8 @@
 // Society document archive and audited accounts (2011-12 onwards).
 //
-// Documents (audit reports, AGM minutes …) are stored in Firestore itself, split into parts of
+// Documents (audit reports, AGM minutes …) are stored in the database itself, split into parts of
 // under 1 MB, so they stay private: the security rules let only approved members and the
-// accounts team read them. (Firebase Storage would need the paid plan.)
+// accounts team read them.
 //
 //   archiveDocs/{id}              { title, category, fy, pages, bytes, parts, note, uploadedAt, uploadedBy }
 //   archiveDocs/{id}/parts/{n}    { n, data: Bytes }
@@ -10,7 +10,7 @@
 
 import { fyList, fyBounds } from './billing-core.js';
 
-const PART = 900 * 1024;          // bytes per part (Firestore document limit is 1 MiB)
+const PART = 900 * 1024;          // bytes per part (document size limit is 1 MiB)
 export const MAX_DOC_MB = 15;     // keep uploads small; scans should be compressed first
 
 export const ARCHIVE_CATEGORIES = ['Audited accounts', 'AGM minutes', 'Notices and circulars', 'Legal and registration', 'Other'];

@@ -1,5 +1,5 @@
-// Billing rules shared by the admin pages (browser) and scripts/generate-bills.mjs (GitHub Actions).
-// No Firebase code here: only calculations, numbering and wording.
+// Billing rules shared by the admin pages (browser) and scripts/generate-bills.mjs (monthly job).
+// No database code here: only calculations, numbering and wording.
 
 /**
  * Bill heads, in printed order. Heads follow the composition of charges in Model Bye-laws 65–67 and

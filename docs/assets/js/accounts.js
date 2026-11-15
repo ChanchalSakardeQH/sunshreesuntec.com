@@ -1,5 +1,5 @@
-// Accounting operations (browser, Firebase modular SDK). Every money movement runs in a
-// Firestore transaction that updates the unit's running balance and its ledger together.
+// Accounting operations (browser). Every money movement runs in a
+// transaction that updates the unit's running balance and its ledger together.
 
 import {
   computeBill, billNumber, billId, monthBounds, financialYear, receiptNumber, round, monthLabel, todayIST,
@@ -353,7 +353,7 @@ export async function importOpening(fb, dues, { includeOctober = true } = {}, on
   const { F, db, auth } = fb;
   const existing = await F.getDocs(F.collection(db, 'units'));
   if (!existing.empty) throw new Error('Units already exist. The opening import can only run once.');
-  if (dues.openingRemoved) throw new Error('The opening balances were removed from the website files for privacy. Restore data/dues.json from GitHub history (version 2.6.2) to import again.');
+  if (dues.openingRemoved) throw new Error('The opening balances were removed from the website files for privacy. Ask the person who maintains the website to restore them before importing again.');
 
   await F.setDoc(F.doc(db, 'settings', 'billing'), DEFAULT_BILLING, { merge: true });
   const siteSnap = await F.getDoc(F.doc(db, 'public', 'site'));

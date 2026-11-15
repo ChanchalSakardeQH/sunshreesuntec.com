@@ -94,7 +94,7 @@
     <!-- BILLS -->
     <section class="tab" data-tab="bills" hidden>
       <h1>Bills</h1>
-      <p class="muted">Bills are created once per unit per month. Running it again for the same month only adds bills for units that don’t have one yet. On the 1st of every month GitHub creates them automatically.</p>
+      <p class="muted">Bills are created once per unit per month. Running it again for the same month only adds bills for units that don’t have one yet. On the 1st of every month they are created automatically.</p>
       <form id="gen-form" class="form entry-form" data-perm="generateBills" novalidate>
         <label>Month<input type="month" name="month" required></label>
         <label>Bill date<input type="date" name="billDate" required></label>
@@ -386,7 +386,7 @@
 
       <div class="uf-pane" data-pane="tenants" hidden>
         <h2>Tenants and rental history</h2>
-        <p class="muted">Every tenancy, current and past: who, from when to when, the leave and licence agreement, police verification and society NOC. Keep document links (e.g. Google Drive) for the agreement and police acknowledgement.</p>
+        <p class="muted">Every tenancy, current and past: who, from when to when, the leave and licence agreement, police verification and society NOC. Keep document links for the agreement and police acknowledgement.</p>
         <div class="form-actions"><button class="btn btn-primary" type="button" data-add="tenants" data-perm="unitRecords">Add tenancy</button></div>
         <div class="table-scroll"><table><thead><tr><th>Tenant</th><th>Use</th><th>Period</th><th>Agreement</th><th>Police verification</th><th>Status</th><th></th></tr></thead><tbody id="uf-tenants"></tbody></table></div>
       </div>
@@ -702,7 +702,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.2.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
+    <p class="muted mt" id="version-note">Software version 3.2.1</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

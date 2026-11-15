@@ -1,5 +1,5 @@
 // Member access: register (mobile + email) → committee approves in admin.html → member sees own unit's
-// balance, bills, receipts and account entries. Enforced by firestore.rules.
+// balance, bills, receipts and account entries. Enforced by the server's access rules.
 import { initFirebase, errorText, googleSignIn } from './firebase.js';
 import { getDues, fmt, esc, ownerCell } from './data.js';
 import { ddmmyyyy, monthLabel, money, todayIST } from './billing-core.js';

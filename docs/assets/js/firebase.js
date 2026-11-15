@@ -1,4 +1,4 @@
-// Shared Firebase start-up for every page. Returns null until firebase-config.js is filled in.
+// Shared start-up for every page. Returns null until the configuration is filled in.
 import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
@@ -53,8 +53,8 @@ export function errorText(err) {
     'auth/weak-password': 'Use a password of at least 8 characters.',
     'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
     'auth/network-request-failed': 'No internet connection. Check your connection and try again.',
-    'auth/operation-not-allowed': 'Google sign-in isn’t switched on yet. In Firebase: Authentication → Sign-in method → Google → Enable.',
-    'auth/unauthorized-domain': 'This website address isn’t authorised for sign-in. Add it in Firebase: Authentication → Settings → Authorized domains.',
+    'auth/operation-not-allowed': 'Google sign-in isn’t switched on yet. Please use email and password, or contact the committee.',
+    'auth/unauthorized-domain': 'Sign-in isn’t available at this web address. Please contact the committee.',
     'auth/account-exists-with-different-credential': 'This email is already registered with a password. Sign in with your email and password.',
     'permission-denied': 'This action isn’t allowed for your account.',
     'unavailable': 'The database can’t be reached. Check your connection and try again.'

@@ -194,7 +194,7 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-reveal], #amounts-toggle')) { e.preventDefault(); toggleAmounts(); }
 });
 
-/** Public (masked) balances from Firestore; falls back to data/dues.json (which has no amounts). */
+/** Public (masked) balances from the database; falls back to data/dues.json (which has no amounts). */
 async function loadLiveDues() {
   const fallback = await getDues();
   try {

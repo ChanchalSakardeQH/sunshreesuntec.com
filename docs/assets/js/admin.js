@@ -87,7 +87,7 @@ main().catch((err) => { console.error(err); $('#gate').textContent = errorText(e
 async function main() {
   dues = await getDues();
   fb = await initFirebase();
-  if (!fb) { $('#gate').textContent = 'Firebase isn’t set up yet. Fill in assets/js/firebase-config.js first (see README).'; return; }
+  if (!fb) { $('#gate').textContent = 'The accounts aren’t available yet. Please contact the committee.'; return; }
 
   $('#admin-login').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1279,7 +1279,7 @@ function wireSettings() {
       } catch (err) {
         msg.className = 'form-msg';
         msg.textContent = errorText(err) + (err?.code === 'permission-denied'
-          ? ' Check that firestore.rules is published in Firebase and that your User UID is in the admins collection.' : '');
+          ? ' Your login doesn’t have permission for this. Ask the person who maintains the website to check committee access.' : '');
       }
     });
   });

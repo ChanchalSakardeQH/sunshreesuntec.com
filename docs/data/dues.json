@@ -681,5 +681,5 @@
   }
  ],
  "openingRemoved": true,
- "note": "Amounts removed for privacy (version 2.7). Real balances are in the accounts (Firestore). Opening balances as on 30 Sep 2026 remain in each unit ledger."
+ "note": "Amounts removed for privacy (version 2.7). Real balances are in the Society's accounts. Opening balances as on 30 Sep 2026 remain in each unit ledger."
 }
