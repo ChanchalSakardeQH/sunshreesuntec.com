@@ -297,3 +297,12 @@ main { min-height: 65vh; }
 .amounts-bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin-top: 1rem; }
 .amounts-bar .btn { gap: .4rem; }
 .amounts-bar svg { color: var(--stamp); }
+
+/* ---- society accounts on the member page ---- */
+.stmt-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; margin-top: .75rem; }
+@media (max-width: 760px) { .stmt-pair { grid-template-columns: 1fr; } }
+table.stmt tr.grp td { font-weight: 600; background: var(--paper); }
+table.stmt tr.item td:first-child { padding-left: 1.2rem; }
+table.stmt tfoot td { font-weight: 700; }
+details.glossary { margin: .5rem 0; }
+details.glossary summary { cursor: pointer; font-weight: 600; }

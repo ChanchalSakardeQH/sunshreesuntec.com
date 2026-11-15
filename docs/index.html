@@ -227,6 +227,14 @@
               <tbody id="account-receipts"></tbody>
             </table>
           </div>
+          <h3 class="mt-sm">Balance at the end of each financial year</h3>
+          <p class="muted small-note">Your unit’s balance on 31 March of each year: from the Society’s audited accounts up to 2017-18, then from the Society’s books. Amounts with Cr are in your favour.</p>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col">Financial year</th><th scope="col">As on</th><th scope="col">Name in the records</th><th scope="col">Source</th><th scope="col" class="num">Balance (₹)</th></tr></thead>
+              <tbody id="account-years"></tbody>
+            </table>
+          </div>
           <h3 class="mt-sm">Account entries</h3>
           <div class="table-scroll">
             <table class="ledger">
@@ -234,6 +242,28 @@
               <tbody id="account-ledger"></tbody>
             </table>
           </div>
+        </div>
+
+        <div id="society-accounts" hidden>
+          <h2 class="mt-sm">Society accounts</h2>
+          <p class="muted">The Society’s audited accounts, year by year. Figures are as printed in each year’s audit report; the full report can be opened below.</p>
+          <label class="inline-label">Financial year<select id="sa-year"></select></label>
+          <div id="sa-body"></div>
+          <h3 class="mt-sm">How the Society has done over the years</h3>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col">Year</th><th scope="col">Audit class</th><th scope="col" class="num">Income (₹)</th><th scope="col" class="num">Expenditure (₹)</th><th scope="col" class="num">Surplus (₹)</th><th scope="col" class="num">Members’ dues at year end (₹)</th></tr></thead>
+              <tbody id="sa-trend"></tbody>
+            </table>
+          </div>
+          <h3 class="mt-sm">Society documents</h3>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col">Document</th><th scope="col">Year</th><th scope="col" class="num">Pages</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
+              <tbody id="sa-docs"></tbody>
+            </table>
+          </div>
+          <p class="form-msg" id="sa-msg" role="alert"></p>
         </div>
       </div>
     </section>

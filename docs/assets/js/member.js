@@ -2,8 +2,9 @@
 // balance, bills, receipts and account entries. Enforced by firestore.rules.
 import { initFirebase, errorText, googleSignIn } from './firebase.js';
 import { getDues, fmt, esc, ownerCell } from './data.js';
-import { ddmmyyyy, monthLabel, money } from './billing-core.js';
+import { ddmmyyyy, monthLabel, money, todayIST } from './billing-core.js';
 import { mergeLedger } from './accounts.js';
+import { loadAuditYears, listArchive, openArchiveDoc, yearEndRows } from './archive.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -274,6 +275,12 @@ async function loadAccount() {
     .sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
   // Full history: the Society's Tally ledger up to 30 Sep 2026, then these accounts.
   const entries = mergeLedger(liveEntries, histSnap?.exists() ? histSnap.data() : null);
+  audits = await loadAuditYears(fb).catch(() => []);
+  const cr = (v) => (v < 0 ? `<span class="amt-credit">${fmt(-v)} Cr</span>` : fmt(v));
+  $('#account-years').innerHTML = yearEndRows(unitId, audits, entries, todayIST()).map((r) => `<tr>
+    <td>${esc(r.fy)}</td><td>${ddmmyyyy(r.asOn)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}${r.note ? ` <small class="muted">${esc(r.note)}</small>` : ''}</td>
+    <td class="num">${r.amount == null ? '—' : cr(r.amount)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No year-end figures yet.</td></tr>';
+  loadSocietyAccounts().catch((err) => console.warn('Society accounts unavailable', err));
   let bal = 0;
   $('#account-ledger').innerHTML = entries.map((e) => {
     bal += (e.debit || 0) - (e.credit || 0);
@@ -282,3 +289,78 @@ async function loadAccount() {
       <td class="num">${bal < 0 ? `<span class="amt-credit">${fmt(-bal)} Cr</span>` : fmt(bal)}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No account entries yet.</td></tr>';
 }
+
+/* ---------- Society accounts (audited years) and documents, for approved members ---------- */
+
+let audits = [], docs = [];
+const inr = (n) => (n == null ? '—' : fmt(n));
+
+function stmt(title, groups, totalLabel, total) {
+  return `<div class="table-scroll"><table class="stmt"><thead><tr><th scope="col">${esc(title)}</th><th scope="col" class="num">₹</th></tr></thead><tbody>
+    ${groups.map((g) => `<tr class="grp"><td>${esc(g.group)}</td><td class="num">${inr(g.total)}</td></tr>
+      ${g.items.filter((i) => i.amount).map((i) => `<tr class="item"><td>${esc(i.name)}</td><td class="num">${inr(i.amount)}</td></tr>`).join('')}`).join('')}
+    </tbody><tfoot><tr><td>${esc(totalLabel)}</td><td class="num">${inr(total)}</td></tr></tfoot></table></div>`;
+}
+
+function renderYear(fy) {
+  const a = audits.find((x) => x.fy === fy);
+  if (!a) return;
+  const ie = a.incomeExpenditure, bs = a.balanceSheet;
+  const doc = docs.find((d) => d.fy === fy && /audit/i.test(`${d.category} ${d.title}`));
+  $('#sa-body').innerHTML = `
+    <dl class="dues-summary">
+      <div><dt>Audit class</dt><dd>${esc(a.auditClass)}</dd></div>
+      <div><dt>Income (₹)</dt><dd>${inr(a.income)}</dd></div>
+      <div><dt>Expenditure (₹)</dt><dd>${inr(a.expenditure)}</dd></div>
+      <div><dt>Surplus (₹)</dt><dd class="credit">${inr(a.surplus)}</dd></div>
+      <div><dt>Members’ dues on 31 March (₹)</dt><dd class="due">${inr(a.debtors.members)}</dd></div>
+      <div><dt>Builder pending (₹)</dt><dd>${inr(a.debtors.builderPending)}</dd></div>
+    </dl>
+    <p class="muted small-note">Audited by ${esc(a.auditor.name)}, ${esc(a.auditor.role)}; report dated ${ddmmyyyy(a.reportDate)}. Annual general meeting ${ddmmyyyy(a.agmDate)}; ${a.committeeMeetings} committee meetings in the year.
+      ${doc ? `<button class="btn-link" type="button" data-sa-doc="${esc(doc.id)}">Open the full audit report</button>` : ''}</p>
+    ${a.notes.length ? `<details class="glossary"><summary>Notes on this year’s file</summary><ul>${a.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : ''}
+    <div class="stmt-pair">
+      ${ie ? stmt('Expenditure', ie.expenditure, 'Surplus', a.surplus) + stmt('Income', ie.income, 'Total income', a.income)
+        : `<p class="muted">The income &amp; expenditure statement is not in this year’s file; the surplus of ₹ ${inr(a.surplus)} is from the balance sheet.</p><div></div>`}
+    </div>
+    <details class="glossary mt-sm"><summary>Balance sheet on ${ddmmyyyy(a.to)} (total ₹ ${inr(bs.total)})</summary>
+      <div class="stmt-pair">${stmt('Liabilities', bs.liabilities, 'Total', bs.total)}${stmt('Assets', bs.assets, 'Total', bs.total)}</div></details>
+    <details class="glossary"><summary>Auditor’s remarks</summary><p>${esc(a.overall)}</p><ul>${[...a.compliance, ...a.suggestions].map((c) => `<li>${esc(c)}</li>`).join('')}</ul></details>
+    <details class="glossary"><summary>Managing committee</summary><ul>${a.committee.map((c) => `<li>${esc(c.role)}: ${esc(c.name)} (${esc(c.unitId.replace('-', ' '))})</li>`).join('')}</ul></details>`;
+}
+
+async function loadSocietyAccounts() {
+  docs = await listArchive(fb).catch(() => []);
+  if (!audits.length && !docs.length) return;
+  $('#society-accounts').hidden = false;
+  if (audits.length) {
+    const sel = $('#sa-year');
+    sel.innerHTML = [...audits].reverse().map((a) => `<option value="${esc(a.fy)}">${esc(a.fy)}</option>`).join('');
+    sel.onchange = () => renderYear(sel.value);
+    renderYear(sel.value);
+    $('#sa-trend').innerHTML = audits.map((a) => `<tr><td>${esc(a.fy)}</td><td>${esc(a.auditClass)}</td><td class="num">${inr(a.income)}</td><td class="num">${inr(a.expenditure)}</td>
+      <td class="num">${inr(a.surplus)}</td><td class="num">${inr(a.debtors.members)}</td></tr>`).join('');
+  } else {
+    $('#sa-year').closest('label').hidden = true;
+  }
+  $('#sa-docs').innerHTML = docs.map((d) => `<tr><td>${esc(d.title)}${d.note ? `<br><small class="muted">${esc(d.note)}</small>` : ''}</td><td>${esc(d.fy || '')}</td><td class="num">${d.pages || ''}</td>
+    <td><button class="btn btn-small" type="button" data-sa-doc="${esc(d.id)}">Open</button></td></tr>`).join('')
+    || '<tr><td colspan="4" class="empty">No documents yet.</td></tr>';
+}
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-sa-doc]');
+  if (!b) return;
+  const d = docs.find((x) => x.id === b.dataset.saDoc);
+  if (!d) return;
+  const msg = $('#sa-msg');
+  const win = window.open('', '_blank');
+  if (win) win.document.write(`<p style="font:16px system-ui;padding:2rem">Opening ${esc(d.title)}…</p>`);
+  try {
+    const url = await openArchiveDoc(fb, d);
+    if (win) win.location.href = url;
+    else { const a = document.createElement('a'); a.href = url; a.download = `${d.title}.pdf`; a.click(); }
+    setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+    msg.textContent = '';
+  } catch (err) { if (win) win.close(); msg.className = 'form-msg'; msg.textContent = errorText(err); }
+});

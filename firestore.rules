@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Sunshree Suntec CHS – access rules (version 2.9)
+// Sunshree Suntec CHS – access rules (version 3.1)
 //
 //   public/dues, public/site        anyone can read (the website); dues amounts are masked here
 //   private/dues                    real amounts: approved members and committee / staff
@@ -177,6 +177,30 @@ service cloud.firestore {
       allow read: if perm('view');
       allow create, delete: if perm('liftExpenses');
       allow update: if isCommittee();
+    }
+
+    // Society documents (audit reports, AGM minutes …), stored in parts. Approved members and the
+    // accounts team can read; only the committee adds or removes them.
+    match /archiveDocs/{docId} {
+      allow read: if perm('view') || approvedMember();
+      allow write: if isCommittee();
+      match /parts/{partId} {
+        allow read: if perm('view') || approvedMember();
+        allow write: if isCommittee();
+      }
+    }
+
+    // Audited accounts by financial year (2011-12 onwards): balance sheet, income & expenditure,
+    // year-end dues per unit, members, committee. Read by approved members and the accounts team.
+    match /auditYears/{fy} {
+      allow read: if perm('view') || approvedMember();
+      allow write: if isCommittee();
+    }
+
+    // Read-only copy of the whole Tally books (groups, ledgers, vouchers) from the migration.
+    match /tallyArchive/{docId} {
+      allow read: if perm('view');
+      allow write: if isCommittee();
     }
 
     // Frozen year-end statements (financial year closing).

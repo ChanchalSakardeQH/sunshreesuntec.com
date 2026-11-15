@@ -6,8 +6,14 @@ import {
   updateUnitDetails, importOpening, rebuildPublicDues,
   loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit, publicDuesNeedMasking,
   loadAllLedgers, fyStatement, fyBills, fyPayments, closeFinancialYear, reopenFinancialYear,
-  importTallyHistory, mergeLedger, loadHistory, loadMergedLedgers, TAKEOVER_DATE
+  importTallyHistory, mergeLedger, loadHistory, loadMergedLedgers, TAKEOVER_DATE,
+  suggestMapping, historiesFromExport, saveTallyArchive, loadTallyArchive
 } from './accounts.js';
+import {
+  listArchive, uploadArchiveDoc, openArchiveDoc, deleteArchiveDoc, ARCHIVE_CATEGORIES,
+  loadAuditYears, importAuditedAccounts, auditedBalancesFor, memberNamesFor, namePeriods,
+  yearEndRows, handoverCheck, bpmHistory
+} from './archive.js';
 import {
   LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
   categoryIdFor, liftGroupFor, LIFT_GROUPS, LIFT_KINDS, addMonths, liftExpenseEndMonth, MAX_INTEREST_PA,
@@ -20,8 +26,8 @@ import { getDues, getNotices, fmt, esc, fmtDate } from './data.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'members', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'members', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
@@ -236,7 +242,7 @@ function route() {
   $('#admin-nav').classList.remove('open');
   $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -251,6 +257,7 @@ function wireOnce() {
   wireStaff();
   wireUnitFile();
   wireReports();
+  wireDocuments();
   wireMembers();
   wireWebsite();
   wireSettings();
@@ -1098,15 +1105,92 @@ function readCategories(fd) {
   });
 }
 
+let tallyFileData = null;
+let tmMapping = [];
+
+/** After a load: list units whose Tally balance on the cut-off date differs from the opening taken over. */
+async function showTallyDifferences(data) {
+  const live = await loadAllLedgers(fb, units);
+  const rows = units.map((u) => {
+    const h = data.units[u.id];
+    if (!h) return null;
+    const taken = (live[u.id] || []).filter((x) => x.kind === 'opening').reduce((a, x) => a + (x.debit || 0) - (x.credit || 0), 0);
+    return { u, taken, tally: h.balanceAtTakeover, diff: Math.round(taken - h.balanceAtTakeover) };
+  }).filter((x) => x && x.diff);
+  $('#tally-result').innerHTML = rows.length ? `<p><strong>${rows.length} units</strong> have a different Tally balance on ${ddmmyyyy(data.takeoverDate || TAKEOVER_DATE)} from the opening balance taken over. Their unit ledgers show a “Difference” line marked Check, so today’s balance is unchanged. Decide each one and add a correction if needed.</p>
+    <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Member</th><th class="num">Tally balance (₹)</th><th class="num">Taken over (₹)</th><th class="num">Difference (₹)</th></tr></thead>
+    <tbody>${rows.map((x) => `<tr><td class="unit"><a href="#unitfile" data-file-link="${esc(x.u.id)}">${esc(x.u.unit)}</a></td><td>${esc(x.u.name)}</td><td class="num">${amt(x.tally)}</td><td class="num">${amt(x.taken)}</td><td class="num">${amt(x.diff)}</td></tr>`).join('')}</tbody></table></div>`
+    : '<p>Every unit’s Tally balance matches the opening balance taken over.</p>';
+}
+
+function renderTallyMapping() {
+  const opts = (sel) => `<option value="">Skip</option>` + units.map((u) => `<option value="${esc(u.id)}" ${u.id === sel ? 'selected' : ''}>${esc(u.unit)}${u.name ? ' – ' + esc(u.name) : ''}</option>`).join('');
+  $('#tm-map').innerHTML = tmMapping.map((m, i) => `<tr><td>${esc(m.ledger)}${m.kind === 'bpm' ? ' <span class="pill past">BPM</span>' : ''}</td><td class="type">${esc(m.chain.join(' › '))}</td>
+    <td class="num">${amt(m.closing)}</td><td><select data-map="${i}">${opts(m.unit)}</select></td></tr>`).join('');
+}
+
 function wireTallyImport() {
   $('#tally-box').hidden = !canDo('committee');
+  const msg = $('#tally-msg');
+  $('#tally-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    $('#tally-migrate').hidden = true; $('#tally-old-actions').hidden = true; $('#tally-result').innerHTML = ''; msg.textContent = '';
+    if (!file) return;
+    try { tallyFileData = JSON.parse(await file.text()); } catch { msg.className = 'form-msg'; msg.textContent = 'That file isn’t a valid Tally file.'; return; }
+    const d = tallyFileData;
+    if (String(d.format || '').startsWith('sunshreesuntec-tally-export')) {
+      tmMapping = suggestMapping(d, units);
+      $('#tm-facts').innerHTML = `
+        <div><dt>Company</dt><dd>${esc(d.company)}</dd></div>
+        <div><dt>Period</dt><dd>${ddmmyyyy(d.fromDate)} to ${ddmmyyyy(d.toDate)} (books from ${ddmmyyyy(d.booksFrom)})</dd></div>
+        <div><dt>Exported</dt><dd>${esc(String(d.exportedAt).replace('T', ' '))} on ${esc(d.computer || '')}</dd></div>
+        <div><dt>Contents</dt><dd>${d.groups.length} groups, ${d.ledgers.length} ledgers, ${d.vouchers.length} vouchers</dd></div>
+        <div><dt>Balance check</dt><dd>${d.check?.ledgersDiffering ? `<span class="warn">${d.check.ledgersDiffering} ledgers differ from Tally’s closing balance; see export-log.txt</span>` : '<span class="pill ok">Every ledger agrees with Tally</span>'}</dd></div>
+        <div><dt>Matched</dt><dd>${tmMapping.filter((m) => m.kind === 'member' && m.unit).length} member ledgers, ${tmMapping.filter((m) => m.kind === 'bpm' && m.unit).length} BPM ledgers matched to units; ${tmMapping.filter((m) => !m.unit).length} not matched</dd></div>`;
+      $('#tm-cutoff').value = TAKEOVER_DATE;
+      renderTallyMapping();
+      $('#tally-migrate').hidden = false;
+    } else if (d.units) {
+      $('#tally-old-actions').hidden = false;
+      msg.className = 'form-msg ok'; msg.textContent = `Tally ledger history for ${Object.keys(d.units).length} units. Click Load Tally history.`;
+    } else { msg.className = 'form-msg'; msg.textContent = 'This isn’t a Tally export or Tally history file.'; }
+  });
+  $('#tm-map').addEventListener('change', (e) => { const sel = e.target.closest('[data-map]'); if (sel) tmMapping[Number(sel.dataset.map)].unit = sel.value; });
+
+  $('#tm-go').addEventListener('click', async (e) => {
+    const d = tallyFileData, cutoff = $('#tm-cutoff').value;
+    if (!cutoff) return alert('Choose the date up to which Tally history is taken.');
+    const members = tmMapping.filter((m) => m.kind === 'member' && m.unit);
+    const dup = [...new Set(members.map((m) => m.unit).filter((u, i, a) => a.indexOf(u) !== i))];
+    if (dup.length && !confirm(`More than one Tally ledger is matched to ${dup.join(', ')} (for example a previous owner’s account). Their entries will be combined in one unit ledger. Continue?`)) return;
+    if (!confirm(`Migrate Tally history for ${members.length} units up to ${ddmmyyyy(cutoff)}${$('#tm-archive').checked ? ', and keep the whole Tally books as an archive' : ''}?`)) return;
+    await busy(e.currentTarget, async () => {
+      try {
+        const hist = historiesFromExport(d, tmMapping, cutoff);
+        const r = await importTallyHistory(fb, hist, units, (i, n) => { $('#tally-progress').textContent = `Unit ledgers ${i} of ${n}…`; });
+        let extra = '';
+        if ($('#tm-archive').checked) {
+          await saveTallyArchive(fb, d, (i, n) => { $('#tally-progress').textContent = `Archive ${i} of ${n}…`; });
+          extra += ` The whole Tally books (${d.ledgers.length} ledgers, ${d.vouchers.length} vouchers) are in Reports → Tally books.`;
+        }
+        if ($('#tm-bpm').checked) {
+          const bpm = tmMapping.filter((m) => m.kind === 'bpm' && m.unit);
+          for (const m of bpm) await updateUnitDetails(fb, m.unit, { bpm: Math.round(m.closing) || null });
+          await rebuildPublicDues(fb, dues.blocks);
+          await refreshCore();
+          extra += ` Builder pending maintenance updated for ${bpm.length} units.`;
+        }
+        $('#tally-progress').textContent = '';
+        msg.className = 'form-msg ok';
+        msg.textContent = `Migrated Tally history for ${r.done.length} units.${extra}`;
+        await showTallyDifferences(hist);
+      } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+    });
+  });
+
   $('#tally-import').addEventListener('click', async (e) => {
-    const file = $('#tally-file').files[0];
-    const msg = $('#tally-msg');
-    if (!file) { msg.className = 'form-msg'; msg.textContent = 'Choose the tally-ledgers-2018-2026.json file first.'; return; }
-    let data;
-    try { data = JSON.parse(await file.text()); } catch { msg.textContent = 'That file isn’t a valid Tally history file.'; return; }
-    if (!data.units) { msg.textContent = 'That file has no unit ledgers.'; return; }
+    const data = tallyFileData;
+    if (!data?.units) return;
     if (!confirm(`Load Tally history for ${Object.keys(data.units).length} units?`)) return;
     await busy(e.currentTarget, async () => {
       try {
@@ -1114,18 +1198,7 @@ function wireTallyImport() {
         $('#tally-progress').textContent = '';
         msg.className = 'form-msg ok';
         msg.textContent = `Loaded ${r.done.length} units.${r.missing.length ? ` No Tally ledger for: ${r.missing.join(', ')}.` : ''}`;
-        // Compare the Tally balance on the takeover date with the opening balance taken over.
-        const live = await loadAllLedgers(fb, units);
-        const rows = units.map((u) => {
-          const h = data.units[u.id];
-          if (!h) return null;
-          const taken = (live[u.id] || []).filter((x) => x.kind === 'opening').reduce((a, x) => a + (x.debit || 0) - (x.credit || 0), 0);
-          return { u, taken, tally: h.balanceAtTakeover, diff: Math.round(taken - h.balanceAtTakeover) };
-        }).filter((x) => x && x.diff);
-        $('#tally-result').innerHTML = rows.length ? `<p><strong>${rows.length} units</strong> have a different Tally balance on ${ddmmyyyy(data.takeoverDate || TAKEOVER_DATE)} from the opening balance taken over. Their unit ledgers show a “Difference” line marked Check, so today’s balance is unchanged. Decide each one and add a correction if needed.</p>
-          <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Member</th><th class="num">Tally balance (₹)</th><th class="num">Taken over (₹)</th><th class="num">Difference (₹)</th></tr></thead>
-          <tbody>${rows.map((x) => `<tr><td class="unit"><a href="#unitfile" data-file-link="${esc(x.u.id)}">${esc(x.u.unit)}</a></td><td>${esc(x.u.name)}</td><td class="num">${amt(x.tally)}</td><td class="num">${amt(x.taken)}</td><td class="num">${amt(x.diff)}</td></tr>`).join('')}</tbody></table></div>`
-          : '<p>Every unit’s Tally balance matches the opening balance taken over.</p>';
+        await showTallyDifferences(data);
       } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
     });
   });
@@ -1137,6 +1210,7 @@ function wireTallyImport() {
 
 function wireSettings() {
   wireTallyImport();
+  wireAuditImport();
   const mf = $('#mmc-form');
   mf.addEventListener('input', () => mmcSummary());
   $('#mmc-add').addEventListener('click', () => {
@@ -1579,6 +1653,33 @@ async function loadUnitFile() {
     <td>${editBtn('comms', c.id)}</td></tr>`).join('')
     || '<tr><td colspan="7" class="empty">No communication recorded.</td></tr>';
 
+  // Audited history (2011-12 to 2017-18) and year-end balances.
+  if (!auditCache.length) auditCache = await loadAuditYears(fb).catch(() => []);
+  const ye = yearEndRows(fileUnit, auditCache, ufEntries, todayIST());
+  $('#uf-years').innerHTML = ye.map((r) => `<tr><td>${esc(r.fy)}</td><td>${dd(r.asOn)}</td><td><span class="src-tag">${esc(r.source)}</span></td><td>${esc(r.name)}</td>
+    <td class="num">${r.amount == null ? '—' : amt(r.amount)}</td><td class="muted">${esc(r.note)}</td></tr>`).join('')
+    || '<tr><td colspan="6" class="empty">No year-end figures yet.</td></tr>';
+  const hc = auditCache.length ? handoverCheck(fileUnit, auditCache, ufHistory) : null;
+  $('#uf-handover').hidden = !hc;
+  if (hc) $('#uf-handover').innerHTML = `<strong>Audit to Tally, 2018:</strong> ${esc(hc.text)} ${hc.ok ? '<span class="pill ok">Matches</span>' : '<span class="pill warn">Check</span>'}`;
+  const bh = bpmHistory(fileUnit, auditCache);
+  $('#uf-bpm').innerHTML = bh.length ? `<h3 class="mt-sm">Builder pending maintenance (audited)</h3>
+    <div class="table-scroll"><table><thead><tr>${bh.map((b) => `<th class="num">${esc(b.fy)}</th>`).join('')}<th class="num">Today</th></tr></thead>
+    <tbody><tr>${bh.map((b) => `<td class="num">${fmt(b.amount)}</td>`).join('')}<td class="num">${u.bpm ? fmt(u.bpm) : '—'}</td></tr></tbody></table></div>` : '';
+  const names = namePeriods(memberNamesFor(fileUnit, auditCache));
+  const roles = [...new Set(auditCache.flatMap((a) => (a.committee || []).filter((c) => c.unitId === fileUnit).map((c) => `${c.role}: ${c.name} (${a.fy})`)))];
+  const roleRange = auditCache.length && roles.length ? (() => {
+    const by = {};
+    auditCache.forEach((a) => (a.committee || []).filter((c) => c.unitId === fileUnit).forEach((c) => { const k = `${c.role} – ${c.name}`; (by[k] ??= []).push(a.fy); }));
+    return Object.entries(by).map(([k, fys]) => `${esc(k)} (${fys[0]} to ${fys[fys.length - 1]})`);
+  })() : [];
+  $('#uf-audit-names').innerHTML = auditCache.length ? `<h3 class="mt-sm">In the audited records (2011-12 to 2017-18)</h3>
+    <p class="muted small-note">From the list of members and the managing committee attached to each audit report. Add these to the register above with admission and share details if they are missing.</p>
+    <div class="table-scroll"><table><thead><tr><th>Name in the audited list of members</th><th>Years</th></tr></thead><tbody>
+    ${names.map((n) => `<tr><td>${esc(n.name || '(no name in the list)')}</td><td>${esc(n.from)}${n.to !== n.from ? ` to ${esc(n.to)}` : ''}</td></tr>`).join('') || '<tr><td colspan="2" class="empty">This unit is not in the audited list of members.</td></tr>'}
+    </tbody></table></div>
+    ${roleRange.length ? `<p><strong>Managing committee:</strong> ${roleRange.join('; ')}</p>` : ''}` : '';
+
   showUfPane(ufPane);
   applyAccess();
 }
@@ -1698,7 +1799,9 @@ let rpCsv = null;       // { name, rows }
 
 async function loadReports() {
   const sel = $('#rp-fy');
-  const first = '2018-04-01';   // Tally history starts 1 Apr 2018 (years without data show zeros)
+  auditCache = await loadAuditYears(fb).catch(() => []);
+  // Audited accounts go back to 2011-12; Tally history starts 1 Apr 2018.
+  const first = auditCache.length ? auditCache[0].from : '2018-04-01';
   const fys = fyList(first, todayIST());
   if (!sel.options.length) {
     sel.innerHTML = fys.map((f) => `<option value="${f}">${f} (1 Apr ${f.slice(0, 4)} – 31 Mar ${Number(f.slice(0, 4)) + 1})</option>`).join('');
@@ -1717,7 +1820,8 @@ async function buildReport(fy) {
   const { from: fyFrom, to: fyTo } = fyBounds(fy);
   const tally = Object.entries(histories).flatMap(([uid, h]) => (h?.entries || []).filter((e) => e.date >= fyFrom && e.date <= fyTo)
     .map((e) => ({ ...e, unitId: uid, unit: units.find((x) => x.id === uid)?.unit, name: units.find((x) => x.id === uid)?.name })));
-  rpData = { fy, st: fyStatement(units, ledgers, fy), ledgers, bills, pays, tally, closing: closingSnap?.exists() ? closingSnap.data() : null };
+  rpData = { fy, st: fyStatement(units, ledgers, fy), ledgers, bills, pays, tally, closing: closingSnap?.exists() ? closingSnap.data() : null,
+    audit: auditCache.find((a) => a.fy === fy) || null, audits: auditCache };
   const lock = billing.lockedUpTo || '';
   $('#rp-status').innerHTML = rpData.closing?.status === 'closed'
     ? `<span class="pill past">Year closed</span> on ${esc(tsText(rpData.closing.closedAt))}. Entries dated up to ${longDate(lock || rpData.st.to)} are locked.`
@@ -1730,6 +1834,18 @@ function renderReport() {
   const { fy, st, bills, pays } = rpData;
   const head = `<div class="rp-print-head"><h2>Sunshree Suntec Co-op. Hsg. Soc. Ltd.</h2><p>Financial year ${fy} (${longDate(st.from)} to ${longDate(st.to)})</p></div>`;
   const okPays = pays.filter((p) => p.status !== 'cancelled');
+
+  if (rpKind === 'audited') { renderAudited(head); rpCsv = auditCsv(); return; }
+  if (rpKind === 'trend') { renderTrend(head); return; }
+  if (rpData.audit) {
+    // Years covered by the audited accounts (before Tally): figures come from the audit report.
+    if (rpKind === 'summary') { renderAuditSummary(head); return; }
+    if (rpKind === 'members') { renderAuditMembers(head); return; }
+    if (['heads', 'collections'].includes(rpKind)) {
+      $('#rp-body').innerHTML = head + `<p class="muted">For ${fy} the Society’s records are the audited statements, not individual bills and receipts. See <strong>Audited statements</strong> for income by head and <strong>Member-wise statement</strong> for each unit’s balance.</p>`;
+      rpCsv = null; return;
+    }
+  }
 
   if (rpKind === 'summary') {
     const t = st.total;
@@ -1805,6 +1921,12 @@ function renderReport() {
     rpCsv = { name: `receipts-${fy}`, rows: [['Date', 'Receipt No', 'Unit', 'Name', 'Mode', 'Reference', 'Amount', 'Status'], ...list.map((p) => [p.date, p.receiptNo, p.unit, p.name, p.mode, p.reference, p.amount, p.status])] };
   }
 
+  if (rpKind === 'tally') {
+    renderTallyBooks();
+    rpCsv = tallyCsv;
+    return;
+  }
+
   if (rpKind === 'close') {
     const c = rpData.closing;
     const ended = todayIST() > st.to;
@@ -1855,5 +1977,291 @@ function wireReports() {
         } catch (err) { alert(errorText(err)); }
       });
     }
+  });
+}
+
+/* ---------------- Tally books archive viewer ---------------- */
+
+let tallyArchive = null, tallyCsv = null;
+async function renderTallyBooks() {
+  const body = $('#rp-body');
+  if (!tallyArchive) {
+    body.innerHTML = '<p class="muted">Loading the Tally books…</p>';
+    tallyArchive = await loadTallyArchive(fb).catch(() => null) || { none: true };
+  }
+  if (tallyArchive.none) { body.innerHTML = '<p class="muted">No Tally books archive yet. The committee can add it under Settings → Tally migration.</p>'; return; }
+  const a = tallyArchive;
+  const byParent = {};
+  a.ledgers.forEach((l) => (byParent[l.parent || 'Other'] ??= []).push(l));
+  const sel = $('#tb-ledger')?.value || '';
+  body.innerHTML = `<p class="muted">Read-only copy of the Tally books of ${esc(a.company)}, ${ddmmyyyy(a.fromDate)} to ${ddmmyyyy(a.toDate)}: ${a.ledgers.length} ledgers, ${a.vouchers.length} vouchers. Shown for the financial year selected above.</p>
+    <label class="inline-label">Ledger<select id="tb-ledger"><option value="">Choose a ledger</option>${Object.keys(byParent).sort().map((p) => `<optgroup label="${esc(p)}">${byParent[p].sort((x, y) => x.name.localeCompare(y.name)).map((l) => `<option ${l.name === sel ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</optgroup>`).join('')}</select></label>
+    <div id="tb-out" class="mt-sm"></div>`;
+  $('#tb-ledger').addEventListener('change', () => renderTallyLedger());
+  if (sel) renderTallyLedger();
+}
+
+function renderTallyLedger() {
+  const name = $('#tb-ledger').value, out = $('#tb-out');
+  if (!name) { out.innerHTML = ''; tallyCsv = null; return; }
+  const a = tallyArchive, l = a.ledgers.find((x) => x.name === name);
+  const { from, to } = fyBounds(rpData.fy);
+  const lines = [];
+  for (const v of a.vouchers) for (const x of v.l) if (x.g === name) lines.push({ date: v.d, type: v.t, no: v.n, narr: v.r, other: v.l.filter((y) => y.g !== name).map((y) => y.g).join(' / '), d: x.d, c: x.c });
+  lines.sort((p, q) => p.date.localeCompare(q.date));
+  let bal = (l?.opening || 0) + lines.filter((x) => x.date < from).reduce((s2, x) => s2 + x.d - x.c, 0);
+  const openBal = bal;
+  const inYear = lines.filter((x) => x.date >= from && x.date <= to);
+  out.innerHTML = `<div class="table-scroll"><table class="ledger"><thead><tr><th>Date</th><th>Particulars</th><th>Voucher</th><th class="num">Debit (₹)</th><th class="num">Credit (₹)</th><th class="num">Balance (₹)</th></tr></thead><tbody>
+    <tr class="fy-line"><td>${dd(from)}</td><td colspan="4"><strong>Opening balance</strong></td><td class="num"><strong>${amt(openBal)}</strong></td></tr>
+    ${inYear.map((x) => { bal += x.d - x.c; return `<tr><td>${dd(x.date)}</td><td>${esc(x.other)}${x.narr ? `<span class="sub">${esc(x.narr)}</span>` : ''}</td><td>${esc(x.type)} ${esc(x.no)}</td><td class="num">${x.d ? fmt(x.d) : ''}</td><td class="num">${x.c ? fmt(x.c) : ''}</td><td class="num">${amt(bal)}</td></tr>`; }).join('')}
+    <tr class="fy-line"><td>${dd(to)}</td><td colspan="4"><strong>Closing balance</strong></td><td class="num"><strong>${amt(bal)}</strong></td></tr></tbody></table></div>
+    <p class="muted">Debit balances are shown as amounts, credit balances with Cr.</p>`;
+  tallyCsv = { name: `tally-${name.replace(/[^A-Za-z0-9]+/g, '-')}-${rpData.fy}`, rows: [['Date', 'Particulars', 'Voucher type', 'Voucher no', 'Narration', 'Debit', 'Credit'], ...inYear.map((x) => [x.date, x.other, x.type, x.no, x.narr, x.d, x.c])] };
+  rpCsv = tallyCsv;
+}
+
+/* ---------------- documents archive ---------------- */
+
+let archive = [];
+const kb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
+
+async function loadDocuments() {
+  archive = await listArchive(fb);
+  $('#doc-rows').innerHTML = archive.map((d) => `<tr>
+    <td><strong>${esc(d.title)}</strong>${d.note ? `<span class="sub">${esc(d.note)}</span>` : ''}</td>
+    <td>${esc(d.fy || '')}</td><td>${esc(d.category || '')}</td><td class="num">${d.pages || ''}</td><td class="num">${kb(d.bytes || 0)}</td>
+    <td><div class="row-actions"><button class="btn btn-small btn-primary" type="button" data-doc-open="${esc(d.id)}">Open</button>
+      ${canDo('committee') ? `<button class="btn btn-small" type="button" data-doc-del="${esc(d.id)}">Delete</button>` : ''}</div></td></tr>`).join('')
+    || '<tr><td colspan="6" class="empty">No documents yet.</td></tr>';
+}
+
+/** Opens an archived PDF in a new tab (the tab is opened first so pop-up blockers allow it). */
+async function openDoc(id, msgEl) {
+  const d = archive.find((x) => x.id === id) || (await listArchive(fb)).find((x) => x.id === id);
+  if (!d) return;
+  const win = window.open('', '_blank');
+  if (win) win.document.write(`<p style="font:16px system-ui;padding:2rem">Opening ${esc(d.title)}…</p>`);
+  try {
+    const url = await openArchiveDoc(fb, d);
+    if (win) win.location.href = url;
+    else { const a = document.createElement('a'); a.href = url; a.download = `${d.title}.pdf`; a.click(); }
+    setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+  } catch (err) { if (win) win.close(); if (msgEl) { msgEl.className = 'form-msg'; msgEl.textContent = errorText(err); } else alert(errorText(err)); }
+}
+
+function wireDocuments() {
+  const f = $('#doc-form');
+  f.category.innerHTML = ARCHIVE_CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join('');
+  f.file.addEventListener('change', () => {
+    const file = f.file.files[0];
+    if (file && !f.title.value) f.title.value = file.name.replace(/\.pdf$/i, '');
+    const m = file && file.name.match(/(20\d\d)\s*-\s*(?:20)?(\d\d)/);
+    if (m && !f.fy.value) f.fy.value = `${m[1]}-${m[2]}`;
+    if (file && /audit/i.test(file.name)) f.category.value = 'Audited accounts';
+  });
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = f.file.files[0];
+    if (!file) return setMsg(f, 'Choose a PDF file.');
+    if (f.fy.value && !/^\d{4}-\d{2}$/.test(f.fy.value)) return setMsg(f, 'Write the year like 2011-12.');
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        await uploadArchiveDoc(fb, file, { title: f.title.value.trim(), category: f.category.value, fy: f.fy.value.trim(), note: f.note.value.trim() },
+          (i, n) => { $('#doc-progress').textContent = `Uploading part ${i} of ${n}…`; });
+        $('#doc-progress').textContent = '';
+        f.reset();
+        setMsg(f, 'Uploaded.', true);
+        await loadDocuments();
+      } catch (err) { $('#doc-progress').textContent = ''; setMsg(f, esc(errorText(err))); }
+    });
+  });
+  document.addEventListener('click', async (e) => {
+    const o = e.target.closest('[data-doc-open]');
+    if (o) { e.preventDefault(); return openDoc(o.dataset.docOpen, $('#doc-open-msg')); }
+    const del = e.target.closest('[data-doc-del]');
+    if (del) {
+      const d = archive.find((x) => x.id === del.dataset.docDel);
+      if (!d || !confirm(`Delete “${d.title}” from the archive? This can’t be undone.`)) return;
+      await busy(del, async () => { try { await deleteArchiveDoc(fb, d); await loadDocuments(); } catch (err) { alert(errorText(err)); } });
+    }
+  });
+}
+
+/* ---------------- audited accounts (2011-12 to 2017-18) ---------------- */
+
+let auditCache = [];
+const inr = (n) => (n == null ? '—' : fmt(n));
+const dmy = (iso) => (iso ? ddmmyyyy(iso) : '—');
+
+function stmtTable(title, groups, totalLabel, total) {
+  return `<div class="table-scroll"><table class="stmt"><thead><tr><th>${esc(title)}</th><th class="num">₹</th><th class="num">₹</th></tr></thead><tbody>
+    ${groups.map((g) => `<tr class="grp"><td>${esc(g.group)}</td><td></td><td class="num">${inr(g.total)}</td></tr>
+      ${g.items.map((i) => `<tr class="item"><td>${esc(i.name)}</td><td class="num">${inr(i.amount)}</td><td></td></tr>`).join('')}`).join('')}
+    </tbody><tfoot><tr class="tot"><td>${esc(totalLabel)}</td><td></td><td class="num">${inr(total)}</td></tr></tfoot></table></div>`;
+}
+
+/** Opens the archived audit report for a year, if the committee has uploaded it. */
+async function auditDocFor(fy) {
+  archive = archive.length ? archive : await listArchive(fb).catch(() => []);
+  return archive.find((d) => d.fy === fy && /audit/i.test(`${d.category} ${d.title}`));
+}
+
+async function renderAudited(head) {
+  const a = rpData.audit, body = $('#rp-body');
+  if (!a) {
+    body.innerHTML = head + `<p class="muted">No audited statements are loaded for ${esc(rpData.fy)}. Audited figures are available for ${rpData.audits.map((x) => x.fy).join(', ') || 'no years yet'}${rpData.audits.length ? '' : ' (Settings → Audited accounts)'}.</p>`;
+    return;
+  }
+  const ie = a.incomeExpenditure, bs = a.balanceSheet;
+  body.innerHTML = head + `
+    <dl class="facts audit-facts">
+      <div><dt>Audit class</dt><dd>${esc(a.auditClass)}</dd></div>
+      <div><dt>Auditor</dt><dd>${esc(a.auditor.name)}<br><small class="muted">${esc(a.auditor.role)}, panel ${esc(a.auditor.panel)}</small></dd></div>
+      <div><dt>Audit report dated</dt><dd>${dmy(a.reportDate)}</dd></div>
+      <div><dt>Annual general meeting</dt><dd>${dmy(a.agmDate)}</dd></div>
+      <div><dt>Committee meetings in the year</dt><dd>${a.committeeMeetings}</dd></div>
+      <div><dt>Ordinary members</dt><dd>${a.ordinaryMembers}</dd></div>
+      <div><dt>Office bearers</dt><dd><small>Chairman ${esc(a.officeBearers.chairman)}<br>Secretary ${esc(a.officeBearers.secretary)}<br>Treasurer ${esc(a.officeBearers.treasurer)}</small></dd></div>
+      <div><dt>Audit fee</dt><dd>₹ ${inr(a.auditFee.amount)}<br><small class="muted">${esc(a.auditFee.bill)}</small></dd></div>
+      ${a.accountingFee ? `<div><dt>Accounting fee</dt><dd>₹ ${inr(a.accountingFee.amount)}<br><small class="muted">${esc(a.accountingFee.by)}: ${esc(a.accountingFee.detail)}</small></dd></div>` : ''}
+    </dl>
+    <p class="mt-sm"><span id="audit-doc-slot" class="muted">Looking for the scanned report…</span></p>
+    ${a.notes.length ? `<div class="callout"><p><strong>Notes on this year’s file</strong></p><ul>${a.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>` : ''}
+    <h2>Income &amp; expenditure</h2>
+    ${ie ? `<p class="muted">${esc(ie.asPrinted)} (page ${ie.page} of the report). Income ₹ ${inr(a.income)}, expenditure ₹ ${inr(a.expenditure)}, surplus ₹ ${inr(a.surplus)}.</p>
+      <div class="stmt-pair">${stmtTable('Expenditure', ie.expenditure, 'Surplus transferred to balance sheet', a.surplus)}${stmtTable('Income', ie.income, 'Total income', a.income)}</div>`
+      : `<p class="muted">The income &amp; expenditure statement for this year is not in the file; the surplus of ₹ ${inr(a.surplus)} is from the balance sheet.</p>`}
+    <h2>Balance sheet on ${dmy(a.to)}</h2>
+    <p class="muted">${esc(bs.asPrinted)} (page ${bs.page}). Total ₹ ${inr(bs.total)}.</p>
+    <div class="stmt-pair">${stmtTable('Liabilities', bs.liabilities, 'Total', bs.total)}${stmtTable('Assets', bs.assets, 'Total', bs.total)}</div>
+    <h2>Sundry debtors</h2>
+    <div class="table-scroll"><table><tbody>
+      <tr><td>Commercial members (shops)</td><td class="num">${inr(a.debtors.commercial)}</td></tr>
+      <tr><td>Residential members</td><td class="num">${inr(a.debtors.residential)}</td></tr>
+      <tr><td><strong>Members’ maintenance dues</strong></td><td class="num"><strong>${inr(a.debtors.members)}</strong></td></tr>
+      <tr><td>Builder pending maintenance (also shown as Reserve under liabilities)</td><td class="num">${inr(a.debtors.builderPending)}</td></tr>
+    </tbody></table></div>
+    <h2>Auditor’s remarks</h2>
+    <p>${esc(a.overall)}</p>
+    <p><strong>Compliance:</strong></p><ul>${a.compliance.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
+    <p><strong>Suggestions:</strong></p><ul>${a.suggestions.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
+    <p class="muted">${esc(a.appointment)}</p>
+    <h2>Managing committee</h2>
+    <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Name</th><th>Role</th></tr></thead><tbody>
+      ${a.committee.map((c) => `<tr><td class="unit">${esc(unitName(c.unitId))}</td><td>${esc(c.name)}</td><td>${esc(c.role)}</td></tr>`).join('')}</tbody></table></div>`;
+  const d = await auditDocFor(a.fy);
+  const slot = $('#audit-doc-slot');
+  if (slot) slot.outerHTML = d ? `<button class="btn btn-primary" type="button" data-doc-open="${esc(d.id)}">Open the audit report (${d.pages || ''} pages)</button>`
+    : `<span class="muted">The scanned report for ${esc(a.fy)} isn’t in Documents yet.</span>`;
+}
+
+function unitName(id) { return units.find((u) => u.id === id)?.unit || id.replace('-', ' '); }
+
+function auditCsv() {
+  const a = rpData.audit;
+  if (!a) return null;
+  const rows = [['Statement', 'Group', 'Item', 'Amount']];
+  for (const [st, side] of [['Income & expenditure', 'income'], ['Income & expenditure', 'expenditure']]) for (const g of a.incomeExpenditure?.[side] || []) for (const i of g.items) rows.push([`${st} – ${side}`, g.group, i.name, i.amount]);
+  for (const side of ['liabilities', 'assets']) for (const g of a.balanceSheet[side]) for (const i of g.items) rows.push([`Balance sheet – ${side}`, g.group, i.name, i.amount]);
+  return { name: `audited-statements-${a.fy}`, rows };
+}
+
+function renderAuditSummary(head) {
+  const a = rpData.audit;
+  const bank = a.balanceSheet.assets.flatMap((g) => g.items).filter((i) => /bank/i.test(i.name)).reduce((s2, i) => s2 + i.amount, 0);
+  const cash = a.balanceSheet.assets.flatMap((g) => g.items).filter((i) => /cash/i.test(i.name)).reduce((s2, i) => s2 + i.amount, 0);
+  const fd = a.balanceSheet.assets.flatMap((g) => g.items).filter((i) => /fixed deposit/i.test(i.name)).reduce((s2, i) => s2 + i.amount, 0);
+  const prev = rpData.audits.find((x) => x.to === `${a.from.slice(0, 4)}-03-31`);
+  const maint = a.incomeExpenditure?.income.flatMap((g) => g.items).filter((i) => /maint/i.test(i.name)).reduce((s2, i) => s2 + i.amount, 0);
+  $('#rp-body').innerHTML = head + `
+    <p class="muted">From the audited accounts (audit class ${esc(a.auditClass)}, report dated ${dmy(a.reportDate)}).</p>
+    <dl class="dues-summary">
+      <div><dt>Income (₹)</dt><dd>${inr(a.income)}</dd></div>
+      <div><dt>Expenditure (₹)</dt><dd>${inr(a.expenditure)}</dd></div>
+      <div><dt>Surplus (₹)</dt><dd class="credit">${inr(a.surplus)}</dd></div>
+      <div><dt>Members’ dues on 31 March (₹)</dt><dd class="due">${inr(a.debtors.members)}</dd></div>
+      <div><dt>Builder pending (₹)</dt><dd>${inr(a.debtors.builderPending)}</dd></div>
+      <div><dt>Bank, cash and fixed deposits (₹)</dt><dd>${inr(bank + cash + fd)}</dd></div>
+    </dl>
+    <div class="table-scroll mt-sm"><table><tbody>
+      ${prev ? `<tr><td>Members’ dues on 1 April (previous year end)</td><td class="num">${inr(prev.debtors.members)}</td></tr>` : ''}
+      ${maint != null ? `<tr><td>Maintenance and lift charges received (income)</td><td class="num">${inr(maint)}</td></tr>` : ''}
+      <tr><td>Bank balances</td><td class="num">${inr(bank)}</td></tr><tr><td>Cash in hand</td><td class="num">${inr(cash)}</td></tr><tr><td>Fixed deposits</td><td class="num">${inr(fd)}</td></tr>
+      <tr><td>Annual general meeting</td><td class="num">${dmy(a.agmDate)}</td></tr><tr><td>Committee meetings</td><td class="num">${a.committeeMeetings}</td></tr>
+    </tbody></table></div>`;
+  rpCsv = auditCsv();
+}
+
+function renderAuditMembers(head) {
+  const a = rpData.audit;
+  const prev = rpData.audits.find((x) => x.to === `${a.from.slice(0, 4)}-03-31`);
+  const prevMap = Object.fromEntries((prev?.dues || []).map((r) => [r.unitId, r.amount]));
+  const curMap = Object.fromEntries(a.dues.map((r) => [r.unitId, r]));
+  const regName = Object.fromEntries(a.members.filter((m) => m.name).map((m) => [m.unitId, m.name]));
+  const showFlow = a.dues.some((r) => r.billed != null);
+  const ids = [...new Set([...units.map((u) => u.id)])];
+  const rows = ids.map((id) => {
+    const r = curMap[id];
+    const name = r?.name || regName[id] || units.find((u) => u.id === id)?.name || '';
+    return { id, unit: unitName(id), name, opening: prev ? (prev.duesComplete || id in prevMap ? (prevMap[id] ?? 0) : null) : null,
+      billed: r?.billed ?? null, received: r?.received ?? null, closing: r ? r.amount : (a.duesComplete ? 0 : null) };
+  });
+  const sum = (k) => rows.reduce((t, r) => t + (r[k] || 0), 0);
+  $('#rp-body').innerHTML = head + `<p class="muted">Each unit’s balance from the member-wise lists attached to the audit report${prev ? ` (opening = balance on 31 March ${a.from.slice(0, 4)} in the previous year’s report)` : ''}. Amounts with Cr are in the member’s favour.${a.duesComplete ? '' : ' <strong>This year’s file has only the commercial list; residential balances are not available.</strong>'}</p>
+    <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Name in the audited list</th>${prev ? '<th class="num">Opening (₹)</th>' : ''}${showFlow ? '<th class="num">Billed (₹)</th><th class="num">Received (₹)</th>' : ''}<th class="num">Closing on 31 March (₹)</th></tr></thead>
+    <tbody>${rows.map((r) => `<tr><td class="unit">${esc(r.unit)}</td><td>${esc(r.name)}</td>${prev ? `<td class="num">${r.opening == null ? '—' : amt(r.opening)}</td>` : ''}${showFlow ? `<td class="num">${r.billed ? fmt(r.billed) : ''}</td><td class="num">${r.received ? fmt(r.received) : ''}</td>` : ''}<td class="num">${r.closing == null ? '—' : amt(r.closing)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="2">Total</td>${prev ? `<td class="num">${amt(sum('opening'))}</td>` : ''}${showFlow ? `<td class="num">${fmt(sum('billed'))}</td><td class="num">${fmt(sum('received'))}</td>` : ''}<td class="num">${amt(sum('closing'))}</td></tr></tfoot></table></div>
+    <p class="muted">Audited members’ dues: commercial ₹ ${inr(a.debtors.commercial)} + residential ₹ ${inr(a.debtors.residential)} = ₹ ${inr(a.debtors.members)}.</p>`;
+  rpCsv = { name: `member-statement-${a.fy}-audited`, rows: [['Unit', 'Name', 'Opening', 'Billed', 'Received', 'Closing'], ...rows.map((r) => [r.unit, r.name, r.opening, r.billed, r.received, r.closing])] };
+}
+
+/** Every year side by side: audited years, then the Tally / these-accounts years. */
+async function renderTrend(head) {
+  const body = $('#rp-body');
+  const audits = rpData.audits;
+  const ledgerYears = fyList('2018-04-01', todayIST()).reverse();
+  const rows = audits.map((a) => ({ fy: a.fy, src: 'Audited', cls: a.auditClass, income: a.income, exp: a.expenditure, surplus: a.surplus,
+    billed: null, received: null, dues: a.debtors.members, bpm: a.debtors.builderPending, ended: true }));
+  for (const fy of ledgerYears) {
+    const st = fyStatement(units, rpData.ledgers, fy);
+    rows.push({ fy, src: fy < '2026-27' ? 'Tally' : 'These accounts', cls: '', income: null, exp: null, surplus: null,
+      billed: st.total.billed, received: st.total.received - st.total.reversed, dues: st.total.closing, bpm: null, ended: st.to < todayIST() });
+  }
+  const max = Math.max(...rows.map((r) => Math.abs(r.dues || 0)), 1);
+  body.innerHTML = head + `<p class="muted">Members’ maintenance dues at the end of each year, with the Society’s income and expenditure where the audited statements give them. 2011-12 to 2017-18 are from the audit reports; later years from the unit ledgers (Tally, then these accounts). The current year shows the balance so far.</p>
+    <div class="table-scroll"><table class="trend"><thead><tr><th>Year</th><th>Source</th><th class="num">Income (₹)</th><th class="num">Expen&shy;diture (₹)</th><th class="num">Surplus (₹)</th><th class="num">Maintenance billed (₹)</th><th class="num">Received (₹)</th><th class="num">Members’ dues at year end (₹)</th><th class="bar-cell"><span class="visually-hidden">Dues bar</span></th><th class="num">Builder pending (₹)</th></tr></thead>
+    <tbody>${rows.map((r) => `<tr><td>${esc(r.fy)}</td><td><span class="src-tag">${esc(r.src)}${r.cls ? `, class ${esc(r.cls)}` : ''}</span></td>
+      <td class="num">${inr(r.income)}</td><td class="num">${inr(r.exp)}</td><td class="num">${inr(r.surplus)}</td>
+      <td class="num">${r.billed == null ? '—' : fmt(r.billed)}</td><td class="num">${r.received == null ? '—' : fmt(r.received)}</td>
+      <td class="num">${amt(r.dues)}${r.ended ? '' : ' <small class="muted">so far</small>'}</td>
+      <td class="bar-cell"><span class="bar" style="width:${Math.round((Math.abs(r.dues) / max) * 100)}%" title="${esc(r.fy)}: members’ dues ₹ ${fmt(r.dues)}"></span></td>
+      <td class="num">${inr(r.bpm)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="muted">Received for ledger years is net of cancelled receipts. Members’ dues from 2018-19 exclude ledgers missing from the Tally files (see the reconciliation in each unit file).</p>`;
+  rpCsv = { name: 'over-the-years', rows: [['Year', 'Source', 'Audit class', 'Income', 'Expenditure', 'Surplus', 'Billed', 'Received', 'Members dues at year end', 'Builder pending'],
+    ...rows.map((r) => [r.fy, r.src, r.cls, r.income, r.exp, r.surplus, r.billed, r.received, r.dues, r.bpm])] };
+}
+
+/* ---------------- Settings: load audited accounts ---------------- */
+
+function wireAuditImport() {
+  $('#audit-box').hidden = !canDo('committee');
+  $('#audit-import').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;   // captured before any await (currentTarget is cleared afterwards)
+    const msg = $('#audit-msg'), file = $('#audit-file').files[0];
+    if (!file) { msg.className = 'form-msg'; msg.textContent = 'Choose the audited-accounts-2011-2018.json file first.'; return; }
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { msg.className = 'form-msg'; msg.textContent = 'That file isn’t valid.'; return; }
+    if (!String(data.format || '').startsWith('sunshreesuntec-audited-accounts')) { msg.className = 'form-msg'; msg.textContent = 'This isn’t an audited accounts file.'; return; }
+    if (!confirm(`Load audited accounts for ${data.years.map((y) => y.fy).join(', ')}? Loading again replaces these years.`)) return;
+    await busy(btn, async () => {
+      try {
+        const n = await importAuditedAccounts(fb, data, (i, k) => { $('#audit-progress').textContent = `${i} of ${k}…`; });
+        $('#audit-progress').textContent = '';
+        auditCache = await loadAuditYears(fb);
+        msg.className = 'form-msg ok';
+        msg.textContent = `Loaded ${n} audited years. See Reports (choose a year from 2011-12) and each unit file.`;
+      } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+    });
   });
 }

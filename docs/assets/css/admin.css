@@ -144,3 +144,24 @@ td .sub { display: block; color: var(--muted); font-size: .84rem; }
   .rp-print-head { display: block; }
 }
 .fy-line td { background: var(--paper); }
+.actions-grid { display: grid; gap: .6rem; max-width: 860px; }
+
+/* ---- audited statements ---- */
+.stmt-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+@media (max-width: 900px) { .stmt-pair { grid-template-columns: 1fr; } }
+table.stmt td, table.stmt th { white-space: normal; }
+table.stmt tr.grp td { font-weight: 600; background: var(--paper); }
+table.stmt tr.item td:first-child { padding-left: 1.4rem; color: var(--ink-2, inherit); }
+table.stmt tr.tot td { font-weight: 700; border-top: 2px solid var(--line); }
+dl.facts.audit-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .6rem 1.2rem; }
+dl.facts.audit-facts dt { font-size: .8rem; color: var(--muted); }
+dl.facts.audit-facts dd { margin: 0; font-weight: 600; }
+dl.facts.audit-facts > div { display: block; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+dl.facts.audit-facts dt { margin-bottom: .15rem; }
+dl.facts.audit-facts small { font-weight: 400; }
+table.trend th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
+table.trend td, table.trend th { padding-left: .5rem; padding-right: .5rem; }
+.bar-cell { min-width: 6rem; width: 8rem; }
+.bar { display: block; height: 10px; border-radius: 0 4px 4px 0; background: var(--stamp); min-width: 2px; }
+.bar.cr { background: var(--credit, #2e7d4f); }
+.src-tag { font-size: .75rem; color: var(--muted); }

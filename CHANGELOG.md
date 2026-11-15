@@ -6,6 +6,54 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.1.0] – 2026-11-15 – Audited accounts 2011-12 to 2017-18 and document archive
+
+### Added
+- **Documents** tab (accounts team) and **Society documents** in *My account* (approved members only): scanned reports and other Society records, opened in a new tab. PDFs are kept in the Society's database in parts of under 1 MB, so they stay private without Firebase's paid plan; the committee uploads (up to 15 MB each) and deletes. The 2011–2018 audit reports are supplied as compact black-and-white copies (25–33 pages, 0.6–0.85 MB each, down from 14–27 MB).
+- **Audited accounts 2011-12 to 2017-18** (`auditYears/{year}`), loaded by the committee from `audited-accounts-2011-2018.json` (Settings → Audited accounts). For each year: audit class, auditor, report and AGM dates, committee meetings, office bearers, audit fee; income & expenditure and balance sheet as printed; sundry debtors (commercial, residential, builder pending); member-wise year-end dues; builder pending per flat; list of members and committee; auditor's remarks; notes on gaps in the scanned files.
+- **Reports** now start from 2011-12:
+  - *Year summary* and *Member-wise statement* for 2011-12 to 2017-18 come from the audited figures (opening = previous audited year end; 2015-16 also shows billed and received per unit).
+  - *Audited statements*: the full income & expenditure, balance sheet, debtors, remarks and committee for the year, with a button to open the scanned report.
+  - *Over the years*: income, expenditure, surplus, billing, receipts, members' dues and builder pending for every year 2011-12 to today, with a bar for dues.
+- **Unit file → Account**: balance on 31 March of every year from 2011-12 (audited lists, then Tally, then these accounts), the 2018 audit-to-Tally handover check, builder pending by year, and names the unit was listed under in the audited member lists.
+- **My account** (members): the same year-end history for their unit, plus *Society accounts* (each audited year's summary, statements and auditor's remarks, and the over-the-years table) and *Society documents*.
+- `firestore.rules`: `archiveDocs/*` and `auditYears/*` readable by approved members and the accounts team; written by the committee only.
+
+### Checked
+- All 7 balance sheets balance to the paisa; every group adds up to its total; each year's surplus equals the balance-sheet "current period"; the Income & Expenditure account carries forward correctly from 2011-12 to 2017-18.
+- Member-wise dues add up to the audited debtors in every year with a complete list; builder-pending lists add up to the audited totals.
+- Audited dues on 31 March 2018 (₹16,11,920) vs Tally opening on 1 April 2018 (₹15,02,420): 58 units match to the rupee; the ₹1,09,500 difference is A 103 ₹30,500, C 100 ₹31,500 and C 502 ₹43,000 (Tally ledger starts later under a new owner) and B 10 ₹4,500 (audited ₹4,800, Tally ₹300; confirmed on the scan).
+- An uploaded PDF reopens byte-for-byte identical.
+
+### Gaps in the scanned files (shown in the reports)
+- 2012-13: the income & expenditure page is 2011-12's; the surplus (₹1,73,412) is taken from the balance sheet.
+- 2013-14: the residential members' list is missing (commercial list printed twice); unit-wise residential balances for 31 March 2014 are not available.
+- 2014-15: the middle page of the list of members is missing.
+- 2011-12: printed I&E totals (₹2,27,579) don't equal income; line items and surplus are consistent.
+
+---
+
+## [3.0.0] – 2026-11-13 – Full Tally migration
+
+### Added
+- **`tools/tally-export/`** for the accountant's Windows laptop: `Export-TallyData.bat` (double-click) runs `Export-TallyData.ps1` (built-in Windows PowerShell; TallyPrime or Tally.ERP 9 with port 9000 enabled). It exports the company, all groups, all ledgers with opening / closing balances and contact details, and every voucher with all its ledger lines, month by month from the start of the books; checks opening + vouchers = Tally closing for every ledger; saves `tally-export-<company>-<date>.json`, a log and Tally's raw replies. Read-only towards Tally. See `tools/tally-export/README.txt`.
+- **Settings → Tally migration** (committee) loads that file:
+  - shows company, period, counts and the balance check;
+  - matches each member ledger to a unit by the unit number at the start of its name (editable), including old ledgers of previous owners, which are combined into the unit's history; BPM ledgers are recognised;
+  - writes each unit's Tally history up to a chosen cut-off date (default 30 Sep 2026) into the unit ledger, as before;
+  - optionally keeps the **whole Tally books** (every ledger and voucher) as a read-only archive, and optionally updates builder pending maintenance from the BPM ledgers;
+  - lists units whose Tally balance on the cut-off date differs from the opening balance taken over.
+- **Reports → Tally books:** any Tally ledger (bank, expenses, funds, members …) for any financial year, with opening, every voucher and closing balance; print and CSV.
+- `firestore.rules`: `tallyArchive/*` read with *view accounts*, written by the committee.
+
+### Tested
+- Against a test Tally server built from the 63 ledger statements: 2,329 vouchers exported and re-imported; every ledger balance agrees; every unit's merged ledger ends at its balance today.
+
+### Data note
+- C 502: the current Tally ledger is **“C 502 Mr Rajanedra Unecha”**; on 19 Jan 2026 the balance of “C 502 Mr Lokandwala(x)” (₹30,900) was transferred to it. The society member list still shows Mr Lokandwala.
+
+---
+
 ## [2.9.0] – 2026-11-13 – Tally ledger history 2018–2026
 
 ### Added

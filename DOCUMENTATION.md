@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 2.9.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.1.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -22,8 +22,12 @@ This document explains what the system does, where the data lives, how every amo
 9. Lift charges and lift expenses
 10. Corrections and opening balances
 11. The public dues page
+11A. Unit file
 12. Member access
 12A. Staff: roles, access and agreement
+12A-2. Tally ledger history (2018–2026)
+12A-3. Audited accounts 2011-12 to 2017-18 and documents
+12B. Financial year and reports
 13. Monthly and yearly procedures
 14. Audit trail and records
 15. Backups and exports
@@ -367,6 +371,24 @@ Staff → Edit: change role or permissions, untick **Access active** to suspend,
 - Source: the Tally ledger PDFs (Ledger_statement.zip), converted to `tally-ledgers-2018-2026.json`. That file contains member balances, so it is kept privately and loaded from Settings by the committee; it is never put on the website or in the GitHub repository.
 - The opening balance of these accounts on 30 Sep 2026 came from the Sundry Debtors group summary. If it differs from the Tally ledger, the unit ledger shows a *Difference* line marked Check; the committee decides and adds a correction if needed.
 - Entries in Tally after 30 Sep 2026 are listed for reference and not carried over.
+
+### Full migration from the accountant's laptop
+1. On the Windows laptop with Tally: enable Tally's port 9000 (TallyPrime: Help → Settings → Connectivity; Tally.ERP 9: F12 → Advanced Configuration; act as *Both*), open the Society company, double-click `tools/tally-export/Export-TallyData.bat`.
+2. It saves `TallyExport\tally-export-….json` on the Desktop and reports whether every ledger agrees with Tally.
+3. Accounts → Settings → Tally migration: choose the file, check the ledger → unit matches, set the cut-off date, migrate. Member histories go into the unit ledgers; the whole books are kept read-only in Reports → Tally books.
+4. Keep the export file private and delete it from the laptop after loading.
+
+## 12A-3. Audited accounts 2011-12 to 2017-18 and documents
+
+Before Tally (from 2018-19), the Society's records are the yearly audit reports by Akhtar Imam Shaikh, Certified Auditor (panel 16657), audit class B in every year.
+
+- **Figures:** `audited-accounts-2011-2018.json` (kept privately) holds what was read from the scans. Settings → *Audited accounts* loads it into `auditYears/{year}`. Loading again replaces those years.
+- **Where they appear:**
+  - Reports → choose 2011-12 to 2017-18: *Year summary*, *Member-wise statement* and *Audited statements* use the audited figures; *Billing by head* and *Collections* are not available for those years (no individual bills or receipts exist).
+  - Reports → *Over the years*: every year from 2011-12 to today.
+  - Unit file and My account: balance on 31 March of every year, and the 2018 audit-to-Tally check.
+- **Documents:** Accounts → *Documents* (committee uploads). PDFs are stored in Firestore in parts (`archiveDocs/{id}/parts/*`), readable only by approved members and the accounts team. Keep each under 15 MB; compress scans first. Name the year like 2011-12 so the report links to it.
+- **Known gaps** in the scans are listed under each year (*Notes on this year's file*).
 
 ## 12B. Financial year and reports
 

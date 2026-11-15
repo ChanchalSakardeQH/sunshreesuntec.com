@@ -541,3 +541,95 @@ export async function loadMergedLedgers(fb, units) {
   units.forEach((u, i) => { histories[u.id] = hist[i]; out[u.id] = mergeLedger(live[u.id] || [], hist[i]); });
   return { ledgers: out, histories };
 }
+
+/* ---------- full Tally migration (export from the accountant's laptop) ---------- */
+
+/** Unit id from a Tally ledger name such as "C 402 Mr Chanchal Sakarde", "B-01 Rehana", "GF 05 …", "D 101 A …". */
+export function unitIdFromLedger(name) {
+  const m = String(name || '').toUpperCase().match(/^\s*(GF|A|B|C|D)\s*-?\s*0*(\d{1,3})\s*(?:([AB])(?![A-Z]))?(?![0-9])/);
+  if (!m) return null;
+  const [, pre, n, suf] = m;
+  return pre === 'B' || pre === 'GF' ? `${pre}-${String(Number(n)).padStart(2, '0')}` : `${pre}-${Number(n)}${suf || ''}`;
+}
+
+/** Groups under which a ledger sits, nearest first (e.g. ["Sundry Debtors", "Current Assets"]). */
+export function groupChain(groups, parent) {
+  const byName = Object.fromEntries((groups || []).map((g) => [g.name, g]));
+  const out = [];
+  let p = parent;
+  while (p && byName[p] && !out.includes(p)) { out.push(p); p = byName[p].parent; }
+  if (p && !out.includes(p)) out.push(p);
+  return out;
+}
+
+/** Suggested ledger → unit mapping: member ledgers and builder-pending (BPM) ledgers. */
+export function suggestMapping(exp, units) {
+  const ids = new Set(units.map((u) => u.id));
+  return exp.ledgers.map((l) => {
+    const chain = groupChain(exp.groups, l.parent);
+    const uid = unitIdFromLedger(l.name);
+    const isBpm = /\bBPM\b|BUILDER PENDING/i.test(l.name) || chain.some((g) => /builder pending/i.test(g));
+    const debtor = chain.some((g) => /sundry debtors/i.test(g));
+    return { ledger: l.name, parent: l.parent, chain, closing: l.closing, unit: uid && ids.has(uid) ? uid : '', kind: isBpm ? 'bpm' : (uid || debtor) ? 'member' : 'other' };
+  }).filter((m) => m.kind !== 'other');
+}
+
+/** Per-unit histories (same shape as importTallyHistory expects) from the full export. */
+export function historiesFromExport(exp, mapping, cutoff) {
+  const ledgerOf = Object.fromEntries(mapping.filter((m) => m.kind === 'member' && m.unit).map((m) => [m.ledger, m.unit]));
+  const byLedger = Object.fromEntries(exp.ledgers.map((l) => [l.name, l]));
+  const units = {};
+  // A unit can have more than one Tally ledger (e.g. a previous owner's account): they are combined.
+  for (const [ledger, uid] of Object.entries(ledgerOf)) {
+    const l = byLedger[ledger];
+    const op = Math.round((l?.opening || 0) * 100) / 100;
+    if (units[uid]) { units[uid].title += ` + ${ledger}`; units[uid].opening.amount = Math.round((units[uid].opening.amount + op) * 100) / 100; continue; }
+    units[uid] = { file: 'Tally export', title: ledger, period: `${exp.fromDate} to ${exp.toDate}`,
+      opening: { date: exp.booksFrom || exp.fromDate, amount: op }, entries: [] };
+  }
+  for (const v of exp.vouchers) {
+    for (const ln of v.lines) {
+      const uid = ledgerOf[ln.ledger];
+      if (!uid) continue;
+      const others = v.lines.filter((x) => x.ledger !== ln.ledger).map((x) => x.ledger);
+      if (ledgerOf[ln.ledger] && others.length && others.every((o) => ledgerOf[o] === uid)) {
+        // transfer between two ledgers of the same unit: keep it, it nets to zero
+      }
+      units[uid].entries.push({ date: v.date, particulars: others.join(' / ') || v.narration || v.type,
+        vchType: v.type, vchNo: v.number, debit: ln.debit, credit: ln.credit, narration: v.narration || '' });
+    }
+  }
+  for (const u of Object.values(units)) {
+    u.entries.sort((a, b) => a.date.localeCompare(b.date));
+    u.balanceAtTakeover = Math.round((u.opening.amount + u.entries.filter((e) => e.date <= cutoff).reduce((a, e) => a + e.debit - e.credit, 0)) * 100) / 100;
+  }
+  return { source: `Tally export from ${exp.computer || 'accountant laptop'} on ${String(exp.exportedAt).slice(0, 10)} (${exp.company})`, takeoverDate: cutoff, units };
+}
+
+/** Keeps the whole Tally books (groups, ledgers, every voucher) as a read-only archive. */
+export async function saveTallyArchive(fb, exp, onProgress = () => {}) {
+  const { F, db, auth } = fb;
+  const CHUNK = 1500;
+  const parts = Math.ceil(exp.vouchers.length / CHUNK);
+  for (let i = 0; i < parts; i++) {
+    const vs = exp.vouchers.slice(i * CHUNK, (i + 1) * CHUNK).map((v) => ({
+      d: v.date, t: v.type || '', n: v.number || '', r: v.narration || '', l: v.lines.map((x) => ({ g: x.ledger, d: x.debit || 0, c: x.credit || 0 }))
+    }));
+    await F.setDoc(F.doc(db, 'tallyArchive', `vouchers-${String(i).padStart(3, '0')}`), { part: i, vouchers: vs });
+    onProgress(i + 1, parts);
+  }
+  await F.setDoc(F.doc(db, 'tallyArchive', 'meta'), {
+    company: exp.company, booksFrom: exp.booksFrom || '', fromDate: exp.fromDate, toDate: exp.toDate, exportedAt: exp.exportedAt,
+    check: exp.check || {}, parts, groups: exp.groups.map((g) => ({ name: g.name, parent: g.parent || '' })),
+    ledgers: exp.ledgers.map((l) => ({ name: l.name, parent: l.parent || '', opening: l.opening || 0, closing: l.closing || 0 })),
+    savedAt: F.serverTimestamp(), savedBy: auth.currentUser.uid
+  });
+}
+
+export async function loadTallyArchive({ F, db }) {
+  const meta = await F.getDoc(F.doc(db, 'tallyArchive', 'meta')).catch(() => null);
+  if (!meta?.exists()) return null;
+  const m = meta.data();
+  const parts = await Promise.all(Array.from({ length: m.parts || 0 }, (_, i) => F.getDoc(F.doc(db, 'tallyArchive', `vouchers-${String(i).padStart(3, '0')}`))));
+  return { ...m, vouchers: parts.flatMap((p) => (p.exists() ? p.data().vouchers : [])) };
+}
