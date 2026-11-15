@@ -306,3 +306,8 @@ table.stmt tr.item td:first-child { padding-left: 1.2rem; }
 table.stmt tfoot td { font-weight: 700; }
 details.glossary { margin: .5rem 0; }
 details.glossary summary { cursor: pointer; font-weight: 600; }
+
+/* Offline bar (Android app only) */
+.offline-bar { position: sticky; top: 0; z-index: 50; padding: .55rem 1rem; background: #7A4B00; color: #fff; font-size: .9rem; line-height: 1.35; text-align: center; }
+.offline-bar[hidden] { display: none; }
+@media print { .offline-bar { display: none !important; } }

@@ -1,11 +1,12 @@
 // Member access: register (mobile + email) → committee approves in admin.html → member sees own unit's
 // balance, bills, receipts and account entries. Enforced by the server's access rules.
-import { initFirebase, errorText, googleSignIn } from './firebase.js';
+import { initFirebase, errorText, googleSignIn, inApp, saveBlob, signOutUser } from './firebase.js';
+import { initOfflineUi, markSaved, saveForOffline } from './offline.js';
 import { getDues, fmt, esc, ownerCell } from './data.js';
 import { ddmmyyyy, monthLabel, money, todayIST } from './billing-core.js';
 import { mergeLedger } from './accounts.js';
 import { loadPastReceipts, preLedger } from './pastreceipts.js';
-import { loadAuditYears, listArchive, openArchiveDoc, yearEndRows } from './archive.js';
+import { loadAuditYears, listArchive, openArchiveDoc, archiveBlob, yearEndRows } from './archive.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -15,6 +16,7 @@ let fb, dues, profile = null, registering = false;
 main().catch((err) => console.error('Member module failed to start', err));
 
 async function main() {
+  initOfflineUi();
   dues = await getDues();
   fillUnitSelect();
   setSignedInUI(null);
@@ -123,6 +125,8 @@ async function onUser(user) {
   if (profile.status === 'approved' && user.emailVerified) {
     showPanel('account');
     await loadAccount();
+    // In the app: note when this was loaded, and keep the Society documents on the phone too.
+    if (navigator.onLine) { markSaved(); saveForOffline(fb).catch(() => {}); }
     return;
   }
   renderStatus(user);
@@ -154,7 +158,7 @@ function wireForms() {
       try { await googleSignIn(fb); } catch (err) { setMsg($('#google-box'), errorText(err)); }
     });
   });
-  A.getRedirectResult(auth).catch((err) => setMsg($('#google-box'), errorText(err)));
+  if (!inApp) A.getRedirectResult(auth).catch((err) => setMsg($('#google-box'), errorText(err)));
   $$('.switch-btn').forEach((b) => b.addEventListener('click', () => switchAuthPanel(b.dataset.panel)));
 
   $('#login-form').addEventListener('submit', async (e) => {
@@ -217,7 +221,7 @@ function wireForms() {
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-signout], #member-status [data-act]');
     if (!btn) return;
-    if (btn.hasAttribute('data-signout')) { await A.signOut(auth); location.hash = '#member'; return; }
+    if (btn.hasAttribute('data-signout')) { await signOutUser(fb, inApp ? 'index.html#member' : ''); if (!inApp) location.hash = '#member'; return; }
     const card = $('#member-status'), user = auth.currentUser;
     if (!user) return;
     if (btn.dataset.act === 'resend') {
@@ -357,6 +361,11 @@ document.addEventListener('click', async (e) => {
   const d = docs.find((x) => x.id === b.dataset.saDoc);
   if (!d) return;
   const msg = $('#sa-msg');
+  if (inApp) {
+    try { await saveBlob(await archiveBlob(fb, d), `${d.title}.pdf`); msg.textContent = ''; }
+    catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+    return;
+  }
   const win = window.open('', '_blank');
   if (win) win.document.write(`<p style="font:16px system-ui;padding:2rem">Opening ${esc(d.title)}…</p>`);
   try {

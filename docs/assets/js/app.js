@@ -1,5 +1,7 @@
 import { getDues, getNotices, fmt, esc, fmtDate, ownerCell, bpmCell, totals, normalise } from './data.js';
 import { initFirebase, currentUser } from './firebase.js';
+import { initOfflineUi } from './offline.js';
+initOfflineUi();
 import { maskAmount } from './billing-core.js';
 import { DEFAULT_SITE } from './defaults.js';
 

@@ -1,5 +1,6 @@
 // Committee accounts: dashboard, monthly bills, payments + receipts, unit ledgers, member access, website content, settings.
-import { initFirebase, errorText, googleSignIn } from './firebase.js';
+import { initFirebase, errorText, googleSignIn, inApp, saveBlob, signOutUser } from './firebase.js';
+import { initOfflineUi, requireOnline } from './offline.js';
 import { PERMS, PERM_LABEL, COMMITTEE_ONLY, STAFF_ROLES, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT } from './staff.js';
 import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
@@ -10,7 +11,7 @@ import {
   suggestMapping, historiesFromExport, saveTallyArchive, loadTallyArchive
 } from './accounts.js';
 import {
-  listArchive, uploadArchiveDoc, openArchiveDoc, deleteArchiveDoc, ARCHIVE_CATEGORIES,
+  listArchive, uploadArchiveDoc, openArchiveDoc, archiveBlob, deleteArchiveDoc, ARCHIVE_CATEGORIES,
   loadAuditYears, importAuditedAccounts, auditedBalancesFor, memberNamesFor, namePeriods,
   yearEndRows, handoverCheck, bpmHistory
 } from './archive.js';
@@ -51,6 +52,7 @@ const setMsg = (form, text, ok = false) => {
   p.classList.toggle('ok', ok);
 };
 async function busy(btn, fn) {
+  if (!requireOnline()) return;
   btn.disabled = true;
   try { return await fn(); } finally { btn.disabled = false; }
 }
@@ -85,6 +87,7 @@ function applyAccess() {
 main().catch((err) => { console.error(err); $('#gate').textContent = errorText(err); });
 
 async function main() {
+  initOfflineUi();
   dues = await getDues();
   fb = await initFirebase();
   if (!fb) { $('#gate').textContent = 'The accounts aren’t available yet. Please contact the committee.'; return; }
@@ -102,8 +105,8 @@ async function main() {
       try { await googleSignIn(fb); } catch (err) { setMsg($('#admin-login'), esc(errorText(err))); }
     });
   });
-  fb.A.getRedirectResult(fb.auth).catch((err) => setMsg($('#admin-login'), esc(errorText(err))));
-  $('#signout').addEventListener('click', () => fb.A.signOut(fb.auth));
+  if (!inApp) fb.A.getRedirectResult(fb.auth).catch((err) => setMsg($('#admin-login'), esc(errorText(err))));
+  $('#signout').addEventListener('click', () => signOutUser(fb));
   $('.nav-toggle').addEventListener('click', (e) => {
     const nav = $('#admin-nav');
     const open = nav.classList.toggle('open');
@@ -118,7 +121,7 @@ async function main() {
 function gate(html, withSignOut) {
   $('#gate').hidden = false;
   $('#gate').innerHTML = `${html}${withSignOut ? ' <button class="btn btn-small" type="button" id="gate-out">Sign out</button>' : ''}`;
-  if (withSignOut) $('#gate-out').onclick = () => fb.A.signOut(fb.auth);
+  if (withSignOut) $('#gate-out').onclick = () => signOutUser(fb);
 }
 
 async function loadAgreement() {
@@ -215,7 +218,7 @@ function showAgreement() {
 
 function wireAgreement() {
   const f = $('#agreement-form');
-  $('#agreement-decline').addEventListener('click', () => fb.A.signOut(fb.auth));
+  $('#agreement-decline').addEventListener('click', () => signOutUser(fb));
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(f);
@@ -455,10 +458,7 @@ function wirePayments() {
     const rows = lastPayments.map((p) => [p.date, p.receiptNo, p.unit, p.name, p.mode, p.reference, p.bank, p.billNo, p.amount, p.status, p.balanceAfter]);
     const head = ['Date', 'Receipt No', 'Unit', 'Name', 'Mode', 'Reference', 'Bank', 'Bill No', 'Amount', 'Status', 'Balance After'];
     const csv = [head, ...rows].map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
-    a.download = `receipts-${$('#pay-month').value}.csv`;
-    a.click();
+    saveBlob(new Blob(['\ufeff' + csv], { type: 'text/csv' }), `receipts-${$('#pay-month').value}.csv`).catch((err) => alert(errorText(err)));
   });
 }
 
@@ -1238,10 +1238,7 @@ function wireSettings() {
     const head = ['Unit', 'Name', ...codes.map((c) => LABEL[c]), 'Total'];
     const body = rows.map((r) => [r.u.unit, r.u.name, ...codes.map((c) => r.amounts[c] || 0), r.total]);
     const csv = [head, ...body].map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
-    a.download = `maintenance-calculation-${month}.csv`;
-    a.click();
+    saveBlob(new Blob(['\ufeff' + csv], { type: 'text/csv' }), `maintenance-calculation-${month}.csv`).catch((err) => alert(errorText(err)));
   });
   mf.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1967,10 +1964,7 @@ function wireReports() {
   $('#rp-csv').addEventListener('click', () => {
     if (!rpCsv) return alert('This page has nothing to download.');
     const csv = rpCsv.rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
-    a.download = `${rpCsv.name}.csv`;
-    a.click();
+    saveBlob(new Blob(['\ufeff' + csv], { type: 'text/csv' }), `${rpCsv.name}.csv`).catch((err) => alert(errorText(err)));
   });
   $('#rp-body').addEventListener('click', async (e) => {
     if (e.target.id === 'rp-close') {
@@ -2057,6 +2051,11 @@ async function loadDocuments() {
 async function openDoc(id, msgEl) {
   const d = archive.find((x) => x.id === id) || (await listArchive(fb)).find((x) => x.id === id);
   if (!d) return;
+  if (inApp) {
+    try { await saveBlob(await archiveBlob(fb, d), `${d.title}.pdf`); }
+    catch (err) { if (msgEl) { msgEl.className = 'form-msg'; msgEl.textContent = errorText(err); } else alert(errorText(err)); }
+    return;
+  }
   const win = window.open('', '_blank');
   if (win) win.document.write(`<p style="font:16px system-ui;padding:2rem">Opening ${esc(d.title)}…</p>`);
   try {

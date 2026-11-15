@@ -6,6 +6,25 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.3.0] – 2026-11-16 – Ready for the Android app
+
+### Added (active only inside the Society's Android app; the website in a browser is unchanged)
+- **Offline copy:** inside the app, everything read from the accounts is kept on the phone (persistent cache, up to 100 MB). Without internet the pages show the saved copy.
+- `assets/js/offline.js`:
+  - a bar at the top while offline ("You're offline. Showing information saved on this phone on … Changes need internet.");
+  - after a member's account loads, the Society documents and audited accounts are also saved for offline use (at most every 12 hours);
+  - changes on the accounts screens (payments, bills, edits) are refused while offline, with a message.
+- **Google sign-in in the app** uses the phone's Google account (the app hands a Google ID token to the page, which signs in with it). Google doesn't allow its sign-in page inside apps. The redirect check is skipped in the app.
+- **Files and printing in the app:**
+  - Society documents and CSV reports are saved on the phone and opened in the phone's apps (`saveBlob` in `firebase.js`, used for all CSV downloads and document opening);
+  - *Print* uses Android printing.
+- **Sign-out** (`signOutUser` in `firebase.js`, used by every sign-out button): in the app it also deletes the offline copy and saved files, so the next person using the phone can't see them.
+
+### Tested
+- With a stand-in for the app on a phone-sized screen: Google sign-in through the app; offline cache switched on; account, documents and audited accounts saved; offline bar with the saved time; account reopens offline; document handed to the app as a PDF; print handed to the app; sign-out clears the offline copy and saved files; a payment can't be recorded offline. In an ordinary browser nothing changed (no bar, no offline cache), and last version's committee walk-through gives identical results.
+
+---
+
 ## [3.2.1] – 2026-11-15 – No hosting or data-location details on the website
 
 ### Changed

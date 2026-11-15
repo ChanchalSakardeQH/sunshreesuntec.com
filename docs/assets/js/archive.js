@@ -45,14 +45,21 @@ export async function uploadArchiveDoc(fb, file, meta, onProgress = () => {}) {
   return id;
 }
 
-/** Rebuilds the PDF from its parts and returns an object URL (caller revokes it). */
-export async function openArchiveDoc({ F, db }, doc, onProgress = () => {}) {
+/** Rebuilds the PDF from its parts. */
+export async function archiveBlob({ F, db }, doc, onProgress = () => {}) {
   const s = await F.getDocs(F.collection(db, 'archiveDocs', doc.id, 'parts'));
   const parts = s.docs.map((d) => d.data()).sort((a, b) => a.n - b.n);
-  if (parts.length !== doc.parts) throw new Error('This document is incomplete. Ask the committee to upload it again.');
+  if (parts.length !== doc.parts) {
+    throw new Error(navigator.onLine ? 'This document is incomplete. Ask the committee to upload it again.'
+      : 'This document isn’t saved on this phone yet. Open it once while connected to the internet.');
+  }
   onProgress(parts.length, doc.parts);
-  const blob = new Blob(parts.map((p) => p.data.toUint8Array()), { type: 'application/pdf' });
-  return URL.createObjectURL(blob);
+  return new Blob(parts.map((p) => p.data.toUint8Array()), { type: 'application/pdf' });
+}
+
+/** Rebuilds the PDF from its parts and returns an object URL (caller revokes it). */
+export async function openArchiveDoc(fb, doc, onProgress = () => {}) {
+  return URL.createObjectURL(await archiveBlob(fb, doc, onProgress));
 }
 
 export async function deleteArchiveDoc({ F, db }, doc) {

@@ -86,3 +86,8 @@ table.parts { width: 100%; border-collapse: collapse; }
 }
 .basis { padding: 1.5mm 3mm; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--line); }
 .parts td, .parts th { padding-top: 1.3mm; padding-bottom: 1.3mm; }
+
+/* Offline bar (Android app only) */
+.offline-bar { position: sticky; top: 0; z-index: 50; padding: .55rem 1rem; background: #7A4B00; color: #fff; font: 14px/1.35 system-ui, sans-serif; text-align: center; }
+.offline-bar[hidden] { display: none; }
+@media print { .offline-bar { display: none !important; } }

@@ -4,6 +4,47 @@ import { firebaseConfig } from './firebase-config.js';
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
 let ready;
 
+/* ---------- Android app ----------
+ * Inside the Society's Android app the page is served from the phone and a small bridge, window.SSApp, is
+ * available. Then: data read from the database is kept on the phone (offline cache), Google sign-in uses the
+ * phone's own Google account, and printing and file downloads go through Android. In a browser none of this changes. */
+export const inApp = typeof window !== 'undefined' && !!window.SSApp;
+const pending = {};
+if (inApp) {
+  window.__ssAppResolve = (id, ok, value) => {
+    const p = pending[id]; if (!p) return;
+    delete pending[id];
+    if (ok) p.resolve(value); else { const e = new Error(value || 'Something went wrong.'); e.code = 'app/failed'; p.reject(e); }
+  };
+  window.print = () => window.SSApp.print(document.title || 'Sunshree Suntec');
+}
+/** Calls an asynchronous method of the app; it answers through window.__ssAppResolve. */
+export function appCall(method, ...args) {
+  return new Promise((resolve, reject) => {
+    const id = `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+    pending[id] = { resolve, reject };
+    try { window.SSApp[method](id, ...args); } catch (err) { delete pending[id]; reject(err); }
+  });
+}
+
+/** Saves a file: in the app it is stored on the phone and opened; in a browser it downloads. */
+export async function saveBlob(blob, fileName) {
+  if (inApp) {
+    const b64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(',')[1] || '');
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(blob);
+    });
+    return appCall('saveFile', fileName, blob.type || 'application/octet-stream', b64);
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60 * 1000);
+}
+
 export const isConfigured = Boolean(firebaseConfig?.apiKey) && !firebaseConfig.apiKey.startsWith('PASTE');
 
 export function initFirebase() {
@@ -14,9 +55,29 @@ export function initFirebase() {
     import(`${SDK}/firebase-firestore.js`)
   ]).then(([appMod, A, F]) => {
     const app = appMod.initializeApp(firebaseConfig);
-    return { A, F, auth: A.getAuth(app), db: F.getFirestore(app) };
+    let db;
+    if (inApp) {
+      // Keep everything read on the phone so the app can show it without internet.
+      try {
+        db = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentSingleTabManager({}), cacheSizeBytes: 100 * 1024 * 1024 }) });
+      } catch (err) { console.warn('Offline cache unavailable', err); db = F.getFirestore(app); }
+    } else db = F.getFirestore(app);
+    return { A, F, auth: A.getAuth(app), db };
   });
   return ready;
+}
+
+/**
+ * Signs out. In the app it also wipes the offline copy of the accounts and the files saved on the phone,
+ * so the next person using the phone can't see them, then reloads the page.
+ */
+export async function signOutUser(fb, goTo = '') {
+  await fb.A.signOut(fb.auth);
+  if (!inApp) { if (goTo) location.href = goTo; return; }
+  try { await fb.F.terminate(fb.db); await fb.F.clearIndexedDbPersistence(fb.db); } catch (err) { console.warn('Offline copy not cleared', err); }
+  try { ['ssOfflineSavedAt', 'ssOfflineDocsAt'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  try { window.SSApp.clearSavedFiles(); } catch { /* older app */ }
+  location.href = goTo || location.href.split('#')[0];
 }
 
 /** Resolves once Firebase knows whether someone is signed in. */
@@ -28,6 +89,13 @@ export function currentUser(fb) {
 
 /** Sign in with Google: popup, or full-page redirect where popups are blocked (some phones). */
 export async function googleSignIn(fb) {
+  if (inApp) {
+    // Google doesn't allow its sign-in page inside apps: the app asks Android for the phone's Google account
+    // and hands back a Google ID token, which signs in to the same account as on the website.
+    const idToken = await appCall('googleSignIn');
+    if (!idToken) return null;   // cancelled
+    return fb.A.signInWithCredential(fb.auth, fb.A.GoogleAuthProvider.credential(idToken));
+  }
   const provider = new fb.A.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   try {
@@ -57,7 +125,8 @@ export function errorText(err) {
     'auth/unauthorized-domain': 'Sign-in isn’t available at this web address. Please contact the committee.',
     'auth/account-exists-with-different-credential': 'This email is already registered with a password. Sign in with your email and password.',
     'permission-denied': 'This action isn’t allowed for your account.',
-    'unavailable': 'The database can’t be reached. Check your connection and try again.'
+    'unavailable': 'The database can’t be reached. Check your connection and try again.',
+    'app/failed': err?.message || 'Something went wrong in the app. Try again.'
   };
   return map[code] || err?.message || `Something went wrong${code ? ` (${code})` : ''}. Try again.`;
 }

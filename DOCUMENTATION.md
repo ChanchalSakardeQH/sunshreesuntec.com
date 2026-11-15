@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.2.1).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.3.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -29,6 +29,7 @@ This document explains what the system does, where the data lives, how every amo
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
 12A-4. Past committee's receipts (2011–2016)
 12B. Financial year and reports
+12C. Android app
 13. Monthly and yearly procedures
 14. Audit trail and records
 15. Backups and exports
@@ -414,6 +415,15 @@ The books follow the Indian financial year, 1 April to 31 March. Everything is s
 - **Opening balance** of a year = every entry before 1 April. In 2026-27 the balances taken over on 30 Sep 2026 are shown as part of the opening.
 - **Closing a year** (committee, after 31 March): saves the member-wise closing balances in `fyClosing/{year}` and locks the books up to that 31 March (`settings/billing.lockedUpTo`). The rules then refuse any bill, payment or correction dated on or before it. Reopening records who, when and why.
 - Each unit's ledger can be viewed for one year (Unit file → Account → Financial year), with opening and closing lines.
+
+## 12C. Android app
+
+The Society's Android app (kept separately from this repository, with its own README) shows these same pages from files packed inside the app.
+- **Offline:** inside the app the accounts are cached on the phone (`firebase.js` turns on the persistent cache when `window.SSApp` exists). `offline.js` shows the offline bar, saves documents for offline use and blocks changes while offline.
+- **Sign-in:** *Continue with Google* asks the app (`SSApp.googleSignIn`) for the phone's Google account and signs in with the returned ID token. Email and password work as on the website. Approval and access rules are unchanged.
+- **Files and printing:** `saveBlob()` sends documents and CSV files to the app (`SSApp.saveFile`); `window.print` goes to Android printing.
+- **Sign-out** in the app also clears the offline copy and saved files (`signOutUser`).
+- When pages change, rebuild the app and send members the new APK; data changes need no rebuild.
 
 ## 13. Monthly and yearly procedures
 

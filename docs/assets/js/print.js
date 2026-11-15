@@ -2,6 +2,8 @@
 // print.html?month=YYYY-MM    every bill for that month (admin only), one per page
 // print.html?receipt=<id>     one receipt
 import { initFirebase, currentUser, errorText } from './firebase.js';
+import { initOfflineUi } from './offline.js';
+initOfflineUi();
 import { loadSite } from './accounts.js';
 import { PARTICULARS, OPTIONAL, STATUSES, LIFT_GROUPS, money, amountInWords, ddmmyyyy, longDate, monthLabel } from './billing-core.js';
 import { esc } from './data.js';
