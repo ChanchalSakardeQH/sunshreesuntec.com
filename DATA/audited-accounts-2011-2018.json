@@ -1,0 +1,8649 @@
+{
+ "format": "sunshreesuntec-audited-accounts/1",
+ "source": "Audit reports 2011-12 to 2017-18 by Akhtar Imam Shaikh, Certified Auditor (Panel 16657), scanned copies",
+ "prepared": "2026-11-15",
+ "years": [
+  {
+   "fy": "2011-12",
+   "to": "2012-03-31",
+   "auditor": {
+    "name": "Akhtar Imam Shaikh",
+    "role": "Certified Auditor & Tax Consultant",
+    "panel": "16657",
+    "place": "Pune"
+   },
+   "auditClass": "B",
+   "reportDate": "2016-02-18",
+   "appointment": "Audited under the resolution of the AGM held on 17 Jan 2016 (Section 81(1B), MCS Act 1960).",
+   "agmDate": "2013-09-25",
+   "committeeMeetings": 9,
+   "ordinaryMembers": 63,
+   "officeBearers": {
+    "chairman": "Mr Lokhandwala",
+    "secretary": "Mr Gupta (Mr Rathi in the internal-control note)",
+    "treasurer": "Mr Chanchal"
+   },
+   "auditFee": {
+    "amount": 6500,
+    "bill": "1617/03 dated 25 Apr 2016"
+   },
+   "compliance": [
+    "Rule 107(C)(1.5.1): cash in hand exceeded the permitted limit.",
+    "Section 70: no provision made for the State Education Fund."
+   ],
+   "suggestions": [
+    "Obtain confirmations of maintenance receivable and advance maintenance from members, and of security deposits or advances to third parties.",
+    "Deduct TDS wherever applicable under the Income Tax Act, 1961."
+   ],
+   "overall": "The overall activities of the Society are satisfactory. The recovery of maintenance charges by the managing committee is satisfactory.",
+   "incomeExpenditure": {
+    "asPrinted": "For the Year Ended 31.03.2012",
+    "page": 16,
+    "income": [
+     {
+      "group": "Direct income",
+      "total": 399500,
+      "items": [
+       {
+        "name": "Lift Maintenance Charges Received",
+        "amount": 17000
+       },
+       {
+        "name": "Society Maintenance Charges Received",
+        "amount": 382500
+       }
+      ]
+     }
+    ],
+    "expenditure": [
+     {
+      "group": "Direct Expenses",
+      "total": 171921,
+      "items": [
+       {
+        "name": "Electrical Material Expenses",
+        "amount": 2995
+       },
+       {
+        "name": "House Keeping Exp.",
+        "amount": 2760
+       },
+       {
+        "name": "House Keeping Material",
+        "amount": 1890
+       },
+       {
+        "name": "Lift Maintenance Charges",
+        "amount": 10928
+       },
+       {
+        "name": "MSEB Light Bill",
+        "amount": 38584
+       },
+       {
+        "name": "Repair & Maintenance Exp.",
+        "amount": 6988
+       },
+       {
+        "name": "Security Staff Payment",
+        "amount": 63176
+       },
+       {
+        "name": "Society Cleaning Charges",
+        "amount": 43900
+       },
+       {
+        "name": "Water Tank Cleaning Expenses",
+        "amount": 700
+       }
+      ]
+     },
+     {
+      "group": "Indirect Expenses",
+      "total": 7079,
+      "items": [
+       {
+        "name": "Accounting Charges",
+        "amount": 5000
+       },
+       {
+        "name": "Legal Expense",
+        "amount": 407
+       },
+       {
+        "name": "Printing & Stationery",
+        "amount": 1672
+       }
+      ]
+     }
+    ],
+    "printedTotal": 227579
+   },
+   "income": 399500,
+   "expenditure": 179000,
+   "surplus": 220500,
+   "balanceSheet": {
+    "asPrinted": "Balance Sheet As On 31.03.2011",
+    "page": 17,
+    "total": 1807460,
+    "liabilities": [
+     {
+      "group": "Capital Account",
+      "total": 1568100,
+      "items": [
+       {
+        "name": "Reserves & Surplus",
+        "amount": 1568100
+       }
+      ]
+     },
+     {
+      "group": "Current Liabilities",
+      "total": 18860,
+      "items": [
+       {
+        "name": "Provisions",
+        "amount": 15460
+       },
+       {
+        "name": "Sundry Creditors",
+        "amount": 3400
+       }
+      ]
+     },
+     {
+      "group": "Income & Expenditure Account",
+      "total": 220500,
+      "items": [
+       {
+        "name": "Current period surplus",
+        "amount": 220500
+       }
+      ]
+     }
+    ],
+    "assets": [
+     {
+      "group": "Current Assets",
+      "total": 1807460,
+      "items": [
+       {
+        "name": "Loans & Advances (Asset)",
+        "amount": 20000
+       },
+       {
+        "name": "Sundry Debtors",
+        "amount": 1786100
+       },
+       {
+        "name": "Cash-in-hand",
+        "amount": 1360
+       }
+      ]
+     }
+    ]
+   },
+   "debtors": {
+    "commercial": 110000,
+    "residential": 108000,
+    "members": 218000,
+    "builderPending": 1568100
+   },
+   "dues": [
+    {
+     "unitId": "A-101",
+     "name": "Salim S Nurani",
+     "group": "residential",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya",
+     "group": "residential",
+     "amount": 3500.0
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar",
+     "group": "residential",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "B-01",
+     "name": "Inamdar",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-05",
+     "name": "Pradeep Giri",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-07",
+     "name": "A Vieyra",
+     "group": "commercial",
+     "amount": 2500.0
+    },
+    {
+     "unitId": "B-09",
+     "name": "Umesh Pawar",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "B-10",
+     "name": "Raj Sarin",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi",
+     "group": "commercial",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-17",
+     "name": "Sulochana Mane",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-18",
+     "name": "Ateka Chunawala",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor",
+     "group": "commercial",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "B-20",
+     "name": "Shivaji Nikam",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-21",
+     "name": "Murali Daryanmol",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "C-100",
+     "name": "O.P. Singh",
+     "group": "residential",
+     "amount": 6000.0
+    },
+    {
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase",
+     "group": "residential",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)",
+     "group": "residential",
+     "amount": 5000.0
+    },
+    {
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani",
+     "group": "residential",
+     "amount": 5500.0
+    },
+    {
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi",
+     "group": "residential",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh",
+     "group": "residential",
+     "amount": 5000.0
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta",
+     "group": "residential",
+     "amount": 10000.0
+    },
+    {
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani Neeta",
+     "group": "residential",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh",
+     "group": "residential",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani",
+     "group": "residential",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad",
+     "group": "residential",
+     "amount": 4000.0
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde",
+     "group": "residential",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra",
+     "group": "residential",
+     "amount": 4000.0
+    },
+    {
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane",
+     "group": "residential",
+     "amount": 10000.0
+    },
+    {
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala",
+     "group": "residential",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan",
+     "group": "residential",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi",
+     "group": "residential",
+     "amount": 6500.0
+    },
+    {
+     "unitId": "D-101B",
+     "name": "Dr. Ingale",
+     "group": "residential",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "D-201",
+     "name": "Ramesh Mani",
+     "group": "residential",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "GF-01",
+     "name": "",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-02",
+     "name": "",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-03",
+     "name": "",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh",
+     "group": "commercial",
+     "amount": 3500.0
+    },
+    {
+     "unitId": "GF-05",
+     "name": "Sajid Faikh",
+     "group": "commercial",
+     "amount": 3500.0
+    },
+    {
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-08",
+     "name": "",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba",
+     "group": "commercial",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen",
+     "group": "commercial",
+     "amount": 2500.0
+    },
+    {
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala",
+     "group": "commercial",
+     "amount": 3500.0
+    },
+    {
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi",
+     "group": "commercial",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "GF-17",
+     "name": "Harminder Singh",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-18",
+     "name": "",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik",
+     "group": "commercial",
+     "amount": 4500.0
+    }
+   ],
+   "duesComplete": true,
+   "bpm": [
+    {
+     "unitId": "C-101",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-201",
+     "amount": 7000
+    },
+    {
+     "unitId": "C-202",
+     "amount": 25000
+    },
+    {
+     "unitId": "C-203",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-301",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-302",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-303",
+     "amount": 42000
+    },
+    {
+     "unitId": "C-401",
+     "amount": 14000
+    },
+    {
+     "unitId": "C-403",
+     "amount": 49000
+    },
+    {
+     "unitId": "C-501",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-502",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-503",
+     "amount": 26000
+    },
+    {
+     "unitId": "B-01",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-10",
+     "amount": 16800
+    },
+    {
+     "unitId": "B-11",
+     "amount": 14400
+    },
+    {
+     "unitId": "B-12",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-14",
+     "amount": 46800
+    },
+    {
+     "unitId": "B-15",
+     "amount": 39300
+    },
+    {
+     "unitId": "B-16",
+     "amount": 47300
+    },
+    {
+     "unitId": "B-17",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-18",
+     "amount": 27300
+    },
+    {
+     "unitId": "B-19",
+     "amount": 33800
+    },
+    {
+     "unitId": "B-02",
+     "amount": 18400
+    },
+    {
+     "unitId": "B-20",
+     "amount": 34800
+    },
+    {
+     "unitId": "B-21",
+     "amount": 26800
+    },
+    {
+     "unitId": "B-03",
+     "amount": 5600
+    },
+    {
+     "unitId": "B-05",
+     "amount": 36800
+    },
+    {
+     "unitId": "B-06",
+     "amount": 23300
+    },
+    {
+     "unitId": "B-08",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-09",
+     "amount": 13600
+    },
+    {
+     "unitId": "GF-09",
+     "amount": 24800
+    },
+    {
+     "unitId": "GF-01",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-10",
+     "amount": 35300
+    },
+    {
+     "unitId": "GF-11",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-12",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-13",
+     "amount": 42800
+    },
+    {
+     "unitId": "GF-14",
+     "amount": 29600
+    },
+    {
+     "unitId": "GF-15",
+     "amount": 20800
+    },
+    {
+     "unitId": "GF-16",
+     "amount": 16800
+    },
+    {
+     "unitId": "GF-17",
+     "amount": 22400
+    },
+    {
+     "unitId": "GF-18",
+     "amount": 31300
+    },
+    {
+     "unitId": "GF-19",
+     "amount": 24300
+    },
+    {
+     "unitId": "GF-02",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-20",
+     "amount": 26200
+    },
+    {
+     "unitId": "GF-03",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-04",
+     "amount": 3200
+    },
+    {
+     "unitId": "GF-05",
+     "amount": 12800
+    },
+    {
+     "unitId": "GF-07",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-08",
+     "amount": 55000
+    }
+   ],
+   "bpmTotal": 1568100,
+   "members": [
+    {
+     "sn": 1,
+     "unitId": "A-101",
+     "name": "Salim S Nurani"
+    },
+    {
+     "sn": 2,
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya"
+    },
+    {
+     "sn": 3,
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar"
+    },
+    {
+     "sn": 4,
+     "unitId": "B-01",
+     "name": "Inamdar"
+    },
+    {
+     "sn": 5,
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 6,
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 7,
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala"
+    },
+    {
+     "sn": 8,
+     "unitId": "B-05",
+     "name": "Pradeep Giri"
+    },
+    {
+     "sn": 9,
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary"
+    },
+    {
+     "sn": 10,
+     "unitId": "B-07",
+     "name": "A Vieyra"
+    },
+    {
+     "sn": 11,
+     "unitId": "B-08",
+     "name": "Komal Ratnani"
+    },
+    {
+     "sn": 12,
+     "unitId": "B-09",
+     "name": "Umesh Pawar"
+    },
+    {
+     "sn": 13,
+     "unitId": "B-10",
+     "name": "Raj Sarin"
+    },
+    {
+     "sn": 14,
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda"
+    },
+    {
+     "sn": 15,
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi"
+    },
+    {
+     "sn": 16,
+     "unitId": "B-13",
+     "name": "Ravi Kaur"
+    },
+    {
+     "sn": 17,
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala"
+    },
+    {
+     "sn": 18,
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani"
+    },
+    {
+     "sn": 19,
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala"
+    },
+    {
+     "sn": 20,
+     "unitId": "B-17",
+     "name": "Sulochana Mane"
+    },
+    {
+     "sn": 21,
+     "unitId": "B-18",
+     "name": "Ateka Chunawala"
+    },
+    {
+     "sn": 22,
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor"
+    },
+    {
+     "sn": 23,
+     "unitId": "B-20",
+     "name": "Shivaji Nikam"
+    },
+    {
+     "sn": 24,
+     "unitId": "B-21",
+     "name": "Murali Daryanmol"
+    },
+    {
+     "sn": 25,
+     "unitId": "C-100",
+     "name": "O.P. Singh"
+    },
+    {
+     "sn": 26,
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase"
+    },
+    {
+     "sn": 27,
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)"
+    },
+    {
+     "sn": 28,
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani"
+    },
+    {
+     "sn": 29,
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi"
+    },
+    {
+     "sn": 30,
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh"
+    },
+    {
+     "sn": 31,
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta"
+    },
+    {
+     "sn": 32,
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani"
+    },
+    {
+     "sn": 33,
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh"
+    },
+    {
+     "sn": 34,
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani"
+    },
+    {
+     "sn": 35,
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad"
+    },
+    {
+     "sn": 36,
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde"
+    },
+    {
+     "sn": 37,
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra"
+    },
+    {
+     "sn": 38,
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane"
+    },
+    {
+     "sn": 39,
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala"
+    },
+    {
+     "sn": 40,
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan"
+    },
+    {
+     "sn": 41,
+     "unitId": "GF-01",
+     "name": ""
+    },
+    {
+     "sn": 42,
+     "unitId": "GF-02",
+     "name": ""
+    },
+    {
+     "sn": 43,
+     "unitId": "GF-03",
+     "name": ""
+    },
+    {
+     "sn": 44,
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh"
+    },
+    {
+     "sn": 45,
+     "unitId": "GF-05",
+     "name": "Sajid Faikh"
+    },
+    {
+     "sn": 46,
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen"
+    },
+    {
+     "sn": 47,
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah"
+    },
+    {
+     "sn": 48,
+     "unitId": "GF-08",
+     "name": ""
+    },
+    {
+     "sn": 49,
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba"
+    },
+    {
+     "sn": 50,
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen"
+    },
+    {
+     "sn": 51,
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 52,
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 53,
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao"
+    },
+    {
+     "sn": 54,
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani"
+    },
+    {
+     "sn": 55,
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala"
+    },
+    {
+     "sn": 56,
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi"
+    },
+    {
+     "sn": 57,
+     "unitId": "GF-17",
+     "name": "Harminder Singh"
+    },
+    {
+     "sn": 58,
+     "unitId": "GF-18",
+     "name": ""
+    },
+    {
+     "sn": 59,
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik"
+    },
+    {
+     "sn": 60,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 61,
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi"
+    },
+    {
+     "sn": 62,
+     "unitId": "D-101B",
+     "name": "Dr. Ingale"
+    },
+    {
+     "sn": 63,
+     "unitId": "D-201",
+     "name": "Ramesh Mani"
+    },
+    {
+     "sn": 64,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 65,
+     "unitId": "GF-21",
+     "name": ""
+    }
+   ],
+   "committee": [
+    {
+     "unitId": "C-502",
+     "name": "Mr Lokandwala",
+     "role": "Chairman"
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr Chanchal Sakarde",
+     "role": "Treasurer"
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr Deepak Pramod Gupta",
+     "role": "Secretary"
+    },
+    {
+     "unitId": "C-503",
+     "name": "Saji Rajan",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-302",
+     "name": "Sandeep Singh",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-303",
+     "name": "Ram Moryani",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-102",
+     "name": "Mrs Nandani Bhattacharya",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mr Pimpalkar",
+     "role": "Member"
+    }
+   ],
+   "notes": [
+    "The printed totals (₹2,27,579 on each side) do not equal income of ₹3,99,500; the line items and the surplus of ₹2,20,500 are consistent.",
+    "The heading reads “As On 31.03.2011”; the figures are those of 31 March 2012 (they include the 2011-12 surplus)."
+   ],
+   "memberNotes": [
+    "The same list of 65 rows is attached to every year’s report; the audit reports state 63 ordinary members.",
+    "“Ground Fl - 20 Amarjeet Khalsa” appears twice (rows 60 and 64) and row 65 “Ground Fl - 21” has no name. A 100 and D 202 are not listed.",
+    "Rows for GF 01, 02, 03, 08 and 18 have no name; the dues lists show GF 01–03 as Premkumar Mahindru and GF 08 as Dipti Sharma, GF 18 as Zahir Asif Jawed."
+   ],
+   "document": "Audited accounts 2011-12",
+   "from": "2011-04-01"
+  },
+  {
+   "fy": "2012-13",
+   "to": "2013-03-31",
+   "auditor": {
+    "name": "Akhtar Imam Shaikh",
+    "role": "Certified Auditor & Tax Consultant",
+    "panel": "16657",
+    "place": "Pune"
+   },
+   "auditClass": "B",
+   "reportDate": "2016-02-19",
+   "appointment": "Audited under the resolution of the AGM held on 17 Jan 2016 (Section 81(1B), MCS Act 1960).",
+   "agmDate": "2014-09-28",
+   "committeeMeetings": 8,
+   "ordinaryMembers": 63,
+   "officeBearers": {
+    "chairman": "Mr Lokhandwala",
+    "secretary": "Mr Gupta (Mr Rathi in the internal-control note)",
+    "treasurer": "Mr Chanchal"
+   },
+   "auditFee": {
+    "amount": 6500,
+    "bill": "1617/04 dated 25 Apr 2016"
+   },
+   "compliance": [
+    "Rule 107(C)(1.5.1): cash in hand exceeded the permitted limit.",
+    "Section 70: no provision made for the State Education Fund."
+   ],
+   "suggestions": [
+    "Obtain confirmations of maintenance receivable and advance maintenance from members, and of security deposits or advances to third parties.",
+    "Deduct TDS wherever applicable under the Income Tax Act, 1961."
+   ],
+   "overall": "The overall activities of the Society are satisfactory. The recovery of maintenance charges by the managing committee is satisfactory.",
+   "incomeExpenditure": null,
+   "income": null,
+   "expenditure": null,
+   "surplus": 173412,
+   "balanceSheet": {
+    "asPrinted": "Balance Sheet 1-Apr-2012 to 31-Mar-2013",
+    "page": 18,
+    "total": 2003722,
+    "liabilities": [
+     {
+      "group": "Capital Account",
+      "total": 1577600,
+      "items": [
+       {
+        "name": "Reserve & Surplus",
+        "amount": 1568100
+       },
+       {
+        "name": "Share Capital",
+        "amount": 9500
+       }
+      ]
+     },
+     {
+      "group": "Current Liabilities",
+      "total": 32210,
+      "items": [
+       {
+        "name": "Account Writing Payable",
+        "amount": 10000
+       },
+       {
+        "name": "MSEB Bill Payable",
+        "amount": 3210
+       },
+       {
+        "name": "Expenses Payable",
+        "amount": 0
+       },
+       {
+        "name": "Security Staff Payable",
+        "amount": 19000
+       },
+       {
+        "name": "Sundry Creditors – Ganesh Electrical",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "group": "Income & Expenditure Account",
+      "total": 393912,
+      "items": [
+       {
+        "name": "Opening Balance",
+        "amount": 220500
+       },
+       {
+        "name": "Current Year",
+        "amount": 173412
+       }
+      ]
+     }
+    ],
+    "assets": [
+     {
+      "group": "Fixed Assets",
+      "total": 32973,
+      "items": [
+       {
+        "name": "Battery for Genset",
+        "amount": 8365.5
+       },
+       {
+        "name": "Submersible Motor 5 HP",
+        "amount": 12750
+       },
+       {
+        "name": "Water Pump Kit",
+        "amount": 11857.5
+       }
+      ]
+     },
+     {
+      "group": "Current Assets",
+      "total": 1900365,
+      "items": [
+       {
+        "name": "Sundry Debtors",
+        "amount": 1898400
+       },
+       {
+        "name": "Cash-in-hand",
+        "amount": 1965
+       }
+      ]
+     },
+     {
+      "group": "Advances to Staff",
+      "total": 30000,
+      "items": [
+       {
+        "name": "Security",
+        "amount": 30000
+       }
+      ]
+     },
+     {
+      "group": "Bank Accounts",
+      "total": 40384,
+      "items": [
+       {
+        "name": "IDBI Bank 19947",
+        "amount": 30884
+       },
+       {
+        "name": "PDCC Bank",
+        "amount": 9500
+       }
+      ]
+     }
+    ]
+   },
+   "debtors": {
+    "commercial": 139300,
+    "residential": 191000,
+    "members": 330300,
+    "builderPending": 1568100
+   },
+   "dues": [
+    {
+     "unitId": "A-101",
+     "name": "Salim S Nurani",
+     "group": "residential",
+     "amount": -5000.0
+    },
+    {
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya",
+     "group": "residential",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar",
+     "group": "residential",
+     "amount": 2500.0
+    },
+    {
+     "unitId": "B-01",
+     "name": "Inamdar",
+     "group": "commercial",
+     "amount": 1800.0
+    },
+    {
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-05",
+     "name": "Pradeep Giri",
+     "group": "commercial",
+     "amount": 2500.0
+    },
+    {
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-07",
+     "name": "A Vieyra",
+     "group": "commercial",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "B-09",
+     "name": "Umesh Pawar",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-10",
+     "name": "Raj Sarin",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-13",
+     "name": "Ravi Kaur",
+     "group": "commercial",
+     "amount": -500.0
+    },
+    {
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani",
+     "group": "commercial",
+     "amount": -4500.0
+    },
+    {
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-17",
+     "name": "Sulochana Mane",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-18",
+     "name": "Ateka Chunawala",
+     "group": "commercial",
+     "amount": 7500.0
+    },
+    {
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor",
+     "group": "commercial",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "B-20",
+     "name": "Shivaji Nikam",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "B-21",
+     "name": "Murali Daryanmol",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "C-100",
+     "name": "O.P. Singh",
+     "group": "residential",
+     "amount": 20000.0
+    },
+    {
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase",
+     "group": "residential",
+     "amount": -2000.0
+    },
+    {
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)",
+     "group": "residential",
+     "amount": 18000.0
+    },
+    {
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani",
+     "group": "residential",
+     "amount": 5500.0
+    },
+    {
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi",
+     "group": "residential",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh",
+     "group": "residential",
+     "amount": 11000.0
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta",
+     "group": "residential",
+     "amount": 13000.0
+    },
+    {
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani Neeta",
+     "group": "residential",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh",
+     "group": "residential",
+     "amount": 6000.0
+    },
+    {
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani",
+     "group": "residential",
+     "amount": 8000.0
+    },
+    {
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad",
+     "group": "residential",
+     "amount": 6000.0
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde",
+     "group": "residential",
+     "amount": 4000.0
+    },
+    {
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra",
+     "group": "residential",
+     "amount": 4000.0
+    },
+    {
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane",
+     "group": "residential",
+     "amount": 23000.0
+    },
+    {
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala",
+     "group": "residential",
+     "amount": 3000.0
+    },
+    {
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan",
+     "group": "residential",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi",
+     "group": "residential",
+     "amount": 17000.0
+    },
+    {
+     "unitId": "D-101B",
+     "name": "Dr. Ingale",
+     "group": "residential",
+     "amount": 21000.0
+    },
+    {
+     "unitId": "D-201",
+     "name": "Ramesh Mani",
+     "group": "residential",
+     "amount": 21000.0
+    },
+    {
+     "unitId": "GF-01",
+     "name": "",
+     "group": "commercial",
+     "amount": 10500.0
+    },
+    {
+     "unitId": "GF-02",
+     "name": "",
+     "group": "commercial",
+     "amount": 10500.0
+    },
+    {
+     "unitId": "GF-03",
+     "name": "",
+     "group": "commercial",
+     "amount": 10500.0
+    },
+    {
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-05",
+     "name": "Sajid Faikh",
+     "group": "commercial",
+     "amount": 6000.0
+    },
+    {
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen",
+     "group": "commercial",
+     "amount": 6500.0
+    },
+    {
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah",
+     "group": "commercial",
+     "amount": 4000.0
+    },
+    {
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba",
+     "group": "commercial",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen",
+     "group": "commercial",
+     "amount": 8500.0
+    },
+    {
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 500.0
+    },
+    {
+     "unitId": "GF-12",
+     "name": "Chaitali Snah Pareekshit",
+     "group": "commercial",
+     "amount": 10500.0
+    },
+    {
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi",
+     "group": "commercial",
+     "amount": 500.0
+    },
+    {
+     "unitId": "GF-17",
+     "name": "Harminder Singh",
+     "group": "commercial",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "GF-18",
+     "name": "",
+     "group": "commercial",
+     "amount": 10500.0
+    },
+    {
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa",
+     "group": "commercial",
+     "amount": -4000.0
+    }
+   ],
+   "duesComplete": true,
+   "bpm": [
+    {
+     "unitId": "C-101",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-201",
+     "amount": 7000
+    },
+    {
+     "unitId": "C-202",
+     "amount": 25000
+    },
+    {
+     "unitId": "C-203",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-301",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-302",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-303",
+     "amount": 42000
+    },
+    {
+     "unitId": "C-401",
+     "amount": 14000
+    },
+    {
+     "unitId": "C-403",
+     "amount": 49000
+    },
+    {
+     "unitId": "C-501",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-502",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-503",
+     "amount": 26000
+    },
+    {
+     "unitId": "B-01",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-10",
+     "amount": 16800
+    },
+    {
+     "unitId": "B-11",
+     "amount": 14400
+    },
+    {
+     "unitId": "B-12",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-14",
+     "amount": 46800
+    },
+    {
+     "unitId": "B-15",
+     "amount": 39300
+    },
+    {
+     "unitId": "B-16",
+     "amount": 47300
+    },
+    {
+     "unitId": "B-17",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-18",
+     "amount": 27300
+    },
+    {
+     "unitId": "B-19",
+     "amount": 33800
+    },
+    {
+     "unitId": "B-02",
+     "amount": 18400
+    },
+    {
+     "unitId": "B-20",
+     "amount": 34800
+    },
+    {
+     "unitId": "B-21",
+     "amount": 26800
+    },
+    {
+     "unitId": "B-03",
+     "amount": 5600
+    },
+    {
+     "unitId": "B-05",
+     "amount": 36800
+    },
+    {
+     "unitId": "B-06",
+     "amount": 23300
+    },
+    {
+     "unitId": "B-08",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-09",
+     "amount": 13600
+    },
+    {
+     "unitId": "GF-09",
+     "amount": 24800
+    },
+    {
+     "unitId": "GF-01",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-10",
+     "amount": 35300
+    },
+    {
+     "unitId": "GF-11",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-12",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-13",
+     "amount": 42800
+    },
+    {
+     "unitId": "GF-14",
+     "amount": 29600
+    },
+    {
+     "unitId": "GF-15",
+     "amount": 20800
+    },
+    {
+     "unitId": "GF-16",
+     "amount": 16800
+    },
+    {
+     "unitId": "GF-17",
+     "amount": 22400
+    },
+    {
+     "unitId": "GF-18",
+     "amount": 31300
+    },
+    {
+     "unitId": "GF-19",
+     "amount": 24300
+    },
+    {
+     "unitId": "GF-02",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-20",
+     "amount": 26200
+    },
+    {
+     "unitId": "GF-03",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-04",
+     "amount": 3200
+    },
+    {
+     "unitId": "GF-05",
+     "amount": 12800
+    },
+    {
+     "unitId": "GF-07",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-08",
+     "amount": 55000
+    }
+   ],
+   "bpmTotal": 1568100,
+   "members": [
+    {
+     "sn": 1,
+     "unitId": "A-101",
+     "name": "Salim S Nurani"
+    },
+    {
+     "sn": 2,
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya"
+    },
+    {
+     "sn": 3,
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar"
+    },
+    {
+     "sn": 4,
+     "unitId": "B-01",
+     "name": "Inamdar"
+    },
+    {
+     "sn": 5,
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 6,
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 7,
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala"
+    },
+    {
+     "sn": 8,
+     "unitId": "B-05",
+     "name": "Pradeep Giri"
+    },
+    {
+     "sn": 9,
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary"
+    },
+    {
+     "sn": 10,
+     "unitId": "B-07",
+     "name": "A Vieyra"
+    },
+    {
+     "sn": 11,
+     "unitId": "B-08",
+     "name": "Komal Ratnani"
+    },
+    {
+     "sn": 12,
+     "unitId": "B-09",
+     "name": "Umesh Pawar"
+    },
+    {
+     "sn": 13,
+     "unitId": "B-10",
+     "name": "Raj Sarin"
+    },
+    {
+     "sn": 14,
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda"
+    },
+    {
+     "sn": 15,
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi"
+    },
+    {
+     "sn": 16,
+     "unitId": "B-13",
+     "name": "Ravi Kaur"
+    },
+    {
+     "sn": 17,
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala"
+    },
+    {
+     "sn": 18,
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani"
+    },
+    {
+     "sn": 19,
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala"
+    },
+    {
+     "sn": 20,
+     "unitId": "B-17",
+     "name": "Sulochana Mane"
+    },
+    {
+     "sn": 21,
+     "unitId": "B-18",
+     "name": "Ateka Chunawala"
+    },
+    {
+     "sn": 22,
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor"
+    },
+    {
+     "sn": 23,
+     "unitId": "B-20",
+     "name": "Shivaji Nikam"
+    },
+    {
+     "sn": 24,
+     "unitId": "B-21",
+     "name": "Murali Daryanmol"
+    },
+    {
+     "sn": 25,
+     "unitId": "C-100",
+     "name": "O.P. Singh"
+    },
+    {
+     "sn": 26,
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase"
+    },
+    {
+     "sn": 27,
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)"
+    },
+    {
+     "sn": 28,
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani"
+    },
+    {
+     "sn": 29,
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi"
+    },
+    {
+     "sn": 30,
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh"
+    },
+    {
+     "sn": 31,
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta"
+    },
+    {
+     "sn": 32,
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani"
+    },
+    {
+     "sn": 33,
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh"
+    },
+    {
+     "sn": 34,
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani"
+    },
+    {
+     "sn": 35,
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad"
+    },
+    {
+     "sn": 36,
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde"
+    },
+    {
+     "sn": 37,
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra"
+    },
+    {
+     "sn": 38,
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane"
+    },
+    {
+     "sn": 39,
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala"
+    },
+    {
+     "sn": 40,
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan"
+    },
+    {
+     "sn": 41,
+     "unitId": "GF-01",
+     "name": ""
+    },
+    {
+     "sn": 42,
+     "unitId": "GF-02",
+     "name": ""
+    },
+    {
+     "sn": 43,
+     "unitId": "GF-03",
+     "name": ""
+    },
+    {
+     "sn": 44,
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh"
+    },
+    {
+     "sn": 45,
+     "unitId": "GF-05",
+     "name": "Sajid Faikh"
+    },
+    {
+     "sn": 46,
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen"
+    },
+    {
+     "sn": 47,
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah"
+    },
+    {
+     "sn": 48,
+     "unitId": "GF-08",
+     "name": ""
+    },
+    {
+     "sn": 49,
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba"
+    },
+    {
+     "sn": 50,
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen"
+    },
+    {
+     "sn": 51,
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 52,
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 53,
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao"
+    },
+    {
+     "sn": 54,
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani"
+    },
+    {
+     "sn": 55,
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala"
+    },
+    {
+     "sn": 56,
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi"
+    },
+    {
+     "sn": 57,
+     "unitId": "GF-17",
+     "name": "Harminder Singh"
+    },
+    {
+     "sn": 58,
+     "unitId": "GF-18",
+     "name": ""
+    },
+    {
+     "sn": 59,
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik"
+    },
+    {
+     "sn": 60,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 61,
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi"
+    },
+    {
+     "sn": 62,
+     "unitId": "D-101B",
+     "name": "Dr. Ingale"
+    },
+    {
+     "sn": 63,
+     "unitId": "D-201",
+     "name": "Ramesh Mani"
+    },
+    {
+     "sn": 64,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 65,
+     "unitId": "GF-21",
+     "name": ""
+    }
+   ],
+   "committee": [
+    {
+     "unitId": "C-502",
+     "name": "Mr Lokandwala",
+     "role": "Chairman"
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr Chanchal Sakarde",
+     "role": "Treasurer"
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr Deepak Pramod Gupta",
+     "role": "Secretary"
+    },
+    {
+     "unitId": "C-503",
+     "name": "Saji Rajan",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-302",
+     "name": "Sandeep Singh",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-303",
+     "name": "Ram Moryani",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-102",
+     "name": "Mrs Nandani Bhattacharya",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mr Pimpalkar",
+     "role": "Member"
+    }
+   ],
+   "notes": [
+    "The 2012-13 file contains the 2011-12 income & expenditure page instead of 2012-13’s. The surplus of ₹1,73,412 is taken from the 2012-13 balance sheet.",
+    "The list of members and the committee list attached are headed “As On 31.03.2012”."
+   ],
+   "memberNotes": [
+    "The same list of 65 rows is attached to every year’s report; the audit reports state 63 ordinary members.",
+    "“Ground Fl - 20 Amarjeet Khalsa” appears twice (rows 60 and 64) and row 65 “Ground Fl - 21” has no name. A 100 and D 202 are not listed.",
+    "Rows for GF 01, 02, 03, 08 and 18 have no name; the dues lists show GF 01–03 as Premkumar Mahindru and GF 08 as Dipti Sharma, GF 18 as Zahir Asif Jawed."
+   ],
+   "document": "Audited accounts 2012-13",
+   "from": "2012-04-01"
+  },
+  {
+   "fy": "2013-14",
+   "to": "2014-03-31",
+   "auditor": {
+    "name": "Akhtar Imam Shaikh",
+    "role": "Certified Auditor & Tax Consultant",
+    "panel": "16657",
+    "place": "Pune"
+   },
+   "auditClass": "B",
+   "reportDate": "2016-02-20",
+   "appointment": "Audited under the resolution of the AGM held on 17 Jan 2016 (Section 81(1B), MCS Act 1960).",
+   "agmDate": "2015-09-30",
+   "committeeMeetings": 10,
+   "ordinaryMembers": 63,
+   "officeBearers": {
+    "chairman": "Mr Lokhandwala",
+    "secretary": "Mr Rathi",
+    "treasurer": "Mr Chanchal"
+   },
+   "auditFee": {
+    "amount": 6500,
+    "bill": "1617/03 dated 25 Apr 2016"
+   },
+   "compliance": [
+    "Rule 107(C)(1.5.1): cash in hand exceeded the permitted limit.",
+    "Section 70: no provision made for the State Education Fund."
+   ],
+   "suggestions": [
+    "Obtain confirmations of maintenance receivable and advance maintenance from members, and of security deposits or advances to third parties.",
+    "Deduct TDS wherever applicable under the Income Tax Act, 1961."
+   ],
+   "overall": "The overall activities of the Society are satisfactory. The recovery of maintenance charges by the managing committee is satisfactory.",
+   "incomeExpenditure": {
+    "asPrinted": "For The Year Ended 31.03.2014",
+    "page": 17,
+    "income": [
+     {
+      "group": "Sales Accounts",
+      "total": 609800,
+      "items": [
+       {
+        "name": "Lift Maintenance Charges",
+        "amount": 17000
+       },
+       {
+        "name": "Society Maintenance Charges",
+        "amount": 592800
+       }
+      ]
+     },
+     {
+      "group": "Direct Incomes",
+      "total": 9700,
+      "items": [
+       {
+        "name": "Drainage Work Receipt",
+        "amount": 6700
+       },
+       {
+        "name": "Society Formation Receipt",
+        "amount": 3000
+       }
+      ]
+     },
+     {
+      "group": "Indirect Incomes",
+      "total": 2078,
+      "items": [
+       {
+        "name": "Interest on Bank A/c",
+        "amount": 2078
+       }
+      ]
+     }
+    ],
+    "expenditure": [
+     {
+      "group": "Direct Expenses",
+      "total": 506445,
+      "items": [
+       {
+        "name": "Diesel for Genset and Transport",
+        "amount": 7200
+       },
+       {
+        "name": "Drainage Work",
+        "amount": 25300
+       },
+       {
+        "name": "Electrical Material Expenses",
+        "amount": 5150
+       },
+       {
+        "name": "Fabrication Work Exp",
+        "amount": 46800
+       },
+       {
+        "name": "Gardening Expenses",
+        "amount": 200
+       },
+       {
+        "name": "Genset AMC Contract Payment",
+        "amount": 12135
+       },
+       {
+        "name": "House Keeping Exp.",
+        "amount": 4000
+       },
+       {
+        "name": "Lift Maintenance Charges",
+        "amount": 11500
+       },
+       {
+        "name": "MSEB Light Bill",
+        "amount": 47570
+       },
+       {
+        "name": "Repair & Maintenance Exp.",
+        "amount": 24100
+       },
+       {
+        "name": "Security Staff Payment",
+        "amount": 207150
+       },
+       {
+        "name": "Society Cleaning Charges",
+        "amount": 99790
+       },
+       {
+        "name": "Water Tank Cleaning Expenses",
+        "amount": 15550
+       }
+      ]
+     },
+     {
+      "group": "Indirect Expenses",
+      "total": 62128.96,
+      "items": [
+       {
+        "name": "Accounting Charges",
+        "amount": 5000
+       },
+       {
+        "name": "Advertising Charges",
+        "amount": 5618
+       },
+       {
+        "name": "Bank Charges",
+        "amount": 60
+       },
+       {
+        "name": "Depreciation",
+        "amount": 6689.96
+       },
+       {
+        "name": "Festival & Celebration Exp",
+        "amount": 450
+       },
+       {
+        "name": "Generator-Set Charges",
+        "amount": 3000
+       },
+       {
+        "name": "Legal Expense",
+        "amount": 400
+       },
+       {
+        "name": "Meeting Expenses",
+        "amount": 3010
+       },
+       {
+        "name": "Printing & Stationery",
+        "amount": 12221
+       },
+       {
+        "name": "Professional Fees",
+        "amount": 13500
+       },
+       {
+        "name": "Salary & Wages A/C",
+        "amount": 1000
+       },
+       {
+        "name": "Society Expenses",
+        "amount": 4000
+       },
+       {
+        "name": "Staff Diwali Bonus",
+        "amount": 6900
+       },
+       {
+        "name": "Tea & Snacks Expenses",
+        "amount": 280
+       }
+      ]
+     }
+    ],
+    "printedTotal": 621578
+   },
+   "income": 621578,
+   "expenditure": 568573.96,
+   "surplus": 53004.04,
+   "balanceSheet": {
+    "asPrinted": "Balance Sheet 1-Apr-2013 to 31-Mar-2014",
+    "page": 18,
+    "total": 2050516.04,
+    "liabilities": [
+     {
+      "group": "Capital Account",
+      "total": 1577600,
+      "items": [
+       {
+        "name": "Reserve Fund",
+        "amount": 1568100
+       },
+       {
+        "name": "Share Capital",
+        "amount": 9500
+       }
+      ]
+     },
+     {
+      "group": "Current Liabilities",
+      "total": 26000,
+      "items": [
+       {
+        "name": "Accounting Charges Payable",
+        "amount": 15000
+       },
+       {
+        "name": "Expenses Payable",
+        "amount": 7000
+       },
+       {
+        "name": "Staff Security Bill",
+        "amount": 0
+       },
+       {
+        "name": "MSEB Payable",
+        "amount": 4000
+       }
+      ]
+     },
+     {
+      "group": "Income & Expenditure Account",
+      "total": 446916.04,
+      "items": [
+       {
+        "name": "Opening Balance",
+        "amount": 393912
+       },
+       {
+        "name": "Current Period",
+        "amount": 53004.04
+       }
+      ]
+     }
+    ],
+    "assets": [
+     {
+      "group": "Fixed Assets",
+      "total": 43733.04,
+      "items": [
+       {
+        "name": "Battery for Genset",
+        "amount": 7110.67
+       },
+       {
+        "name": "Furniture",
+        "amount": 15706
+       },
+       {
+        "name": "Water Pump Kit",
+        "amount": 10078.87
+       },
+       {
+        "name": "Submersible Motor 5 HP",
+        "amount": 10837.5
+       }
+      ]
+     },
+     {
+      "group": "Investment",
+      "total": 50000,
+      "items": [
+       {
+        "name": "Fixed Deposits",
+        "amount": 50000
+       }
+      ]
+     },
+     {
+      "group": "Current Assets",
+      "total": 1956783,
+      "items": [
+       {
+        "name": "Sundry Debtors",
+        "amount": 1867000
+       },
+       {
+        "name": "Cash-in-hand",
+        "amount": 2211
+       },
+       {
+        "name": "Security Staff Advances",
+        "amount": 0
+       },
+       {
+        "name": "IDBI Bank",
+        "amount": 78072
+       },
+       {
+        "name": "PDCC Bank",
+        "amount": 9500
+       }
+      ]
+     }
+    ]
+   },
+   "debtors": {
+    "commercial": 132500,
+    "residential": 192700,
+    "members": 325200,
+    "builderPending": 1541800
+   },
+   "dues": [
+    {
+     "unitId": "B-01",
+     "name": "Inamdar Rehana",
+     "group": "commercial",
+     "amount": 1800.0
+    },
+    {
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-05",
+     "name": "Pradeep Giri",
+     "group": "commercial",
+     "amount": 2600.0
+    },
+    {
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-07",
+     "name": "A Vieyra",
+     "group": "commercial",
+     "amount": -600.0
+    },
+    {
+     "unitId": "B-09",
+     "name": "Umesh Pawar",
+     "group": "commercial",
+     "amount": 3100.0
+    },
+    {
+     "unitId": "B-10",
+     "name": "Raj Sarin",
+     "group": "commercial",
+     "amount": 3500.0
+    },
+    {
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi",
+     "group": "commercial",
+     "amount": 1000.0
+    },
+    {
+     "unitId": "B-13",
+     "name": "Ravi Kaur",
+     "group": "commercial",
+     "amount": 1300.0
+    },
+    {
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala",
+     "group": "commercial",
+     "amount": 400.0
+    },
+    {
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani",
+     "group": "commercial",
+     "amount": -3900.0
+    },
+    {
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala",
+     "group": "commercial",
+     "amount": -1100.0
+    },
+    {
+     "unitId": "B-17",
+     "name": "Sulochana Mane",
+     "group": "commercial",
+     "amount": 1700.0
+    },
+    {
+     "unitId": "B-18",
+     "name": "Ateka Chunawala",
+     "group": "commercial",
+     "amount": 2900.0
+    },
+    {
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor",
+     "group": "commercial",
+     "amount": 16200.0
+    },
+    {
+     "unitId": "B-20",
+     "name": "Shivaji Nikam",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "B-21",
+     "name": "Murali Daryanmol",
+     "group": "commercial",
+     "amount": 900.0
+    },
+    {
+     "unitId": "GF-01",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 17700.0
+    },
+    {
+     "unitId": "GF-02",
+     "name": "Premkumar Maindru",
+     "group": "commercial",
+     "amount": 17700.0
+    },
+    {
+     "unitId": "GF-03",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 17700.0
+    },
+    {
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh",
+     "group": "commercial",
+     "amount": 5500.0
+    },
+    {
+     "unitId": "GF-05",
+     "name": "Sajid Faikh",
+     "group": "commercial",
+     "amount": 5200.0
+    },
+    {
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen",
+     "group": "commercial",
+     "amount": 6700.0
+    },
+    {
+     "unitId": "GF-08",
+     "name": "Dipti Sharma",
+     "group": "commercial",
+     "amount": 1200.0
+    },
+    {
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen",
+     "group": "commercial",
+     "amount": -1100.0
+    },
+    {
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": -600.0
+    },
+    {
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 1400.0
+    },
+    {
+     "unitId": "GF-13",
+     "name": "Kadam $ Anandrao",
+     "group": "commercial",
+     "amount": -4200.0
+    },
+    {
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani",
+     "group": "commercial",
+     "amount": -2100.0
+    },
+    {
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala",
+     "group": "commercial",
+     "amount": 4100.0
+    },
+    {
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi",
+     "group": "commercial",
+     "amount": 500.0
+    },
+    {
+     "unitId": "GF-17",
+     "name": "Harminder Singh",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "GF-18",
+     "name": "Zahir Asif Jawed",
+     "group": "commercial",
+     "amount": 17700.0
+    },
+    {
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik",
+     "group": "commercial",
+     "amount": 4200.0
+    },
+    {
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa",
+     "group": "commercial",
+     "amount": -1900.0
+    }
+   ],
+   "duesComplete": false,
+   "bpm": [
+    {
+     "unitId": "C-101",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-201",
+     "amount": 7000
+    },
+    {
+     "unitId": "C-202",
+     "amount": 25000
+    },
+    {
+     "unitId": "C-203",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-301",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-302",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-303",
+     "amount": 42000
+    },
+    {
+     "unitId": "C-401",
+     "amount": 14000
+    },
+    {
+     "unitId": "C-403",
+     "amount": 49000
+    },
+    {
+     "unitId": "C-501",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-502",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-503",
+     "amount": 26000
+    },
+    {
+     "unitId": "B-01",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-10",
+     "amount": 16800
+    },
+    {
+     "unitId": "B-11",
+     "amount": 14400
+    },
+    {
+     "unitId": "B-12",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-14",
+     "amount": 46800
+    },
+    {
+     "unitId": "B-15",
+     "amount": 39300
+    },
+    {
+     "unitId": "B-16",
+     "amount": 47300
+    },
+    {
+     "unitId": "B-17",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-18",
+     "amount": 27300
+    },
+    {
+     "unitId": "B-19",
+     "amount": 33800
+    },
+    {
+     "unitId": "B-02",
+     "amount": 18400
+    },
+    {
+     "unitId": "B-20",
+     "amount": 34800
+    },
+    {
+     "unitId": "B-21",
+     "amount": 500
+    },
+    {
+     "unitId": "B-03",
+     "amount": 5600
+    },
+    {
+     "unitId": "B-05",
+     "amount": 36800
+    },
+    {
+     "unitId": "B-06",
+     "amount": 23300
+    },
+    {
+     "unitId": "B-08",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-09",
+     "amount": 13600
+    },
+    {
+     "unitId": "GF-09",
+     "amount": 24800
+    },
+    {
+     "unitId": "GF-01",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-10",
+     "amount": 35300
+    },
+    {
+     "unitId": "GF-11",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-12",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-13",
+     "amount": 42800
+    },
+    {
+     "unitId": "GF-14",
+     "amount": 29600
+    },
+    {
+     "unitId": "GF-15",
+     "amount": 20800
+    },
+    {
+     "unitId": "GF-16",
+     "amount": 16800
+    },
+    {
+     "unitId": "GF-17",
+     "amount": 22400
+    },
+    {
+     "unitId": "GF-18",
+     "amount": 31300
+    },
+    {
+     "unitId": "GF-19",
+     "amount": 24300
+    },
+    {
+     "unitId": "GF-02",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-20",
+     "amount": 26200
+    },
+    {
+     "unitId": "GF-03",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-04",
+     "amount": 3200
+    },
+    {
+     "unitId": "GF-05",
+     "amount": 12800
+    },
+    {
+     "unitId": "GF-07",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-08",
+     "amount": 55000
+    }
+   ],
+   "bpmTotal": 1541800,
+   "members": [
+    {
+     "sn": 1,
+     "unitId": "A-101",
+     "name": "Salim S Nurani"
+    },
+    {
+     "sn": 2,
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya"
+    },
+    {
+     "sn": 3,
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar"
+    },
+    {
+     "sn": 4,
+     "unitId": "B-01",
+     "name": "Inamdar"
+    },
+    {
+     "sn": 5,
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 6,
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 7,
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala"
+    },
+    {
+     "sn": 8,
+     "unitId": "B-05",
+     "name": "Pradeep Giri"
+    },
+    {
+     "sn": 9,
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary"
+    },
+    {
+     "sn": 10,
+     "unitId": "B-07",
+     "name": "A Vieyra"
+    },
+    {
+     "sn": 11,
+     "unitId": "B-08",
+     "name": "Komal Ratnani"
+    },
+    {
+     "sn": 12,
+     "unitId": "B-09",
+     "name": "Umesh Pawar"
+    },
+    {
+     "sn": 13,
+     "unitId": "B-10",
+     "name": "Raj Sarin"
+    },
+    {
+     "sn": 14,
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda"
+    },
+    {
+     "sn": 15,
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi"
+    },
+    {
+     "sn": 16,
+     "unitId": "B-13",
+     "name": "Ravi Kaur"
+    },
+    {
+     "sn": 17,
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala"
+    },
+    {
+     "sn": 18,
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani"
+    },
+    {
+     "sn": 19,
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala"
+    },
+    {
+     "sn": 20,
+     "unitId": "B-17",
+     "name": "Sulochana Mane"
+    },
+    {
+     "sn": 21,
+     "unitId": "B-18",
+     "name": "Ateka Chunawala"
+    },
+    {
+     "sn": 22,
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor"
+    },
+    {
+     "sn": 23,
+     "unitId": "B-20",
+     "name": "Shivaji Nikam"
+    },
+    {
+     "sn": 24,
+     "unitId": "B-21",
+     "name": "Murali Daryanmol"
+    },
+    {
+     "sn": 25,
+     "unitId": "C-100",
+     "name": "O.P. Singh"
+    },
+    {
+     "sn": 26,
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase"
+    },
+    {
+     "sn": 27,
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)"
+    },
+    {
+     "sn": 28,
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani"
+    },
+    {
+     "sn": 29,
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi"
+    },
+    {
+     "sn": 30,
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh"
+    },
+    {
+     "sn": 31,
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta"
+    },
+    {
+     "sn": 32,
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani"
+    },
+    {
+     "sn": 33,
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh"
+    },
+    {
+     "sn": 34,
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani"
+    },
+    {
+     "sn": 35,
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad"
+    },
+    {
+     "sn": 36,
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde"
+    },
+    {
+     "sn": 37,
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra"
+    },
+    {
+     "sn": 38,
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane"
+    },
+    {
+     "sn": 39,
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala"
+    },
+    {
+     "sn": 40,
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan"
+    },
+    {
+     "sn": 41,
+     "unitId": "GF-01",
+     "name": ""
+    },
+    {
+     "sn": 42,
+     "unitId": "GF-02",
+     "name": ""
+    },
+    {
+     "sn": 43,
+     "unitId": "GF-03",
+     "name": ""
+    },
+    {
+     "sn": 44,
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh"
+    },
+    {
+     "sn": 45,
+     "unitId": "GF-05",
+     "name": "Sajid Faikh"
+    },
+    {
+     "sn": 46,
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen"
+    },
+    {
+     "sn": 47,
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah"
+    },
+    {
+     "sn": 48,
+     "unitId": "GF-08",
+     "name": ""
+    },
+    {
+     "sn": 49,
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba"
+    },
+    {
+     "sn": 50,
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen"
+    },
+    {
+     "sn": 51,
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 52,
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 53,
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao"
+    },
+    {
+     "sn": 54,
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani"
+    },
+    {
+     "sn": 55,
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala"
+    },
+    {
+     "sn": 56,
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi"
+    },
+    {
+     "sn": 57,
+     "unitId": "GF-17",
+     "name": "Harminder Singh"
+    },
+    {
+     "sn": 58,
+     "unitId": "GF-18",
+     "name": ""
+    },
+    {
+     "sn": 59,
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik"
+    },
+    {
+     "sn": 60,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 61,
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi"
+    },
+    {
+     "sn": 62,
+     "unitId": "D-101B",
+     "name": "Dr. Ingale"
+    },
+    {
+     "sn": 63,
+     "unitId": "D-201",
+     "name": "Ramesh Mani"
+    },
+    {
+     "sn": 64,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 65,
+     "unitId": "GF-21",
+     "name": ""
+    }
+   ],
+   "committee": [
+    {
+     "unitId": "C-502",
+     "name": "Mr Lokandwala",
+     "role": "Chairman"
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr Chanchal Sakarde",
+     "role": "Treasurer"
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr Deepak Pramod Gupta",
+     "role": "Secretary"
+    },
+    {
+     "unitId": "C-503",
+     "name": "Saji Rajan",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-302",
+     "name": "Sandeep Singh",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-303",
+     "name": "Ram Moryani",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-102",
+     "name": "Mrs Nandani Bhattacharya",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mr Pimpalkar",
+     "role": "Member"
+    }
+   ],
+   "notes": [
+    "The commercial members’ list is printed twice and the residential members’ list is missing. The residential total (₹1,92,700) is from the balance sheet and audit report; unit-wise residential balances for 31 March 2014 are not available."
+   ],
+   "memberNotes": [
+    "The same list of 65 rows is attached to every year’s report; the audit reports state 63 ordinary members.",
+    "“Ground Fl - 20 Amarjeet Khalsa” appears twice (rows 60 and 64) and row 65 “Ground Fl - 21” has no name. A 100 and D 202 are not listed.",
+    "Rows for GF 01, 02, 03, 08 and 18 have no name; the dues lists show GF 01–03 as Premkumar Mahindru and GF 08 as Dipti Sharma, GF 18 as Zahir Asif Jawed."
+   ],
+   "document": "Audited accounts 2013-14",
+   "from": "2013-04-01"
+  },
+  {
+   "fy": "2014-15",
+   "to": "2015-03-31",
+   "auditor": {
+    "name": "Akhtar Imam Shaikh",
+    "role": "Certified Auditor & Tax Consultant",
+    "panel": "16657",
+    "place": "Pune"
+   },
+   "auditClass": "B",
+   "reportDate": "2016-02-22",
+   "appointment": "Audited under the resolution of the AGM held on 17 Jan 2016 (Section 81(1B), MCS Act 1960).",
+   "agmDate": "2016-01-17",
+   "committeeMeetings": 9,
+   "ordinaryMembers": 63,
+   "officeBearers": {
+    "chairman": "Mr Lokhandwala",
+    "secretary": "Mr Gupta",
+    "treasurer": "Mr Chanchal"
+   },
+   "auditFee": {
+    "amount": 6300,
+    "bill": "16-17/57 dated 20 Jul 2016"
+   },
+   "compliance": [
+    "Rule 107(C)(1.5.1): cash in hand exceeded the permitted limit.",
+    "Section 70: no provision made for the State Education Fund."
+   ],
+   "suggestions": [
+    "Obtain confirmations of maintenance receivable and advance maintenance from members, and of security deposits or advances to third parties.",
+    "Deduct TDS wherever applicable under the Income Tax Act, 1961."
+   ],
+   "overall": "The overall activities of the Society are satisfactory. The recovery of maintenance charges by the managing committee is satisfactory.",
+   "incomeExpenditure": {
+    "asPrinted": "For the Year Ended 31.03.2015",
+    "page": 23,
+    "income": [
+     {
+      "group": "Sales Accounts",
+      "total": 609800,
+      "items": [
+       {
+        "name": "Lift Maintenance Charges Received",
+        "amount": 17000
+       },
+       {
+        "name": "Society Maintenance Charges Received",
+        "amount": 592800
+       }
+      ]
+     },
+     {
+      "group": "Direct Incomes",
+      "total": 3000,
+      "items": [
+       {
+        "name": "Society Formation Receipt",
+        "amount": 3000
+       }
+      ]
+     },
+     {
+      "group": "Indirect Incomes",
+      "total": 11816,
+      "items": [
+       {
+        "name": "Interest on Bank A/c",
+        "amount": 4698
+       },
+       {
+        "name": "Interest on FD",
+        "amount": 6518
+       },
+       {
+        "name": "Miscellaneous Income",
+        "amount": 600
+       }
+      ]
+     }
+    ],
+    "expenditure": [
+     {
+      "group": "Direct Expenses",
+      "total": 489446,
+      "items": [
+       {
+        "name": "Civil Work Exp",
+        "amount": 7700
+       },
+       {
+        "name": "Diesel for Genset and Transport",
+        "amount": 12700
+       },
+       {
+        "name": "Electrical Material Expenses",
+        "amount": 21100
+       },
+       {
+        "name": "Fabrication Work Exp",
+        "amount": 10000
+       },
+       {
+        "name": "Gardening Expenses",
+        "amount": 32870
+       },
+       {
+        "name": "Genset AMC Contract Payment",
+        "amount": 14711
+       },
+       {
+        "name": "House Keeping Exp.",
+        "amount": 9800
+       },
+       {
+        "name": "House Keeping Material",
+        "amount": 2317
+       },
+       {
+        "name": "Lift Maintenance Charges",
+        "amount": 11653
+       },
+       {
+        "name": "MSEB Light Bill",
+        "amount": 51680
+       },
+       {
+        "name": "Plumbing Work",
+        "amount": 9900
+       },
+       {
+        "name": "Repair & Maintenance Exp.",
+        "amount": 12820
+       },
+       {
+        "name": "Security Staff Payment",
+        "amount": 202500
+       },
+       {
+        "name": "Society Cleaning Charges",
+        "amount": 82700
+       },
+       {
+        "name": "Water Pumping Charges",
+        "amount": 6995
+       }
+      ]
+     },
+     {
+      "group": "Indirect Expenses",
+      "total": 65902.96,
+      "items": [
+       {
+        "name": "Accounting Charges",
+        "amount": 5000
+       },
+       {
+        "name": "Depreciation",
+        "amount": 5773.96
+       },
+       {
+        "name": "Festival & Celebration Exp",
+        "amount": 8050
+       },
+       {
+        "name": "Legal Expense",
+        "amount": 23900
+       },
+       {
+        "name": "Office Expenses",
+        "amount": 8088
+       },
+       {
+        "name": "Printing & Stationery",
+        "amount": 8696
+       },
+       {
+        "name": "Society Expenses",
+        "amount": 1035
+       },
+       {
+        "name": "Staff Diwali Bonus",
+        "amount": 5000
+       },
+       {
+        "name": "Tea & Snacks Expenses",
+        "amount": 360
+       }
+      ]
+     }
+    ],
+    "printedTotal": 624616
+   },
+   "income": 624616,
+   "expenditure": 555348.96,
+   "surplus": 69267.04,
+   "balanceSheet": {
+    "asPrinted": "Balance Sheet 1-Apr-2014 to 31-Mar-2015",
+    "page": 24,
+    "total": 2240473.08,
+    "liabilities": [
+     {
+      "group": "Capital Account",
+      "total": 1677600,
+      "items": [
+       {
+        "name": "Reserve Fund",
+        "amount": 1668100
+       },
+       {
+        "name": "Share Capital",
+        "amount": 9500
+       }
+      ]
+     },
+     {
+      "group": "Current Liabilities",
+      "total": 46690,
+      "items": [
+       {
+        "name": "Accounting Charges Payable",
+        "amount": 20000
+       },
+       {
+        "name": "Expenses Payable",
+        "amount": 5600
+       },
+       {
+        "name": "Staff Security Bill",
+        "amount": 15500
+       },
+       {
+        "name": "MSEB Payable",
+        "amount": 5590
+       }
+      ]
+     },
+     {
+      "group": "Income & Expenditure Account",
+      "total": 516183.08,
+      "items": [
+       {
+        "name": "Opening Balance",
+        "amount": 446916.04
+       },
+       {
+        "name": "Current Period",
+        "amount": 69267.04
+       }
+      ]
+     }
+    ],
+    "assets": [
+     {
+      "group": "Fixed Assets",
+      "total": 37959.08,
+      "items": [
+       {
+        "name": "Battery for Genset",
+        "amount": 6044.17
+       },
+       {
+        "name": "Furniture",
+        "amount": 14136
+       },
+       {
+        "name": "Water Pump Kit",
+        "amount": 9211.87
+       },
+       {
+        "name": "Submersible Motor 5 HP",
+        "amount": 8567.04
+       }
+      ]
+     },
+     {
+      "group": "Investment",
+      "total": 83259,
+      "items": [
+       {
+        "name": "Fixed Deposits",
+        "amount": 83259
+       }
+      ]
+     },
+     {
+      "group": "Current Assets & Loans and Advances",
+      "total": 2119255,
+      "items": [
+       {
+        "name": "Loans and Advances",
+        "amount": 10000
+       },
+       {
+        "name": "Sundry Debtors",
+        "amount": 2029400
+       },
+       {
+        "name": "Cash-in-hand",
+        "amount": 433
+       },
+       {
+        "name": "IDBI Bank",
+        "amount": 69922
+       },
+       {
+        "name": "PDCC Bank",
+        "amount": 9500
+       }
+      ]
+     }
+    ]
+   },
+   "debtors": {
+    "commercial": 242900,
+    "residential": 299700,
+    "members": 542600,
+    "builderPending": 1486800
+   },
+   "dues": [
+    {
+     "unitId": "A-101",
+     "name": "Salim S Nurani",
+     "group": "residential",
+     "amount": -2000.0
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar",
+     "group": "residential",
+     "amount": 2500.0
+    },
+    {
+     "unitId": "B-01",
+     "name": "Inamdar Rehana",
+     "group": "commercial",
+     "amount": 4600.0
+    },
+    {
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala",
+     "group": "commercial",
+     "amount": -1800.0
+    },
+    {
+     "unitId": "B-05",
+     "name": "Pradeep Giri",
+     "group": "commercial",
+     "amount": 5400.0
+    },
+    {
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary",
+     "group": "commercial",
+     "amount": 1700.0
+    },
+    {
+     "unitId": "B-07",
+     "name": "A Vieyra",
+     "group": "commercial",
+     "amount": -1200.0
+    },
+    {
+     "unitId": "B-09",
+     "name": "Umesh Pawar",
+     "group": "commercial",
+     "amount": 11500.0
+    },
+    {
+     "unitId": "B-10",
+     "name": "Raj Sarin",
+     "group": "commercial",
+     "amount": 4200.0
+    },
+    {
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda",
+     "group": "commercial",
+     "amount": 1700.0
+    },
+    {
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi",
+     "group": "commercial",
+     "amount": 4500.0
+    },
+    {
+     "unitId": "B-13",
+     "name": "Ravi Kaur",
+     "group": "commercial",
+     "amount": 8500.0
+    },
+    {
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala",
+     "group": "commercial",
+     "amount": 2800.0
+    },
+    {
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani",
+     "group": "commercial",
+     "amount": -6000.0
+    },
+    {
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala",
+     "group": "commercial",
+     "amount": -400.0
+    },
+    {
+     "unitId": "B-17",
+     "name": "Sulochana Mane",
+     "group": "commercial",
+     "amount": 2300.0
+    },
+    {
+     "unitId": "B-18",
+     "name": "Ateka Chunawala",
+     "group": "commercial",
+     "amount": 6400.0
+    },
+    {
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor",
+     "group": "commercial",
+     "amount": 1600.0
+    },
+    {
+     "unitId": "B-20",
+     "name": "Shivaji Nikam",
+     "group": "commercial",
+     "amount": 4400.0
+    },
+    {
+     "unitId": "B-21",
+     "name": "Murali Daryanmol",
+     "group": "commercial",
+     "amount": 3700.0
+    },
+    {
+     "unitId": "C-100",
+     "name": "O.P. Singh",
+     "group": "residential",
+     "amount": 48000.0
+    },
+    {
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)",
+     "group": "residential",
+     "amount": 44000.0
+    },
+    {
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani",
+     "group": "residential",
+     "amount": 9500.0
+    },
+    {
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi",
+     "group": "residential",
+     "amount": 10000.0
+    },
+    {
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh",
+     "group": "residential",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta",
+     "group": "residential",
+     "amount": 24000.0
+    },
+    {
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani Neeta",
+     "group": "residential",
+     "amount": 5000.0
+    },
+    {
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh",
+     "group": "residential",
+     "amount": 7000.0
+    },
+    {
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani",
+     "group": "residential",
+     "amount": 10000.0
+    },
+    {
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad",
+     "group": "residential",
+     "amount": 6000.0
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde",
+     "group": "residential",
+     "amount": 5000.0
+    },
+    {
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra",
+     "group": "residential",
+     "amount": 14000.0
+    },
+    {
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane",
+     "group": "residential",
+     "amount": -4500.0
+    },
+    {
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala",
+     "group": "residential",
+     "amount": 7000.0
+    },
+    {
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan",
+     "group": "residential",
+     "amount": 10000.0
+    },
+    {
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi",
+     "group": "residential",
+     "amount": 26200.0
+    },
+    {
+     "unitId": "D-101B",
+     "name": "Dr. Ingale",
+     "group": "residential",
+     "amount": 45000.0
+    },
+    {
+     "unitId": "D-201",
+     "name": "Ramesh Mani",
+     "group": "residential",
+     "amount": 31000.0
+    },
+    {
+     "unitId": "GF-01",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 24900.0
+    },
+    {
+     "unitId": "GF-02",
+     "name": "Premkumar Maindru",
+     "group": "commercial",
+     "amount": 24900.0
+    },
+    {
+     "unitId": "GF-03",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 24900.0
+    },
+    {
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh",
+     "group": "commercial",
+     "amount": 10400.0
+    },
+    {
+     "unitId": "GF-05",
+     "name": "Sajid Faikh",
+     "group": "commercial",
+     "amount": 9900.0
+    },
+    {
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen",
+     "group": "commercial",
+     "amount": 8800.0
+    },
+    {
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah",
+     "group": "commercial",
+     "amount": 3600.0
+    },
+    {
+     "unitId": "GF-08",
+     "name": "Dipti Sharma",
+     "group": "commercial",
+     "amount": 4800.0
+    },
+    {
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba",
+     "group": "commercial",
+     "amount": 8400.0
+    },
+    {
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen",
+     "group": "commercial",
+     "amount": 3100.0
+    },
+    {
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 100.0
+    },
+    {
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 2100.0
+    },
+    {
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao",
+     "group": "commercial",
+     "amount": 4200.0
+    },
+    {
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani",
+     "group": "commercial",
+     "amount": 6300.0
+    },
+    {
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala",
+     "group": "commercial",
+     "amount": 4100.0
+    },
+    {
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi",
+     "group": "commercial",
+     "amount": 500.0
+    },
+    {
+     "unitId": "GF-17",
+     "name": "Harminder Singh",
+     "group": "commercial",
+     "amount": 11700.0
+    },
+    {
+     "unitId": "GF-18",
+     "name": "Zahir Asif Jawed",
+     "group": "commercial",
+     "amount": 24900.0
+    },
+    {
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik",
+     "group": "commercial",
+     "amount": 4200.0
+    },
+    {
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa",
+     "group": "commercial",
+     "amount": 3700.0
+    }
+   ],
+   "duesComplete": true,
+   "bpm": [
+    {
+     "unitId": "C-101",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-201",
+     "amount": 7000
+    },
+    {
+     "unitId": "C-202",
+     "amount": 25000
+    },
+    {
+     "unitId": "C-203",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-301",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-302",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-303",
+     "amount": 42000
+    },
+    {
+     "unitId": "C-401",
+     "amount": 14000
+    },
+    {
+     "unitId": "C-403",
+     "amount": 49000
+    },
+    {
+     "unitId": "C-501",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-502",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-503",
+     "amount": 26000
+    },
+    {
+     "unitId": "B-01",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-10",
+     "amount": 16800
+    },
+    {
+     "unitId": "B-11",
+     "amount": 14400
+    },
+    {
+     "unitId": "B-12",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-14",
+     "amount": 46800
+    },
+    {
+     "unitId": "B-15",
+     "amount": 39300
+    },
+    {
+     "unitId": "B-16",
+     "amount": 47300
+    },
+    {
+     "unitId": "B-17",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-18",
+     "amount": 27300
+    },
+    {
+     "unitId": "B-19",
+     "amount": 33800
+    },
+    {
+     "unitId": "B-02",
+     "amount": 18400
+    },
+    {
+     "unitId": "B-20",
+     "amount": 34800
+    },
+    {
+     "unitId": "B-21",
+     "amount": 500
+    },
+    {
+     "unitId": "B-03",
+     "amount": 5600
+    },
+    {
+     "unitId": "B-05",
+     "amount": 36800
+    },
+    {
+     "unitId": "B-06",
+     "amount": 23300
+    },
+    {
+     "unitId": "B-08",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-09",
+     "amount": 13600
+    },
+    {
+     "unitId": "GF-09",
+     "amount": 24800
+    },
+    {
+     "unitId": "GF-01",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-10",
+     "amount": 35300
+    },
+    {
+     "unitId": "GF-11",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-12",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-13",
+     "amount": 42800
+    },
+    {
+     "unitId": "GF-14",
+     "amount": 29600
+    },
+    {
+     "unitId": "GF-15",
+     "amount": 20800
+    },
+    {
+     "unitId": "GF-16",
+     "amount": 16800
+    },
+    {
+     "unitId": "GF-17",
+     "amount": 22400
+    },
+    {
+     "unitId": "GF-18",
+     "amount": 31300
+    },
+    {
+     "unitId": "GF-19",
+     "amount": 24300
+    },
+    {
+     "unitId": "GF-02",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-20",
+     "amount": 26200
+    },
+    {
+     "unitId": "GF-03",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-04",
+     "amount": 3200
+    },
+    {
+     "unitId": "GF-05",
+     "amount": 12800
+    },
+    {
+     "unitId": "GF-08",
+     "amount": 55000
+    }
+   ],
+   "bpmTotal": 1486800,
+   "members": [
+    {
+     "sn": 1,
+     "unitId": "A-101",
+     "name": "Salim S Nurani"
+    },
+    {
+     "sn": 2,
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya"
+    },
+    {
+     "sn": 3,
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar"
+    },
+    {
+     "sn": 4,
+     "unitId": "B-01",
+     "name": "Inamdar"
+    },
+    {
+     "sn": 5,
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 6,
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 7,
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala"
+    },
+    {
+     "sn": 8,
+     "unitId": "B-05",
+     "name": "Pradeep Giri"
+    },
+    {
+     "sn": 9,
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary"
+    },
+    {
+     "sn": 10,
+     "unitId": "B-07",
+     "name": "A Vieyra"
+    },
+    {
+     "sn": 11,
+     "unitId": "B-08",
+     "name": "Komal Ratnani"
+    },
+    {
+     "sn": 12,
+     "unitId": "B-09",
+     "name": "Umesh Pawar"
+    },
+    {
+     "sn": 13,
+     "unitId": "B-10",
+     "name": "Raj Sarin"
+    },
+    {
+     "sn": 14,
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda"
+    },
+    {
+     "sn": 15,
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi"
+    },
+    {
+     "sn": 16,
+     "unitId": "B-13",
+     "name": "Ravi Kaur"
+    },
+    {
+     "sn": 17,
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala"
+    },
+    {
+     "sn": 18,
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani"
+    },
+    {
+     "sn": 19,
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala"
+    },
+    {
+     "sn": 20,
+     "unitId": "B-17",
+     "name": "Sulochana Mane"
+    },
+    {
+     "sn": 21,
+     "unitId": "B-18",
+     "name": "Ateka Chunawala"
+    },
+    {
+     "sn": 22,
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor"
+    },
+    {
+     "sn": 23,
+     "unitId": "B-20",
+     "name": "Shivaji Nikam"
+    },
+    {
+     "sn": 24,
+     "unitId": "B-21",
+     "name": "Murali Daryanmol"
+    },
+    {
+     "sn": 25,
+     "unitId": "C-100",
+     "name": "O.P. Singh"
+    },
+    {
+     "sn": 26,
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase"
+    },
+    {
+     "sn": 27,
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)"
+    },
+    {
+     "sn": 28,
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani"
+    },
+    {
+     "sn": 29,
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi"
+    },
+    {
+     "sn": 30,
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh"
+    },
+    {
+     "sn": 31,
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta"
+    },
+    {
+     "sn": 32,
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani"
+    },
+    {
+     "sn": 33,
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh"
+    },
+    {
+     "sn": 34,
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani"
+    },
+    {
+     "sn": 35,
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad"
+    },
+    {
+     "sn": 36,
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde"
+    },
+    {
+     "sn": 37,
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra"
+    },
+    {
+     "sn": 38,
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane"
+    },
+    {
+     "sn": 39,
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala"
+    },
+    {
+     "sn": 40,
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan"
+    },
+    {
+     "sn": 41,
+     "unitId": "GF-01",
+     "name": ""
+    },
+    {
+     "sn": 42,
+     "unitId": "GF-02",
+     "name": ""
+    },
+    {
+     "sn": 43,
+     "unitId": "GF-03",
+     "name": ""
+    },
+    {
+     "sn": 44,
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh"
+    },
+    {
+     "sn": 45,
+     "unitId": "GF-05",
+     "name": "Sajid Faikh"
+    },
+    {
+     "sn": 46,
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen"
+    },
+    {
+     "sn": 47,
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah"
+    },
+    {
+     "sn": 48,
+     "unitId": "GF-08",
+     "name": ""
+    },
+    {
+     "sn": 49,
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba"
+    },
+    {
+     "sn": 50,
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen"
+    },
+    {
+     "sn": 51,
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 52,
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 53,
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao"
+    },
+    {
+     "sn": 54,
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani"
+    },
+    {
+     "sn": 55,
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala"
+    },
+    {
+     "sn": 56,
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi"
+    },
+    {
+     "sn": 57,
+     "unitId": "GF-17",
+     "name": "Harminder Singh"
+    },
+    {
+     "sn": 58,
+     "unitId": "GF-18",
+     "name": ""
+    },
+    {
+     "sn": 59,
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik"
+    },
+    {
+     "sn": 60,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 61,
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi"
+    },
+    {
+     "sn": 62,
+     "unitId": "D-101B",
+     "name": "Dr. Ingale"
+    },
+    {
+     "sn": 63,
+     "unitId": "D-201",
+     "name": "Ramesh Mani"
+    },
+    {
+     "sn": 64,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 65,
+     "unitId": "GF-21",
+     "name": ""
+    }
+   ],
+   "committee": [
+    {
+     "unitId": "C-502",
+     "name": "Mr Lokandwala",
+     "role": "Chairman"
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr Chanchal Sakarde",
+     "role": "Treasurer"
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr Deepak Pramod Gupta",
+     "role": "Secretary"
+    },
+    {
+     "unitId": "C-503",
+     "name": "Saji Rajan",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-302",
+     "name": "Sandeep Singh",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-303",
+     "name": "Ram Moryani",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-102",
+     "name": "Mrs Nandani Bhattacharya",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mr Pimpalkar",
+     "role": "Member"
+    }
+   ],
+   "notes": [
+    "Reserve Fund rose by ₹1,00,000: transfer fees ₹50,000 and development fees ₹50,000 collected during the year (audit report).",
+    "The commercial members’ list is headed “Residential Society Members”; its total (₹2,42,900) is the commercial figure.",
+    "The middle page of the list of members (rows 30–62) is missing from this file."
+   ],
+   "memberNotes": [
+    "The same list of 65 rows is attached to every year’s report; the audit reports state 63 ordinary members.",
+    "“Ground Fl - 20 Amarjeet Khalsa” appears twice (rows 60 and 64) and row 65 “Ground Fl - 21” has no name. A 100 and D 202 are not listed.",
+    "Rows for GF 01, 02, 03, 08 and 18 have no name; the dues lists show GF 01–03 as Premkumar Mahindru and GF 08 as Dipti Sharma, GF 18 as Zahir Asif Jawed."
+   ],
+   "document": "Audited accounts 2014-15",
+   "from": "2014-04-01"
+  },
+  {
+   "fy": "2015-16",
+   "to": "2016-03-31",
+   "auditor": {
+    "name": "Akhtar Imam Shaikh",
+    "role": "Certified Auditor & Tax Consultant",
+    "panel": "16657",
+    "place": "Pune"
+   },
+   "auditClass": "B",
+   "reportDate": "2016-07-27",
+   "appointment": "Audited under the resolution of the AGM held on 17 Jan 2016 (Section 81(1B), MCS Act 1960).",
+   "agmDate": "2016-01-17",
+   "committeeMeetings": 9,
+   "ordinaryMembers": 63,
+   "officeBearers": {
+    "chairman": "Mr Lokhandwala",
+    "secretary": "Mr Gupta",
+    "treasurer": "Mr Chanchal"
+   },
+   "auditFee": {
+    "amount": 6300,
+    "bill": "63 members × ₹100"
+   },
+   "compliance": [
+    "Rule 107(C)(1.5.1): cash in hand exceeded the permitted limit.",
+    "Section 70: no provision made for the State Education Fund."
+   ],
+   "suggestions": [
+    "Obtain confirmations of maintenance receivable and advance maintenance from members, and of security deposits or advances to third parties.",
+    "Deduct TDS wherever applicable under the Income Tax Act, 1961."
+   ],
+   "overall": "The overall activities of the Society are satisfactory. The recovery of maintenance charges by the managing committee is satisfactory.",
+   "incomeExpenditure": {
+    "asPrinted": "For the Year Ended 31.03.2016",
+    "page": 21,
+    "income": [
+     {
+      "group": "Sales Accounts",
+      "total": 1073200,
+      "items": [
+       {
+        "name": "Lift Maintenance Charges Received",
+        "amount": 17000
+       },
+       {
+        "name": "Society Maintenance Charges Received",
+        "amount": 1056200
+       }
+      ]
+     },
+     {
+      "group": "Indirect Incomes",
+      "total": 3523,
+      "items": [
+       {
+        "name": "Interest on Bank A/c",
+        "amount": 3523
+       },
+       {
+        "name": "Interest on FD",
+        "amount": 0
+       },
+       {
+        "name": "Miscellaneous Income",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "expenditure": [
+     {
+      "group": "Direct Expenses",
+      "total": 476898,
+      "items": [
+       {
+        "name": "Diesel for Genset and Transport",
+        "amount": 12390
+       },
+       {
+        "name": "Electrical Material Expenses",
+        "amount": 10655
+       },
+       {
+        "name": "Genset AMC Contract Payment",
+        "amount": 7647
+       },
+       {
+        "name": "House Keeping Exp.",
+        "amount": 92559
+       },
+       {
+        "name": "House Keeping Material",
+        "amount": 6625
+       },
+       {
+        "name": "Lift Maintenance Charges",
+        "amount": 18522
+       },
+       {
+        "name": "MSEB Light Bill",
+        "amount": 68640
+       },
+       {
+        "name": "Parking Charges",
+        "amount": 1050
+       },
+       {
+        "name": "Repair & Maintenance Exp.",
+        "amount": 73490
+       },
+       {
+        "name": "Security Staff Payment",
+        "amount": 177100
+       },
+       {
+        "name": "Society Cleaning Charges",
+        "amount": 8220
+       }
+      ]
+     },
+     {
+      "group": "Indirect Expenses",
+      "total": 166526,
+      "items": [
+       {
+        "name": "Accounting Charges",
+        "amount": 9450
+       },
+       {
+        "name": "Depreciation",
+        "amount": 4987
+       },
+       {
+        "name": "Festival & Celebration Exp",
+        "amount": 48155
+       },
+       {
+        "name": "Legal Expense",
+        "amount": 22000
+       },
+       {
+        "name": "Printing & Stationery",
+        "amount": 12935
+       },
+       {
+        "name": "Bank Charges",
+        "amount": 69
+       },
+       {
+        "name": "Staff Salary",
+        "amount": 57000
+       },
+       {
+        "name": "Audit Fee",
+        "amount": 6300
+       },
+       {
+        "name": "Education Fund",
+        "amount": 630
+       },
+       {
+        "name": "Transport Charges",
+        "amount": 5000
+       }
+      ]
+     }
+    ],
+    "printedTotal": 1076723
+   },
+   "income": 1076723,
+   "expenditure": 643424,
+   "surplus": 433299,
+   "balanceSheet": {
+    "asPrinted": "Balance Sheet 1-Apr-2015 to 31-Mar-2016",
+    "page": 22,
+    "total": 2698462.08,
+    "liabilities": [
+     {
+      "group": "Capital Account",
+      "total": 1727600,
+      "items": [
+       {
+        "name": "Reserve Fund",
+        "amount": 1718100
+       },
+       {
+        "name": "Share Capital",
+        "amount": 9500
+       }
+      ]
+     },
+     {
+      "group": "Current Liabilities",
+      "total": 21380,
+      "items": [
+       {
+        "name": "Accounting Charges Payable",
+        "amount": 9450
+       },
+       {
+        "name": "Expenses Payable",
+        "amount": 5000
+       },
+       {
+        "name": "Staff Security Bill",
+        "amount": 0
+       },
+       {
+        "name": "MSEB Payable",
+        "amount": 0
+       },
+       {
+        "name": "Audit Fee Payable",
+        "amount": 6300
+       },
+       {
+        "name": "Education Fund Payable",
+        "amount": 630
+       }
+      ]
+     },
+     {
+      "group": "Income & Expenditure Account",
+      "total": 949482.08,
+      "items": [
+       {
+        "name": "Opening Balance",
+        "amount": 516183.08
+       },
+       {
+        "name": "Current Period",
+        "amount": 433299
+       }
+      ]
+     }
+    ],
+    "assets": [
+     {
+      "group": "Fixed Assets",
+      "total": 32972.08,
+      "items": [
+       {
+        "name": "Battery for Genset",
+        "amount": 5138
+       },
+       {
+        "name": "Furniture",
+        "amount": 12722
+       },
+       {
+        "name": "Water Pump Kit",
+        "amount": 7830
+       },
+       {
+        "name": "Submersible Motor 5 HP",
+        "amount": 7282.08
+       }
+      ]
+     },
+     {
+      "group": "Investment",
+      "total": 198018,
+      "items": [
+       {
+        "name": "Fixed Deposits",
+        "amount": 198018
+       }
+      ]
+     },
+     {
+      "group": "Current Assets & Loans and Advances",
+      "total": 2467472,
+      "items": [
+       {
+        "name": "Loans and Advances",
+        "amount": 0
+       },
+       {
+        "name": "Sundry Debtors",
+        "amount": 2380300
+       },
+       {
+        "name": "Cash-in-hand",
+        "amount": 4993
+       },
+       {
+        "name": "IDBI Bank",
+        "amount": 72679
+       },
+       {
+        "name": "PDCC Bank",
+        "amount": 9500
+       }
+      ]
+     }
+    ]
+   },
+   "debtors": {
+    "commercial": 552700,
+    "residential": 374300,
+    "members": 927000,
+    "builderPending": 1453300
+   },
+   "dues": [
+    {
+     "unitId": "A-101",
+     "name": "Salim S Nurani",
+     "group": "residential",
+     "amount": 2000.0,
+     "opening": -2000.0,
+     "billed": 55000.0,
+     "received": 51000.0
+    },
+    {
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya",
+     "group": "residential",
+     "amount": -1300.0,
+     "opening": 0,
+     "billed": 15600.0,
+     "received": 16900.0
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar",
+     "group": "residential",
+     "amount": 18100.0,
+     "opening": 2500.0,
+     "billed": 15600.0,
+     "received": 0
+    },
+    {
+     "unitId": "B-01",
+     "name": "Inamdar Rehana",
+     "group": "commercial",
+     "amount": 18300.0,
+     "opening": 4600.0,
+     "billed": 18000.0,
+     "received": 4300.0
+    },
+    {
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 2000.0,
+     "opening": 2000.0,
+     "billed": 18000.0,
+     "received": 18000.0
+    },
+    {
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 1500.0,
+     "opening": 1500.0,
+     "billed": 18000.0,
+     "received": 18000.0
+    },
+    {
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala",
+     "group": "commercial",
+     "amount": 10200.0,
+     "opening": -1800.0,
+     "billed": 12000.0,
+     "received": 0
+    },
+    {
+     "unitId": "B-05",
+     "name": "Pradeep Giri",
+     "group": "commercial",
+     "amount": 6900.0,
+     "opening": 5400.0,
+     "billed": 12000.0,
+     "received": 10500.0
+    },
+    {
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary",
+     "group": "commercial",
+     "amount": 19700.0,
+     "opening": 1700.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "B-07",
+     "name": "A Vieyra",
+     "group": "commercial",
+     "amount": -2700.0,
+     "opening": -1200.0,
+     "billed": 18000.0,
+     "received": 19500.0
+    },
+    {
+     "unitId": "B-08",
+     "name": "Komal Ratnani",
+     "group": "commercial",
+     "amount": 6000.0,
+     "opening": 0,
+     "billed": 12000.0,
+     "received": 6000.0
+    },
+    {
+     "unitId": "B-09",
+     "name": "Umesh Pawar",
+     "group": "commercial",
+     "amount": 29500.0,
+     "opening": 11500.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "B-10",
+     "name": "Raj Sarin",
+     "group": "commercial",
+     "amount": 22200.0,
+     "opening": 4200.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda",
+     "group": "commercial",
+     "amount": -1400.0,
+     "opening": 1700.0,
+     "billed": 12000.0,
+     "received": 15100.0
+    },
+    {
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi",
+     "group": "commercial",
+     "amount": 22500.0,
+     "opening": 4500.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "B-13",
+     "name": "Ravi Kaur",
+     "group": "commercial",
+     "amount": 0,
+     "opening": 8500.0,
+     "billed": 17500.0,
+     "received": 26000.0
+    },
+    {
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala",
+     "group": "commercial",
+     "amount": 7000.0,
+     "opening": 2800.0,
+     "billed": 12000.0,
+     "received": 7800.0
+    },
+    {
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani",
+     "group": "commercial",
+     "amount": -3600.0,
+     "opening": -6000.0,
+     "billed": 43000.0,
+     "received": 40600.0
+    },
+    {
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala",
+     "group": "commercial",
+     "amount": 1300.0,
+     "opening": -400.0,
+     "billed": 18000.0,
+     "received": 16300.0
+    },
+    {
+     "unitId": "B-17",
+     "name": "Sulochana Mane",
+     "group": "commercial",
+     "amount": 1700.0,
+     "opening": 2300.0,
+     "billed": 12000.0,
+     "received": 12600.0
+    },
+    {
+     "unitId": "B-18",
+     "name": "Ateka Chunawala",
+     "group": "commercial",
+     "amount": 13900.0,
+     "opening": 6400.0,
+     "billed": 12000.0,
+     "received": 4500.0
+    },
+    {
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor",
+     "group": "commercial",
+     "amount": 1700.0,
+     "opening": 1600.0,
+     "billed": 12000.0,
+     "received": 11900.0
+    },
+    {
+     "unitId": "B-20",
+     "name": "Shivaji Nikam",
+     "group": "commercial",
+     "amount": -200.0,
+     "opening": 4400.0,
+     "billed": 12000.0,
+     "received": 16600.0
+    },
+    {
+     "unitId": "B-21",
+     "name": "Murali Daryanmol",
+     "group": "commercial",
+     "amount": 900.0,
+     "opening": 3700.0,
+     "billed": 18000.0,
+     "received": 20800.0
+    },
+    {
+     "unitId": "C-100",
+     "name": "Dr",
+     "group": "residential",
+     "amount": 12500.0,
+     "opening": 48000.0,
+     "billed": 32000.0,
+     "received": 67500.0
+    },
+    {
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase",
+     "group": "residential",
+     "amount": 16600.0,
+     "opening": 0,
+     "billed": 16600.0,
+     "received": 0
+    },
+    {
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)",
+     "group": "residential",
+     "amount": -2000.0,
+     "opening": 44000.0,
+     "billed": 16600.0,
+     "received": 62600.0
+    },
+    {
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani",
+     "group": "residential",
+     "amount": 17000.0,
+     "opening": 9500.0,
+     "billed": 16600.0,
+     "received": 9100.0
+    },
+    {
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi",
+     "group": "residential",
+     "amount": 18700.0,
+     "opening": 10000.0,
+     "billed": 16600.0,
+     "received": 7900.0
+    },
+    {
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh",
+     "group": "residential",
+     "amount": 17300.0,
+     "opening": 2000.0,
+     "billed": 16600.0,
+     "received": 1300.0
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta",
+     "group": "residential",
+     "amount": 11100.0,
+     "opening": 24000.0,
+     "billed": 16600.0,
+     "received": 29500.0
+    },
+    {
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani Neeta",
+     "group": "residential",
+     "amount": -7000.0,
+     "opening": 5000.0,
+     "billed": 16600.0,
+     "received": 28600.0
+    },
+    {
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh",
+     "group": "residential",
+     "amount": 23600.0,
+     "opening": 7000.0,
+     "billed": 16600.0,
+     "received": 0
+    },
+    {
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani",
+     "group": "residential",
+     "amount": 18400.0,
+     "opening": 10000.0,
+     "billed": 16600.0,
+     "received": 8200.0
+    },
+    {
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad",
+     "group": "residential",
+     "amount": 9600.0,
+     "opening": 6000.0,
+     "billed": 16600.0,
+     "received": 13000.0
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde",
+     "group": "residential",
+     "amount": 10900.0,
+     "opening": 5000.0,
+     "billed": 16600.0,
+     "received": 10700.0
+    },
+    {
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra",
+     "group": "residential",
+     "amount": 11900.0,
+     "opening": 14000.0,
+     "billed": 16600.0,
+     "received": 18700.0
+    },
+    {
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane",
+     "group": "residential",
+     "amount": -1700.0,
+     "opening": -4500.0,
+     "billed": 16600.0,
+     "received": 13800.0
+    },
+    {
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala",
+     "group": "residential",
+     "amount": 9800.0,
+     "opening": 7000.0,
+     "billed": 16600.0,
+     "received": 13800.0
+    },
+    {
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan",
+     "group": "residential",
+     "amount": 4000.0,
+     "opening": 10000.0,
+     "billed": 16600.0,
+     "received": 22600.0
+    },
+    {
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi",
+     "group": "residential",
+     "amount": 48800.0,
+     "opening": 26200.0,
+     "billed": 30000.0,
+     "received": 7400.0
+    },
+    {
+     "unitId": "D-101B",
+     "name": "Dr. Ingale",
+     "group": "residential",
+     "amount": 75000.0,
+     "opening": 45000.0,
+     "billed": 30000.0,
+     "received": 0
+    },
+    {
+     "unitId": "D-201",
+     "name": "Ramesh Mani",
+     "group": "residential",
+     "amount": 61000.0,
+     "opening": 31000.0,
+     "billed": 30000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-01",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 36900.0,
+     "opening": 24900.0,
+     "billed": 12000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-02",
+     "name": "Premkumar Maindru",
+     "group": "commercial",
+     "amount": 36900.0,
+     "opening": 24900.0,
+     "billed": 12000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-03",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 36900.0,
+     "opening": 24900.0,
+     "billed": 12000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh",
+     "group": "commercial",
+     "amount": 28400.0,
+     "opening": 10400.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-05",
+     "name": "Sajid Faikh",
+     "group": "commercial",
+     "amount": 27900.0,
+     "opening": 9900.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen",
+     "group": "commercial",
+     "amount": 26800.0,
+     "opening": 8800.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah",
+     "group": "commercial",
+     "amount": -1000.0,
+     "opening": 3600.0,
+     "billed": 12000.0,
+     "received": 16600.0
+    },
+    {
+     "unitId": "GF-08",
+     "name": "Dipti Sharma",
+     "group": "commercial",
+     "amount": 7800.0,
+     "opening": 4800.0,
+     "billed": 12000.0,
+     "received": 9000.0
+    },
+    {
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba",
+     "group": "commercial",
+     "amount": 13500.0,
+     "opening": 8400.0,
+     "billed": 18000.0,
+     "received": 12900.0
+    },
+    {
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen",
+     "group": "commercial",
+     "amount": 12700.0,
+     "opening": 3100.0,
+     "billed": 18000.0,
+     "received": 8400.0
+    },
+    {
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 12100.0,
+     "opening": 100.0,
+     "billed": 12000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-12",
+     "name": "Chaitali Snah Pareekshit",
+     "group": "commercial",
+     "amount": 20100.0,
+     "opening": 2100.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao",
+     "group": "commercial",
+     "amount": 9000.0,
+     "opening": 4200.0,
+     "billed": 18000.0,
+     "received": 13200.0
+    },
+    {
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani",
+     "group": "commercial",
+     "amount": 24300.0,
+     "opening": 6300.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala",
+     "group": "commercial",
+     "amount": 14300.0,
+     "opening": 4100.0,
+     "billed": 18000.0,
+     "received": 7800.0
+    },
+    {
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi",
+     "group": "commercial",
+     "amount": 10100.0,
+     "opening": 500.0,
+     "billed": 18000.0,
+     "received": 8400.0
+    },
+    {
+     "unitId": "GF-17",
+     "name": "Harminder Singh",
+     "group": "commercial",
+     "amount": 23700.0,
+     "opening": 11700.0,
+     "billed": 12000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-18",
+     "name": "Zahir Asif Jawed Dr -",
+     "group": "commercial",
+     "amount": 32700.0,
+     "opening": 24900.0,
+     "billed": 12000.0,
+     "received": 4200.0
+    },
+    {
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik",
+     "group": "commercial",
+     "amount": 22200.0,
+     "opening": 4200.0,
+     "billed": 18000.0,
+     "received": 0
+    },
+    {
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa",
+     "group": "commercial",
+     "amount": 0,
+     "opening": 3700.0,
+     "billed": 23500.0,
+     "received": 27200.0
+    }
+   ],
+   "duesComplete": true,
+   "bpm": [
+    {
+     "unitId": "C-101",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-201",
+     "amount": 7000
+    },
+    {
+     "unitId": "C-202",
+     "amount": 25000
+    },
+    {
+     "unitId": "C-203",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-301",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-302",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-303",
+     "amount": 42000
+    },
+    {
+     "unitId": "C-401",
+     "amount": 14000
+    },
+    {
+     "unitId": "C-403",
+     "amount": 49000
+    },
+    {
+     "unitId": "C-501",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-502",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-503",
+     "amount": 26000
+    },
+    {
+     "unitId": "B-01",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-10",
+     "amount": 16800
+    },
+    {
+     "unitId": "B-11",
+     "amount": 14400
+    },
+    {
+     "unitId": "B-12",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-14",
+     "amount": 46800
+    },
+    {
+     "unitId": "B-15",
+     "amount": 5800
+    },
+    {
+     "unitId": "B-16",
+     "amount": 47300
+    },
+    {
+     "unitId": "B-17",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-18",
+     "amount": 27300
+    },
+    {
+     "unitId": "B-19",
+     "amount": 33800
+    },
+    {
+     "unitId": "B-02",
+     "amount": 18400
+    },
+    {
+     "unitId": "B-20",
+     "amount": 34800
+    },
+    {
+     "unitId": "B-21",
+     "amount": 500
+    },
+    {
+     "unitId": "B-03",
+     "amount": 5600
+    },
+    {
+     "unitId": "B-05",
+     "amount": 36800
+    },
+    {
+     "unitId": "B-06",
+     "amount": 23300
+    },
+    {
+     "unitId": "B-08",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-09",
+     "amount": 13600
+    },
+    {
+     "unitId": "GF-09",
+     "amount": 24800
+    },
+    {
+     "unitId": "GF-01",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-10",
+     "amount": 35300
+    },
+    {
+     "unitId": "GF-11",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-12",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-13",
+     "amount": 42800
+    },
+    {
+     "unitId": "GF-14",
+     "amount": 29600
+    },
+    {
+     "unitId": "GF-15",
+     "amount": 20800
+    },
+    {
+     "unitId": "GF-16",
+     "amount": 16800
+    },
+    {
+     "unitId": "GF-17",
+     "amount": 22400
+    },
+    {
+     "unitId": "GF-18",
+     "amount": 31300
+    },
+    {
+     "unitId": "GF-19",
+     "amount": 24300
+    },
+    {
+     "unitId": "GF-02",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-20",
+     "amount": 26200
+    },
+    {
+     "unitId": "GF-03",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-04",
+     "amount": 3200
+    },
+    {
+     "unitId": "GF-05",
+     "amount": 12800
+    },
+    {
+     "unitId": "GF-08",
+     "amount": 55000
+    }
+   ],
+   "bpmTotal": 1453300,
+   "members": [
+    {
+     "sn": 1,
+     "unitId": "A-101",
+     "name": "Salim S Nurani"
+    },
+    {
+     "sn": 2,
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya"
+    },
+    {
+     "sn": 3,
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar"
+    },
+    {
+     "sn": 4,
+     "unitId": "B-01",
+     "name": "Inamdar"
+    },
+    {
+     "sn": 5,
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 6,
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 7,
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala"
+    },
+    {
+     "sn": 8,
+     "unitId": "B-05",
+     "name": "Pradeep Giri"
+    },
+    {
+     "sn": 9,
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary"
+    },
+    {
+     "sn": 10,
+     "unitId": "B-07",
+     "name": "A Vieyra"
+    },
+    {
+     "sn": 11,
+     "unitId": "B-08",
+     "name": "Komal Ratnani"
+    },
+    {
+     "sn": 12,
+     "unitId": "B-09",
+     "name": "Umesh Pawar"
+    },
+    {
+     "sn": 13,
+     "unitId": "B-10",
+     "name": "Raj Sarin"
+    },
+    {
+     "sn": 14,
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda"
+    },
+    {
+     "sn": 15,
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi"
+    },
+    {
+     "sn": 16,
+     "unitId": "B-13",
+     "name": "Ravi Kaur"
+    },
+    {
+     "sn": 17,
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala"
+    },
+    {
+     "sn": 18,
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani"
+    },
+    {
+     "sn": 19,
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala"
+    },
+    {
+     "sn": 20,
+     "unitId": "B-17",
+     "name": "Sulochana Mane"
+    },
+    {
+     "sn": 21,
+     "unitId": "B-18",
+     "name": "Ateka Chunawala"
+    },
+    {
+     "sn": 22,
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor"
+    },
+    {
+     "sn": 23,
+     "unitId": "B-20",
+     "name": "Shivaji Nikam"
+    },
+    {
+     "sn": 24,
+     "unitId": "B-21",
+     "name": "Murali Daryanmol"
+    },
+    {
+     "sn": 25,
+     "unitId": "C-100",
+     "name": "O.P. Singh"
+    },
+    {
+     "sn": 26,
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase"
+    },
+    {
+     "sn": 27,
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)"
+    },
+    {
+     "sn": 28,
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani"
+    },
+    {
+     "sn": 29,
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi"
+    },
+    {
+     "sn": 30,
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh"
+    },
+    {
+     "sn": 31,
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta"
+    },
+    {
+     "sn": 32,
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani"
+    },
+    {
+     "sn": 33,
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh"
+    },
+    {
+     "sn": 34,
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani"
+    },
+    {
+     "sn": 35,
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad"
+    },
+    {
+     "sn": 36,
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde"
+    },
+    {
+     "sn": 37,
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra"
+    },
+    {
+     "sn": 38,
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane"
+    },
+    {
+     "sn": 39,
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala"
+    },
+    {
+     "sn": 40,
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan"
+    },
+    {
+     "sn": 41,
+     "unitId": "GF-01",
+     "name": ""
+    },
+    {
+     "sn": 42,
+     "unitId": "GF-02",
+     "name": ""
+    },
+    {
+     "sn": 43,
+     "unitId": "GF-03",
+     "name": ""
+    },
+    {
+     "sn": 44,
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh"
+    },
+    {
+     "sn": 45,
+     "unitId": "GF-05",
+     "name": "Sajid Faikh"
+    },
+    {
+     "sn": 46,
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen"
+    },
+    {
+     "sn": 47,
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah"
+    },
+    {
+     "sn": 48,
+     "unitId": "GF-08",
+     "name": ""
+    },
+    {
+     "sn": 49,
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba"
+    },
+    {
+     "sn": 50,
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen"
+    },
+    {
+     "sn": 51,
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 52,
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 53,
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao"
+    },
+    {
+     "sn": 54,
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani"
+    },
+    {
+     "sn": 55,
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala"
+    },
+    {
+     "sn": 56,
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi"
+    },
+    {
+     "sn": 57,
+     "unitId": "GF-17",
+     "name": "Harminder Singh"
+    },
+    {
+     "sn": 58,
+     "unitId": "GF-18",
+     "name": ""
+    },
+    {
+     "sn": 59,
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik"
+    },
+    {
+     "sn": 60,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 61,
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi"
+    },
+    {
+     "sn": 62,
+     "unitId": "D-101B",
+     "name": "Dr. Ingale"
+    },
+    {
+     "sn": 63,
+     "unitId": "D-201",
+     "name": "Ramesh Mani"
+    },
+    {
+     "sn": 64,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 65,
+     "unitId": "GF-21",
+     "name": ""
+    }
+   ],
+   "committee": [
+    {
+     "unitId": "C-502",
+     "name": "Mr Lokandwala",
+     "role": "Chairman"
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr Chanchal Sakarde",
+     "role": "Treasurer"
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr Deepak Pramod Gupta",
+     "role": "Secretary"
+    },
+    {
+     "unitId": "C-503",
+     "name": "Saji Rajan",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-302",
+     "name": "Sandeep Singh",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-303",
+     "name": "Ram Moryani",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-102",
+     "name": "Mrs Nandani Bhattacharya",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mr Pimpalkar",
+     "role": "Member"
+    }
+   ],
+   "notes": [
+    "Reserve Fund rose by ₹50,000 from transfer and development fees (audit report).",
+    "Cash in hand is ₹4,993 in the balance sheet; the audit report text says ₹553.",
+    "The member-wise lists show opening balance, amount billed, amount received and closing balance for each unit.",
+    "The committee list is headed “As On 31.03.2015”."
+   ],
+   "memberNotes": [
+    "The same list of 65 rows is attached to every year’s report; the audit reports state 63 ordinary members.",
+    "“Ground Fl - 20 Amarjeet Khalsa” appears twice (rows 60 and 64) and row 65 “Ground Fl - 21” has no name. A 100 and D 202 are not listed.",
+    "Rows for GF 01, 02, 03, 08 and 18 have no name; the dues lists show GF 01–03 as Premkumar Mahindru and GF 08 as Dipti Sharma, GF 18 as Zahir Asif Jawed."
+   ],
+   "document": "Audited accounts 2015-16",
+   "from": "2015-04-01"
+  },
+  {
+   "fy": "2016-17",
+   "to": "2017-03-31",
+   "auditor": {
+    "name": "Akhtar Imam Shaikh",
+    "role": "Certified Auditor & Tax Consultant",
+    "panel": "16657",
+    "place": "Pune"
+   },
+   "auditClass": "B",
+   "reportDate": "2017-08-21",
+   "appointment": "Audited under the order of the Co-operative Department (Section 81(1B), MCS Act 1960).",
+   "agmDate": "2016-09-27",
+   "committeeMeetings": 10,
+   "ordinaryMembers": 63,
+   "officeBearers": {
+    "chairman": "Mr Lokhandwala",
+    "secretary": "Mr Gupta",
+    "treasurer": "Mr Chanchal"
+   },
+   "auditFee": {
+    "amount": 6300,
+    "bill": "63 members × ₹100"
+   },
+   "compliance": [
+    "Rule 107(C)(1.5.1): cash in hand exceeded the permitted limit.",
+    "Section 70: no provision made for the State Education Fund."
+   ],
+   "suggestions": [
+    "Obtain confirmations of maintenance receivable and advance maintenance from members, and of security deposits or advances to third parties.",
+    "Deduct TDS wherever applicable under the Income Tax Act, 1961."
+   ],
+   "overall": "The overall activities of the Society are satisfactory. The recovery of maintenance charges by the managing committee is satisfactory.",
+   "incomeExpenditure": {
+    "asPrinted": "For the Year Ended 31.03.2017",
+    "page": 21,
+    "income": [
+     {
+      "group": "Direct Incomes",
+      "total": 1097200,
+      "items": [
+       {
+        "name": "Lift Maintenance Charges Received",
+        "amount": 17000
+       },
+       {
+        "name": "Society Maintenance Charges Received",
+        "amount": 1045200
+       },
+       {
+        "name": "Drainage Work Receipt",
+        "amount": 35000
+       }
+      ]
+     },
+     {
+      "group": "Indirect Incomes",
+      "total": 4452,
+      "items": [
+       {
+        "name": "Interest on FD",
+        "amount": 4452
+       }
+      ]
+     }
+    ],
+    "expenditure": [
+     {
+      "group": "Direct Expenses",
+      "total": 542559,
+      "items": [
+       {
+        "name": "Civil Work Exp",
+        "amount": 10000
+       },
+       {
+        "name": "Diesel for Genset and Transport",
+        "amount": 8200
+       },
+       {
+        "name": "Drainage Work",
+        "amount": 7000
+       },
+       {
+        "name": "Electrical Material Expenses",
+        "amount": 29450
+       },
+       {
+        "name": "Fabrication Work Exp",
+        "amount": 34750
+       },
+       {
+        "name": "Genset AMC Contract Payment",
+        "amount": 8262
+       },
+       {
+        "name": "House Keeping Exp.",
+        "amount": 141240
+       },
+       {
+        "name": "House Keeping Material",
+        "amount": 6510
+       },
+       {
+        "name": "Lift Maintenance Charges",
+        "amount": 10500
+       },
+       {
+        "name": "MSEB Light Bill",
+        "amount": 72710
+       },
+       {
+        "name": "Repair & Maintenance Exp.",
+        "amount": 26167
+       },
+       {
+        "name": "Security Staff Payment",
+        "amount": 186000
+       },
+       {
+        "name": "Society Cleaning Charges",
+        "amount": 1770
+       }
+      ]
+     },
+     {
+      "group": "Indirect Expenses",
+      "total": 143197.2,
+      "items": [
+       {
+        "name": "Accounting Charges",
+        "amount": 19500
+       },
+       {
+        "name": "Audit Fee",
+        "amount": 6300
+       },
+       {
+        "name": "Bank Charges",
+        "amount": 376
+       },
+       {
+        "name": "Depreciation",
+        "amount": 38364.2
+       },
+       {
+        "name": "Education Fund",
+        "amount": 630
+       },
+       {
+        "name": "Printing & Stationery",
+        "amount": 3292
+       },
+       {
+        "name": "Society Expenses",
+        "amount": 3735
+       },
+       {
+        "name": "Salary & Wages",
+        "amount": 71000
+       }
+      ]
+     }
+    ],
+    "printedTotal": 1101652
+   },
+   "income": 1101652,
+   "expenditure": 685756.2,
+   "surplus": 415895.8,
+   "balanceSheet": {
+    "asPrinted": "Balance Sheet 1-Apr-2016 to 31-Mar-2017",
+    "page": 22,
+    "total": 3111687.98,
+    "liabilities": [
+     {
+      "group": "Capital Account",
+      "total": 1727600,
+      "items": [
+       {
+        "name": "Reserve Fund",
+        "amount": 1718100
+       },
+       {
+        "name": "Share Capital",
+        "amount": 9500
+       }
+      ]
+     },
+     {
+      "group": "Current Liabilities",
+      "total": 18710,
+      "items": [
+       {
+        "name": "Accounting Charges Payable",
+        "amount": 0
+       },
+       {
+        "name": "Expenses Payable",
+        "amount": 5000
+       },
+       {
+        "name": "Staff Security Bill",
+        "amount": 0
+       },
+       {
+        "name": "MSEB Payable",
+        "amount": 12450
+       },
+       {
+        "name": "Audit Fee Payable",
+        "amount": 0
+       },
+       {
+        "name": "Education Fund Payable",
+        "amount": 1260
+       }
+      ]
+     },
+     {
+      "group": "Income & Expenditure Account",
+      "total": 1365377.98,
+      "items": [
+       {
+        "name": "Opening Balance",
+        "amount": 949482.18
+       },
+       {
+        "name": "Current Period",
+        "amount": 415895.8
+       }
+      ]
+     }
+    ],
+    "assets": [
+     {
+      "group": "Fixed Assets",
+      "total": 192148.98,
+      "items": [
+       {
+        "name": "Battery for Genset",
+        "amount": 4367.02
+       },
+       {
+        "name": "Furniture",
+        "amount": 11451.4
+       },
+       {
+        "name": "Water Pump Kit",
+        "amount": 6189.84
+       },
+       {
+        "name": "Submersible Motor 5 HP",
+        "amount": 6655.72
+       },
+       {
+        "name": "CC TV",
+        "amount": 142835
+       },
+       {
+        "name": "Computer",
+        "amount": 20650
+       }
+      ]
+     },
+     {
+      "group": "Investment",
+      "total": 198018,
+      "items": [
+       {
+        "name": "Fixed Deposits",
+        "amount": 198018
+       }
+      ]
+     },
+     {
+      "group": "Current Assets & Loans and Advances",
+      "total": 2721521,
+      "items": [
+       {
+        "name": "Loans and Advances",
+        "amount": 0
+       },
+       {
+        "name": "Sundry Debtors",
+        "amount": 2633800
+       },
+       {
+        "name": "Cash-in-hand",
+        "amount": 4419
+       },
+       {
+        "name": "IDBI Bank",
+        "amount": 73802
+       },
+       {
+        "name": "PDCC Bank",
+        "amount": 9500
+       }
+      ]
+     }
+    ]
+   },
+   "debtors": {
+    "commercial": 625900,
+    "residential": 584000,
+    "members": 1209900,
+    "builderPending": 1423900
+   },
+   "dues": [
+    {
+     "unitId": "A-101",
+     "name": "Salim S Nurani",
+     "group": "residential",
+     "amount": 15800.0
+    },
+    {
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya",
+     "group": "residential",
+     "amount": -1300.0
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar",
+     "group": "residential",
+     "amount": 33700.0
+    },
+    {
+     "unitId": "B-01",
+     "name": "Inamdar Rehana",
+     "group": "commercial",
+     "amount": 36300.0
+    },
+    {
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 6000.0
+    },
+    {
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala",
+     "group": "commercial",
+     "amount": 1200.0
+    },
+    {
+     "unitId": "B-05",
+     "name": "Pradeep Giri",
+     "group": "commercial",
+     "amount": 1500.0
+    },
+    {
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary",
+     "group": "commercial",
+     "amount": 37700.0
+    },
+    {
+     "unitId": "B-07",
+     "name": "AVieyra",
+     "group": "commercial",
+     "amount": -7200.0
+    },
+    {
+     "unitId": "B-08",
+     "name": "Komal Ratnani",
+     "group": "commercial",
+     "amount": -1200.0
+    },
+    {
+     "unitId": "B-09",
+     "name": "Umesh Pawar",
+     "group": "commercial",
+     "amount": 14500.0
+    },
+    {
+     "unitId": "B-10",
+     "name": "Raj Sarin",
+     "group": "commercial",
+     "amount": 40200.0
+    },
+    {
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda",
+     "group": "commercial",
+     "amount": 10600.0
+    },
+    {
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi",
+     "group": "commercial",
+     "amount": 500.0
+    },
+    {
+     "unitId": "B-13",
+     "name": "Ravi Kaur",
+     "group": "commercial",
+     "amount": -7200.0
+    },
+    {
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala",
+     "group": "commercial",
+     "amount": 19000.0
+    },
+    {
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani",
+     "group": "commercial",
+     "amount": 900.0
+    },
+    {
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala",
+     "group": "commercial",
+     "amount": -2800.0
+    },
+    {
+     "unitId": "B-17",
+     "name": "Sulochana Mane",
+     "group": "commercial",
+     "amount": 1700.0
+    },
+    {
+     "unitId": "B-18",
+     "name": "Ateka Chunawala",
+     "group": "commercial",
+     "amount": 25900.0
+    },
+    {
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor",
+     "group": "commercial",
+     "amount": 1700.0
+    },
+    {
+     "unitId": "B-20",
+     "name": "Shivaji Nikam",
+     "group": "commercial",
+     "amount": -200.0
+    },
+    {
+     "unitId": "B-21",
+     "name": "Murali Daryanmol",
+     "group": "commercial",
+     "amount": 900.0
+    },
+    {
+     "unitId": "C-100",
+     "name": "O.P. Singh",
+     "group": "residential",
+     "amount": 29500.0
+    },
+    {
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase",
+     "group": "residential",
+     "amount": 33200.0
+    },
+    {
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)",
+     "group": "residential",
+     "amount": 5800.0
+    },
+    {
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani",
+     "group": "residential",
+     "amount": 25800.0
+    },
+    {
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi",
+     "group": "residential",
+     "amount": 8300.0
+    },
+    {
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh",
+     "group": "residential",
+     "amount": 33900.0
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta",
+     "group": "residential",
+     "amount": 8100.0
+    },
+    {
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani Neeta",
+     "group": "residential",
+     "amount": 9600.0
+    },
+    {
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh",
+     "group": "residential",
+     "amount": 40200.0
+    },
+    {
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani",
+     "group": "residential",
+     "amount": 9900.0
+    },
+    {
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad",
+     "group": "residential",
+     "amount": 11900.0
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde",
+     "group": "residential",
+     "amount": 3700.0
+    },
+    {
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra",
+     "group": "residential",
+     "amount": 13500.0
+    },
+    {
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane",
+     "group": "residential",
+     "amount": 14900.0
+    },
+    {
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala",
+     "group": "residential",
+     "amount": 26400.0
+    },
+    {
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan",
+     "group": "residential",
+     "amount": 4300.0
+    },
+    {
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi",
+     "group": "residential",
+     "amount": 60800.0
+    },
+    {
+     "unitId": "D-101B",
+     "name": "Dr. Ingale",
+     "group": "residential",
+     "amount": 105000.0
+    },
+    {
+     "unitId": "D-201",
+     "name": "Ramesh Mani",
+     "group": "residential",
+     "amount": 91000.0
+    },
+    {
+     "unitId": "GF-01",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 48900.0
+    },
+    {
+     "unitId": "GF-02",
+     "name": "Premkumar Maindru",
+     "group": "commercial",
+     "amount": 48900.0
+    },
+    {
+     "unitId": "GF-03",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 48900.0
+    },
+    {
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh",
+     "group": "commercial",
+     "amount": 46400.0
+    },
+    {
+     "unitId": "GF-05",
+     "name": "Sajid Faikh",
+     "group": "commercial",
+     "amount": 45900.0
+    },
+    {
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen",
+     "group": "commercial",
+     "amount": 44800.0
+    },
+    {
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "GF-08",
+     "name": "Dipti Sharma",
+     "group": "commercial",
+     "amount": 2200.0
+    },
+    {
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba",
+     "group": "commercial",
+     "amount": 31500.0
+    },
+    {
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen y",
+     "group": "commercial",
+     "amount": 2700.0
+    },
+    {
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 700.0
+    },
+    {
+     "unitId": "GF-12",
+     "name": "Chaitali Snah Pareekshit",
+     "group": "commercial",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao",
+     "group": "commercial",
+     "amount": -10800.0
+    },
+    {
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani",
+     "group": "commercial",
+     "amount": -3700.0
+    },
+    {
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala",
+     "group": "commercial",
+     "amount": 32300.0
+    },
+    {
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi",
+     "group": "commercial",
+     "amount": 10100.0
+    },
+    {
+     "unitId": "GF-17",
+     "name": "Harminder Singh",
+     "group": "commercial",
+     "amount": 26500.0
+    },
+    {
+     "unitId": "GF-18",
+     "name": "Zahir Asif Jawed",
+     "group": "commercial",
+     "amount": 44700.0
+    },
+    {
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik",
+     "group": "commercial",
+     "amount": 12600.0
+    },
+    {
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa",
+     "group": "commercial",
+     "amount": 300.0
+    }
+   ],
+   "duesComplete": true,
+   "bpm": [
+    {
+     "unitId": "C-101",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-201",
+     "amount": 7000
+    },
+    {
+     "unitId": "C-202",
+     "amount": 25000
+    },
+    {
+     "unitId": "C-203",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-301",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-302",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-303",
+     "amount": 42000
+    },
+    {
+     "unitId": "C-401",
+     "amount": 14000
+    },
+    {
+     "unitId": "C-403",
+     "amount": 49000
+    },
+    {
+     "unitId": "C-501",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-502",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-503",
+     "amount": 26000
+    },
+    {
+     "unitId": "B-01",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-10",
+     "amount": 16800
+    },
+    {
+     "unitId": "B-11",
+     "amount": 14400
+    },
+    {
+     "unitId": "B-12",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-14",
+     "amount": 46800
+    },
+    {
+     "unitId": "B-15",
+     "amount": 1300
+    },
+    {
+     "unitId": "B-16",
+     "amount": 47300
+    },
+    {
+     "unitId": "B-17",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-18",
+     "amount": 27300
+    },
+    {
+     "unitId": "B-19",
+     "amount": 33800
+    },
+    {
+     "unitId": "B-02",
+     "amount": 18400
+    },
+    {
+     "unitId": "B-20",
+     "amount": 34800
+    },
+    {
+     "unitId": "B-21",
+     "amount": 500
+    },
+    {
+     "unitId": "B-03",
+     "amount": 5600
+    },
+    {
+     "unitId": "B-05",
+     "amount": 36800
+    },
+    {
+     "unitId": "B-06",
+     "amount": 23300
+    },
+    {
+     "unitId": "B-08",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-09",
+     "amount": 13600
+    },
+    {
+     "unitId": "GF-09",
+     "amount": 24800
+    },
+    {
+     "unitId": "GF-01",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-10",
+     "amount": 35300
+    },
+    {
+     "unitId": "GF-11",
+     "amount": 2400
+    },
+    {
+     "unitId": "GF-12",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-13",
+     "amount": 42800
+    },
+    {
+     "unitId": "GF-14",
+     "amount": 29600
+    },
+    {
+     "unitId": "GF-15",
+     "amount": 20800
+    },
+    {
+     "unitId": "GF-16",
+     "amount": 16800
+    },
+    {
+     "unitId": "GF-17",
+     "amount": 22400
+    },
+    {
+     "unitId": "GF-18",
+     "amount": 31300
+    },
+    {
+     "unitId": "GF-19",
+     "amount": 24300
+    },
+    {
+     "unitId": "GF-02",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-20",
+     "amount": 26200
+    },
+    {
+     "unitId": "GF-03",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-04",
+     "amount": 3200
+    },
+    {
+     "unitId": "GF-05",
+     "amount": 12800
+    },
+    {
+     "unitId": "GF-08",
+     "amount": 55000
+    }
+   ],
+   "bpmTotal": 1423900,
+   "members": [
+    {
+     "sn": 1,
+     "unitId": "A-101",
+     "name": "Salim S Nurani"
+    },
+    {
+     "sn": 2,
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya"
+    },
+    {
+     "sn": 3,
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar"
+    },
+    {
+     "sn": 4,
+     "unitId": "B-01",
+     "name": "Inamdar"
+    },
+    {
+     "sn": 5,
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 6,
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 7,
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala"
+    },
+    {
+     "sn": 8,
+     "unitId": "B-05",
+     "name": "Pradeep Giri"
+    },
+    {
+     "sn": 9,
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary"
+    },
+    {
+     "sn": 10,
+     "unitId": "B-07",
+     "name": "A Vieyra"
+    },
+    {
+     "sn": 11,
+     "unitId": "B-08",
+     "name": "Komal Ratnani"
+    },
+    {
+     "sn": 12,
+     "unitId": "B-09",
+     "name": "Umesh Pawar"
+    },
+    {
+     "sn": 13,
+     "unitId": "B-10",
+     "name": "Raj Sarin"
+    },
+    {
+     "sn": 14,
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda"
+    },
+    {
+     "sn": 15,
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi"
+    },
+    {
+     "sn": 16,
+     "unitId": "B-13",
+     "name": "Ravi Kaur"
+    },
+    {
+     "sn": 17,
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala"
+    },
+    {
+     "sn": 18,
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani"
+    },
+    {
+     "sn": 19,
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala"
+    },
+    {
+     "sn": 20,
+     "unitId": "B-17",
+     "name": "Sulochana Mane"
+    },
+    {
+     "sn": 21,
+     "unitId": "B-18",
+     "name": "Ateka Chunawala"
+    },
+    {
+     "sn": 22,
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor"
+    },
+    {
+     "sn": 23,
+     "unitId": "B-20",
+     "name": "Shivaji Nikam"
+    },
+    {
+     "sn": 24,
+     "unitId": "B-21",
+     "name": "Murali Daryanmol"
+    },
+    {
+     "sn": 25,
+     "unitId": "C-100",
+     "name": "O.P. Singh"
+    },
+    {
+     "sn": 26,
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase"
+    },
+    {
+     "sn": 27,
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)"
+    },
+    {
+     "sn": 28,
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani"
+    },
+    {
+     "sn": 29,
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi"
+    },
+    {
+     "sn": 30,
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh"
+    },
+    {
+     "sn": 31,
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta"
+    },
+    {
+     "sn": 32,
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani"
+    },
+    {
+     "sn": 33,
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh"
+    },
+    {
+     "sn": 34,
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani"
+    },
+    {
+     "sn": 35,
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad"
+    },
+    {
+     "sn": 36,
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde"
+    },
+    {
+     "sn": 37,
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra"
+    },
+    {
+     "sn": 38,
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane"
+    },
+    {
+     "sn": 39,
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala"
+    },
+    {
+     "sn": 40,
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan"
+    },
+    {
+     "sn": 41,
+     "unitId": "GF-01",
+     "name": ""
+    },
+    {
+     "sn": 42,
+     "unitId": "GF-02",
+     "name": ""
+    },
+    {
+     "sn": 43,
+     "unitId": "GF-03",
+     "name": ""
+    },
+    {
+     "sn": 44,
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh"
+    },
+    {
+     "sn": 45,
+     "unitId": "GF-05",
+     "name": "Sajid Faikh"
+    },
+    {
+     "sn": 46,
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen"
+    },
+    {
+     "sn": 47,
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah"
+    },
+    {
+     "sn": 48,
+     "unitId": "GF-08",
+     "name": ""
+    },
+    {
+     "sn": 49,
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba"
+    },
+    {
+     "sn": 50,
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen"
+    },
+    {
+     "sn": 51,
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 52,
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 53,
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao"
+    },
+    {
+     "sn": 54,
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani"
+    },
+    {
+     "sn": 55,
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala"
+    },
+    {
+     "sn": 56,
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi"
+    },
+    {
+     "sn": 57,
+     "unitId": "GF-17",
+     "name": "Harminder Singh"
+    },
+    {
+     "sn": 58,
+     "unitId": "GF-18",
+     "name": ""
+    },
+    {
+     "sn": 59,
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik"
+    },
+    {
+     "sn": 60,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 61,
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi"
+    },
+    {
+     "sn": 62,
+     "unitId": "D-101B",
+     "name": "Dr. Ingale"
+    },
+    {
+     "sn": 63,
+     "unitId": "D-201",
+     "name": "Ramesh Mani"
+    },
+    {
+     "sn": 64,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 65,
+     "unitId": "GF-21",
+     "name": ""
+    }
+   ],
+   "committee": [
+    {
+     "unitId": "C-502",
+     "name": "Mr Lokandwala",
+     "role": "Chairman"
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr Chanchal Sakarde",
+     "role": "Treasurer"
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr Deepak Pramod Gupta",
+     "role": "Secretary"
+    },
+    {
+     "unitId": "C-503",
+     "name": "Saji Rajan",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-302",
+     "name": "Sandeep Singh",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-303",
+     "name": "Ram Moryani",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-102",
+     "name": "Mrs Nandani Bhattacharya",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mr Pimpalkar",
+     "role": "Member"
+    }
+   ],
+   "notes": [
+    "The opening I&E balance is shown as ₹9,49,482.18 (previous year’s balance sheet: ₹9,49,482.08); a 10-paise difference carried in the printed figures.",
+    "Row 46 is labelled “GF 3”; its amount (₹3,200) is GF 04’s, as in earlier years. GF 07 (nil) is no longer listed."
+   ],
+   "memberNotes": [
+    "The same list of 65 rows is attached to every year’s report; the audit reports state 63 ordinary members.",
+    "“Ground Fl - 20 Amarjeet Khalsa” appears twice (rows 60 and 64) and row 65 “Ground Fl - 21” has no name. A 100 and D 202 are not listed.",
+    "Rows for GF 01, 02, 03, 08 and 18 have no name; the dues lists show GF 01–03 as Premkumar Mahindru and GF 08 as Dipti Sharma, GF 18 as Zahir Asif Jawed."
+   ],
+   "document": "Audited accounts 2016-17",
+   "from": "2016-04-01"
+  },
+  {
+   "fy": "2017-18",
+   "to": "2018-03-31",
+   "auditor": {
+    "name": "Akhtar Imam Shaikh",
+    "role": "Certified Auditor & Tax Consultant",
+    "panel": "16657",
+    "place": "Pune"
+   },
+   "auditClass": "B",
+   "reportDate": "2018-06-12",
+   "appointment": "Audited under the order of the Co-operative Department (Section 81(1B), MCS Act 1960).",
+   "agmDate": "2017-09-27",
+   "committeeMeetings": 10,
+   "ordinaryMembers": 63,
+   "officeBearers": {
+    "chairman": "Mr Lokhandwala",
+    "secretary": "Mr Gupta",
+    "treasurer": "Mr Chanchal"
+   },
+   "auditFee": {
+    "amount": 6300,
+    "bill": "17-18/61 dated 12 Jun 2018"
+   },
+   "accountingFee": {
+    "by": "AQSSA Consultancy",
+    "amount": 14868,
+    "detail": "₹200 × 63 members = ₹12,600 + SGST ₹1,134 + CGST ₹1,134"
+   },
+   "compliance": [
+    "Rule 107(C)(1.5.1): cash in hand exceeded the permitted limit.",
+    "Section 70: no provision made for the State Education Fund."
+   ],
+   "suggestions": [
+    "Obtain confirmations of maintenance receivable and advance maintenance from members, and of security deposits or advances to third parties.",
+    "Deduct TDS wherever applicable under the Income Tax Act, 1961."
+   ],
+   "overall": "The overall activities of the Society are satisfactory. The recovery of maintenance charges by the managing committee is satisfactory.",
+   "incomeExpenditure": {
+    "asPrinted": "For the Year Ended 31.03.2018",
+    "page": 22,
+    "income": [
+     {
+      "group": "Direct Incomes",
+      "total": 1110200,
+      "items": [
+       {
+        "name": "Lift Maintenance Charges Received",
+        "amount": 17000
+       },
+       {
+        "name": "Society Maintenance Charges Received",
+        "amount": 1093200
+       },
+       {
+        "name": "Drainage Work Receipt",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "group": "Indirect Incomes",
+      "total": 3019,
+      "items": [
+       {
+        "name": "Interest on FD",
+        "amount": 3019
+       }
+      ]
+     }
+    ],
+    "expenditure": [
+     {
+      "group": "Direct Expenses",
+      "total": 504601,
+      "items": [
+       {
+        "name": "Civil Work Exp",
+        "amount": 0
+       },
+       {
+        "name": "Diesel for Genset and Transport",
+        "amount": 10100
+       },
+       {
+        "name": "Drainage Work",
+        "amount": 1120
+       },
+       {
+        "name": "Electrical Material Expenses",
+        "amount": 17498
+       },
+       {
+        "name": "Fabrication Work Exp",
+        "amount": 0
+       },
+       {
+        "name": "Common Light Bill",
+        "amount": 4000
+       },
+       {
+        "name": "House Keeping Exp.",
+        "amount": 131000
+       },
+       {
+        "name": "Gardening Expenses",
+        "amount": 1400
+       },
+       {
+        "name": "Parking Charges",
+        "amount": 25
+       },
+       {
+        "name": "Plumbing Work",
+        "amount": 15090
+       },
+       {
+        "name": "Gardening Material",
+        "amount": 1600
+       },
+       {
+        "name": "House Keeping Material",
+        "amount": 5916
+       },
+       {
+        "name": "Lift Maintenance Charges",
+        "amount": 6000
+       },
+       {
+        "name": "MSEB Light Bill",
+        "amount": 67892
+       },
+       {
+        "name": "Repair & Maintenance Exp.",
+        "amount": 48560
+       },
+       {
+        "name": "Security Staff Payment",
+        "amount": 186000
+       },
+       {
+        "name": "Society Cleaning Charges",
+        "amount": 8400
+       }
+      ]
+     },
+     {
+      "group": "Indirect Expenses",
+      "total": 188507.69,
+      "items": [
+       {
+        "name": "Accounting Charges",
+        "amount": 12600
+       },
+       {
+        "name": "Audit Fee",
+        "amount": 6300
+       },
+       {
+        "name": "Bank Charges",
+        "amount": 88.5
+       },
+       {
+        "name": "Depreciation",
+        "amount": 46801.19
+       },
+       {
+        "name": "Education Fund",
+        "amount": 630
+       },
+       {
+        "name": "Festival & Celebration Exp",
+        "amount": 12601
+       },
+       {
+        "name": "Generator-Set Charges",
+        "amount": 13023
+       },
+       {
+        "name": "Travelling Expenses",
+        "amount": 500
+       },
+       {
+        "name": "Legal Expense",
+        "amount": 2000
+       },
+       {
+        "name": "Meeting Expenses",
+        "amount": 756
+       },
+       {
+        "name": "Office Expenses",
+        "amount": 7549
+       },
+       {
+        "name": "Staff Diwali Bonus",
+        "amount": 4000
+       },
+       {
+        "name": "Printing & Stationery",
+        "amount": 652
+       },
+       {
+        "name": "Society Expenses",
+        "amount": 9007
+       },
+       {
+        "name": "Salary & Wages",
+        "amount": 72000
+       }
+      ]
+     }
+    ],
+    "printedTotal": 1113219
+   },
+   "income": 1113219,
+   "expenditure": 693108.69,
+   "surplus": 420110.31,
+   "balanceSheet": {
+    "asPrinted": "Balance Sheet 1-Apr-2017 to 31-Mar-2018",
+    "page": 23,
+    "total": 3558028.29,
+    "liabilities": [
+     {
+      "group": "Capital Account",
+      "total": 1753200,
+      "items": [
+       {
+        "name": "Reserve Fund",
+        "amount": 1743700
+       },
+       {
+        "name": "Share Capital",
+        "amount": 9500
+       }
+      ]
+     },
+     {
+      "group": "Current Liabilities",
+      "total": 19340,
+      "items": [
+       {
+        "name": "Accounting Charges Payable",
+        "amount": 0
+       },
+       {
+        "name": "Expenses Payable",
+        "amount": 5000
+       },
+       {
+        "name": "Staff Security Bill",
+        "amount": 0
+       },
+       {
+        "name": "MSEB Payable",
+        "amount": 12450
+       },
+       {
+        "name": "Audit Fee Payable",
+        "amount": 0
+       },
+       {
+        "name": "Education Fund Payable",
+        "amount": 1890
+       }
+      ]
+     },
+     {
+      "group": "Income & Expenditure Account",
+      "total": 1785488.29,
+      "items": [
+       {
+        "name": "Opening Balance",
+        "amount": 1365377.98
+       },
+       {
+        "name": "Current Period",
+        "amount": 420110.31
+       }
+      ]
+     }
+    ],
+    "assets": [
+     {
+      "group": "Fixed Assets",
+      "total": 207101.79,
+      "items": [
+       {
+        "name": "Battery for Genset",
+        "amount": 3714.97
+       },
+       {
+        "name": "Furniture",
+        "amount": 10306.26
+       },
+       {
+        "name": "Water Pump Kit",
+        "amount": 5261.84
+       },
+       {
+        "name": "Submersible Motor 5 HP",
+        "amount": 5657.72
+       },
+       {
+        "name": "CC TV",
+        "amount": 173901
+       },
+       {
+        "name": "Computer",
+        "amount": 8260
+       }
+      ]
+     },
+     {
+      "group": "Investment",
+      "total": 223017.4,
+      "items": [
+       {
+        "name": "Fixed Deposits",
+        "amount": 223017.4
+       }
+      ]
+     },
+     {
+      "group": "Current Assets & Loans and Advances",
+      "total": 3127909.1,
+      "items": [
+       {
+        "name": "Loans and Advances",
+        "amount": 0
+       },
+       {
+        "name": "Sundry Debtors",
+        "amount": 3023820
+       },
+       {
+        "name": "Cash-in-hand",
+        "amount": 4263
+       },
+       {
+        "name": "IDBI Bank",
+        "amount": 90326.1
+       },
+       {
+        "name": "PDCC Bank",
+        "amount": 9500
+       }
+      ]
+     }
+    ]
+   },
+   "debtors": {
+    "commercial": 812700,
+    "residential": 799220,
+    "members": 1611920,
+    "builderPending": 1411900
+   },
+   "dues": [
+    {
+     "unitId": "A-101",
+     "name": "Salim S Nurani",
+     "group": "residential",
+     "amount": 7700.0
+    },
+    {
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya",
+     "group": "residential",
+     "amount": 800.0
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar",
+     "group": "residential",
+     "amount": 30500.0
+    },
+    {
+     "unitId": "B-01",
+     "name": "Inamdar Rehana",
+     "group": "commercial",
+     "amount": 55500.0
+    },
+    {
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 2000.0
+    },
+    {
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal",
+     "group": "commercial",
+     "amount": 10500.0
+    },
+    {
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala",
+     "group": "commercial",
+     "amount": 13200.0
+    },
+    {
+     "unitId": "B-05",
+     "name": "Pradeep Giri",
+     "group": "commercial",
+     "amount": 4700.0
+    },
+    {
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary",
+     "group": "commercial",
+     "amount": 55700.0
+    },
+    {
+     "unitId": "B-07",
+     "name": "A Vieyra",
+     "group": "commercial",
+     "amount": -2400.0
+    },
+    {
+     "unitId": "B-08",
+     "name": "Komal Ratnani",
+     "group": "commercial",
+     "amount": 12000.0
+    },
+    {
+     "unitId": "B-09",
+     "name": "Umesh Pawar",
+     "group": "commercial",
+     "amount": 14200.0
+    },
+    {
+     "unitId": "B-10",
+     "name": "Raj Sarin",
+     "group": "commercial",
+     "amount": 4800.0
+    },
+    {
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda",
+     "group": "commercial",
+     "amount": 5800.0
+    },
+    {
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi",
+     "group": "commercial",
+     "amount": 5300.0
+    },
+    {
+     "unitId": "B-13",
+     "name": "Ravi Kaur",
+     "group": "commercial",
+     "amount": -7200.0
+    },
+    {
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala",
+     "group": "commercial",
+     "amount": 32200.0
+    },
+    {
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani",
+     "group": "commercial",
+     "amount": 5400.0
+    },
+    {
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala",
+     "group": "commercial",
+     "amount": -4400.0
+    },
+    {
+     "unitId": "B-17",
+     "name": "Sulochana Mane",
+     "group": "commercial",
+     "amount": 1700.0
+    },
+    {
+     "unitId": "B-18",
+     "name": "Ateka Chunawala",
+     "group": "commercial",
+     "amount": 39100.0
+    },
+    {
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor",
+     "group": "commercial",
+     "amount": 7400.0
+    },
+    {
+     "unitId": "B-20",
+     "name": "Shivaji Nikam",
+     "group": "commercial",
+     "amount": -200.0
+    },
+    {
+     "unitId": "B-21",
+     "name": "Murali Daryanmol",
+     "group": "commercial",
+     "amount": 900.0
+    },
+    {
+     "unitId": "C-100",
+     "name": "O.P. Singh",
+     "group": "residential",
+     "amount": 31500.0
+    },
+    {
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase",
+     "group": "residential",
+     "amount": 49800.0
+    },
+    {
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)",
+     "group": "residential",
+     "amount": 26800.0
+    },
+    {
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani",
+     "group": "residential",
+     "amount": 10100.0
+    },
+    {
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi",
+     "group": "residential",
+     "amount": 24900.0
+    },
+    {
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh",
+     "group": "residential",
+     "amount": 19500.0
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta",
+     "group": "residential",
+     "amount": 24700.0
+    },
+    {
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani Neeta",
+     "group": "residential",
+     "amount": 26200.0
+    },
+    {
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh",
+     "group": "residential",
+     "amount": 56800.0
+    },
+    {
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani",
+     "group": "residential",
+     "amount": 26500.0
+    },
+    {
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad",
+     "group": "residential",
+     "amount": 12900.0
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde",
+     "group": "residential",
+     "amount": -14180.0
+    },
+    {
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra",
+     "group": "residential",
+     "amount": 18900.0
+    },
+    {
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane",
+     "group": "residential",
+     "amount": 32700.0
+    },
+    {
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala",
+     "group": "residential",
+     "amount": 43000.0
+    },
+    {
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan",
+     "group": "residential",
+     "amount": 20900.0
+    },
+    {
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi",
+     "group": "residential",
+     "amount": 90800.0
+    },
+    {
+     "unitId": "D-101B",
+     "name": "Dr. Ingale",
+     "group": "residential",
+     "amount": 135000.0
+    },
+    {
+     "unitId": "D-201",
+     "name": "Ramesh Mani",
+     "group": "residential",
+     "amount": 123400.0
+    },
+    {
+     "unitId": "GF-01",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 60900.0
+    },
+    {
+     "unitId": "GF-02",
+     "name": "Premkumar Maindru",
+     "group": "commercial",
+     "amount": 60900.0
+    },
+    {
+     "unitId": "GF-03",
+     "name": "Premkumar Mahindru",
+     "group": "commercial",
+     "amount": 60900.0
+    },
+    {
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh",
+     "group": "commercial",
+     "amount": 65600.0
+    },
+    {
+     "unitId": "GF-05",
+     "name": "Sajid Faikh",
+     "group": "commercial",
+     "amount": 65100.0
+    },
+    {
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen",
+     "group": "commercial",
+     "amount": 47800.0
+    },
+    {
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah",
+     "group": "commercial",
+     "amount": -4800.0
+    },
+    {
+     "unitId": "GF-08",
+     "name": "Dipti Sharma",
+     "group": "commercial",
+     "amount": 15400.0
+    },
+    {
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba",
+     "group": "commercial",
+     "amount": 32700.0
+    },
+    {
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen",
+     "group": "commercial",
+     "amount": -2300.0
+    },
+    {
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 700.0
+    },
+    {
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit",
+     "group": "commercial",
+     "amount": 9000.0
+    },
+    {
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao",
+     "group": "commercial",
+     "amount": 8400.0
+    },
+    {
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani",
+     "group": "commercial",
+     "amount": 5900.0
+    },
+    {
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala",
+     "group": "commercial",
+     "amount": 51500.0
+    },
+    {
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi",
+     "group": "commercial",
+     "amount": 9200.0
+    },
+    {
+     "unitId": "GF-18",
+     "name": "Zahir Asif Jawed",
+     "group": "commercial",
+     "amount": 56700.0
+    },
+    {
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik is AN",
+     "group": "commercial",
+     "amount": 12600.0
+    },
+    {
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa",
+     "group": "commercial",
+     "amount": 300.0
+    }
+   ],
+   "duesComplete": true,
+   "bpm": [
+    {
+     "unitId": "C-101",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-201",
+     "amount": 7000
+    },
+    {
+     "unitId": "C-202",
+     "amount": 25000
+    },
+    {
+     "unitId": "C-203",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-301",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-302",
+     "amount": 31000
+    },
+    {
+     "unitId": "C-303",
+     "amount": 42000
+    },
+    {
+     "unitId": "C-401",
+     "amount": 14000
+    },
+    {
+     "unitId": "C-403",
+     "amount": 49000
+    },
+    {
+     "unitId": "C-501",
+     "amount": 43000
+    },
+    {
+     "unitId": "C-502",
+     "amount": 60000
+    },
+    {
+     "unitId": "C-503",
+     "amount": 26000
+    },
+    {
+     "unitId": "B-01",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-10",
+     "amount": 4800
+    },
+    {
+     "unitId": "B-11",
+     "amount": 14400
+    },
+    {
+     "unitId": "B-12",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-14",
+     "amount": 46800
+    },
+    {
+     "unitId": "B-15",
+     "amount": 1300
+    },
+    {
+     "unitId": "B-16",
+     "amount": 47300
+    },
+    {
+     "unitId": "B-17",
+     "amount": 41300
+    },
+    {
+     "unitId": "B-18",
+     "amount": 27300
+    },
+    {
+     "unitId": "B-19",
+     "amount": 33800
+    },
+    {
+     "unitId": "B-02",
+     "amount": 18400
+    },
+    {
+     "unitId": "B-20",
+     "amount": 34800
+    },
+    {
+     "unitId": "B-21",
+     "amount": 500
+    },
+    {
+     "unitId": "B-03",
+     "amount": 5600
+    },
+    {
+     "unitId": "B-05",
+     "amount": 36800
+    },
+    {
+     "unitId": "B-06",
+     "amount": 23300
+    },
+    {
+     "unitId": "B-08",
+     "amount": 24800
+    },
+    {
+     "unitId": "B-09",
+     "amount": 13600
+    },
+    {
+     "unitId": "GF-09",
+     "amount": 24800
+    },
+    {
+     "unitId": "GF-01",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-10",
+     "amount": 35300
+    },
+    {
+     "unitId": "GF-11",
+     "amount": 2400
+    },
+    {
+     "unitId": "GF-12",
+     "amount": 27300
+    },
+    {
+     "unitId": "GF-13",
+     "amount": 42800
+    },
+    {
+     "unitId": "GF-14",
+     "amount": 29600
+    },
+    {
+     "unitId": "GF-15",
+     "amount": 20800
+    },
+    {
+     "unitId": "GF-16",
+     "amount": 16800
+    },
+    {
+     "unitId": "GF-17",
+     "amount": 22400
+    },
+    {
+     "unitId": "GF-18",
+     "amount": 31300
+    },
+    {
+     "unitId": "GF-19",
+     "amount": 24300
+    },
+    {
+     "unitId": "GF-02",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-20",
+     "amount": 26200
+    },
+    {
+     "unitId": "GF-03",
+     "amount": 55000
+    },
+    {
+     "unitId": "GF-04",
+     "amount": 3200
+    },
+    {
+     "unitId": "GF-05",
+     "amount": 12800
+    },
+    {
+     "unitId": "GF-08",
+     "amount": 55000
+    }
+   ],
+   "bpmTotal": 1411900,
+   "members": [
+    {
+     "sn": 1,
+     "unitId": "A-101",
+     "name": "Salim S Nurani"
+    },
+    {
+     "sn": 2,
+     "unitId": "A-102",
+     "name": "Dr. Anand Bhattacharya"
+    },
+    {
+     "sn": 3,
+     "unitId": "A-103",
+     "name": "Mrs. Jyoti Vinod Pimparkar"
+    },
+    {
+     "sn": 4,
+     "unitId": "B-01",
+     "name": "Inamdar"
+    },
+    {
+     "sn": 5,
+     "unitId": "B-02",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 6,
+     "unitId": "B-03",
+     "name": "Ibrahim Poonawal"
+    },
+    {
+     "sn": 7,
+     "unitId": "B-04",
+     "name": "Quaizohar Majevediwala"
+    },
+    {
+     "sn": 8,
+     "unitId": "B-05",
+     "name": "Pradeep Giri"
+    },
+    {
+     "sn": 9,
+     "unitId": "B-06",
+     "name": "Bhuraram Choudhary"
+    },
+    {
+     "sn": 10,
+     "unitId": "B-07",
+     "name": "A Vieyra"
+    },
+    {
+     "sn": 11,
+     "unitId": "B-08",
+     "name": "Komal Ratnani"
+    },
+    {
+     "sn": 12,
+     "unitId": "B-09",
+     "name": "Umesh Pawar"
+    },
+    {
+     "sn": 13,
+     "unitId": "B-10",
+     "name": "Raj Sarin"
+    },
+    {
+     "sn": 14,
+     "unitId": "B-11",
+     "name": "Sunita Dinesh Manchanda"
+    },
+    {
+     "sn": 15,
+     "unitId": "B-12",
+     "name": "Chhotelal Ramjeevan Pardeshi"
+    },
+    {
+     "sn": 16,
+     "unitId": "B-13",
+     "name": "Ravi Kaur"
+    },
+    {
+     "sn": 17,
+     "unitId": "B-14",
+     "name": "Shri Tasneem S. Lokhandwala"
+    },
+    {
+     "sn": 18,
+     "unitId": "B-15",
+     "name": "Rohit Ramesh Sujanani"
+    },
+    {
+     "sn": 19,
+     "unitId": "B-16",
+     "name": "Moiz Burhanpurwala"
+    },
+    {
+     "sn": 20,
+     "unitId": "B-17",
+     "name": "Sulochana Mane"
+    },
+    {
+     "sn": 21,
+     "unitId": "B-18",
+     "name": "Ateka Chunawala"
+    },
+    {
+     "sn": 22,
+     "unitId": "B-19",
+     "name": "Manju Pradip Kapoor"
+    },
+    {
+     "sn": 23,
+     "unitId": "B-20",
+     "name": "Shivaji Nikam"
+    },
+    {
+     "sn": 24,
+     "unitId": "B-21",
+     "name": "Murali Daryanmol"
+    },
+    {
+     "sn": 25,
+     "unitId": "C-100",
+     "name": "O.P. Singh"
+    },
+    {
+     "sn": 26,
+     "unitId": "C-101",
+     "name": "Smt Jyoti Ramesh Surwase"
+    },
+    {
+     "sn": 27,
+     "unitId": "C-102",
+     "name": "SOM Solution (Runal R Sakla)"
+    },
+    {
+     "sn": 28,
+     "unitId": "C-103",
+     "name": "Smt. Leela Mohal Gulwani"
+    },
+    {
+     "sn": 29,
+     "unitId": "C-201",
+     "name": "Mr. Anand Rathi"
+    },
+    {
+     "sn": 30,
+     "unitId": "C-202",
+     "name": "Mr. Om Prakash Singh"
+    },
+    {
+     "sn": 31,
+     "unitId": "C-203",
+     "name": "Mr. Deepak Pramod Gupta"
+    },
+    {
+     "sn": 32,
+     "unitId": "C-301",
+     "name": "Govardhan D Lakhani"
+    },
+    {
+     "sn": 33,
+     "unitId": "C-302",
+     "name": "Mr. Sandeep Tejraj Singh"
+    },
+    {
+     "sn": 34,
+     "unitId": "C-303",
+     "name": "Mr. Ram Moryani"
+    },
+    {
+     "sn": 35,
+     "unitId": "C-401",
+     "name": "Mrs. Vijayan Rajendra Prasad"
+    },
+    {
+     "sn": 36,
+     "unitId": "C-402",
+     "name": "Mr. Chanchal Sakarde"
+    },
+    {
+     "sn": 37,
+     "unitId": "C-403",
+     "name": "Veerkumar Vidyachandra"
+    },
+    {
+     "sn": 38,
+     "unitId": "C-501",
+     "name": "Mrs Usha Ramesh Mane"
+    },
+    {
+     "sn": 39,
+     "unitId": "C-502",
+     "name": "Mr. Lokandwala"
+    },
+    {
+     "sn": 40,
+     "unitId": "C-503",
+     "name": "Mr. Saji Rajan"
+    },
+    {
+     "sn": 41,
+     "unitId": "GF-01",
+     "name": ""
+    },
+    {
+     "sn": 42,
+     "unitId": "GF-02",
+     "name": ""
+    },
+    {
+     "sn": 43,
+     "unitId": "GF-03",
+     "name": ""
+    },
+    {
+     "sn": 44,
+     "unitId": "GF-04",
+     "name": "Mazhar Shaikh"
+    },
+    {
+     "sn": 45,
+     "unitId": "GF-05",
+     "name": "Sajid Faikh"
+    },
+    {
+     "sn": 46,
+     "unitId": "GF-06",
+     "name": "Rashmi / Bharkha Shownkeen"
+    },
+    {
+     "sn": 47,
+     "unitId": "GF-07",
+     "name": "Asit Chandrakant Shah"
+    },
+    {
+     "sn": 48,
+     "unitId": "GF-08",
+     "name": ""
+    },
+    {
+     "sn": 49,
+     "unitId": "GF-09",
+     "name": "Mehrunissa Lamba"
+    },
+    {
+     "sn": 50,
+     "unitId": "GF-10",
+     "name": "Prem Kumar Sareen"
+    },
+    {
+     "sn": 51,
+     "unitId": "GF-11",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 52,
+     "unitId": "GF-12",
+     "name": "Chaitali Shah Pareekshit"
+    },
+    {
+     "sn": 53,
+     "unitId": "GF-13",
+     "name": "Kadam S Anandrao"
+    },
+    {
+     "sn": 54,
+     "unitId": "GF-14",
+     "name": "Shilpa Nawani"
+    },
+    {
+     "sn": 55,
+     "unitId": "GF-15",
+     "name": "Shabbir Akolawala"
+    },
+    {
+     "sn": 56,
+     "unitId": "GF-16",
+     "name": "Kanchan Arjun Punjabi"
+    },
+    {
+     "sn": 57,
+     "unitId": "GF-17",
+     "name": "Harminder Singh"
+    },
+    {
+     "sn": 58,
+     "unitId": "GF-18",
+     "name": ""
+    },
+    {
+     "sn": 59,
+     "unitId": "GF-19",
+     "name": "Kalpana A Karnik"
+    },
+    {
+     "sn": 60,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 61,
+     "unitId": "D-101A",
+     "name": "Dr. Chandra Shekhar Sanghvi"
+    },
+    {
+     "sn": 62,
+     "unitId": "D-101B",
+     "name": "Dr. Ingale"
+    },
+    {
+     "sn": 63,
+     "unitId": "D-201",
+     "name": "Ramesh Mani"
+    },
+    {
+     "sn": 64,
+     "unitId": "GF-20",
+     "name": "Amarjeet Khalsa"
+    },
+    {
+     "sn": 65,
+     "unitId": "GF-21",
+     "name": ""
+    }
+   ],
+   "committee": [
+    {
+     "unitId": "C-502",
+     "name": "Mr Lokandwala",
+     "role": "Chairman"
+    },
+    {
+     "unitId": "C-402",
+     "name": "Mr Chanchal Sakarde",
+     "role": "Treasurer"
+    },
+    {
+     "unitId": "C-203",
+     "name": "Mr Deepak Pramod Gupta",
+     "role": "Secretary"
+    },
+    {
+     "unitId": "C-503",
+     "name": "Saji Rajan",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-302",
+     "name": "Sandeep Singh",
+     "role": "Member"
+    },
+    {
+     "unitId": "C-303",
+     "name": "Ram Moryani",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-102",
+     "name": "Mrs Nandani Bhattacharya",
+     "role": "Member"
+    },
+    {
+     "unitId": "A-103",
+     "name": "Mr Pimpalkar",
+     "role": "Member"
+    }
+   ],
+   "notes": [
+    "Reserve Fund rose by ₹25,600 to ₹17,43,700 (the audit report text says it was unchanged).",
+    "Row 46 is labelled “GF 3”; its amount (₹3,200) is GF 04’s.",
+    "B 10 (Raj Sarin): ₹4,800 here, but the Tally ledger opens on 1 April 2018 at ₹300."
+   ],
+   "memberNotes": [
+    "The same list of 65 rows is attached to every year’s report; the audit reports state 63 ordinary members.",
+    "“Ground Fl - 20 Amarjeet Khalsa” appears twice (rows 60 and 64) and row 65 “Ground Fl - 21” has no name. A 100 and D 202 are not listed.",
+    "Rows for GF 01, 02, 03, 08 and 18 have no name; the dues lists show GF 01–03 as Premkumar Mahindru and GF 08 as Dipti Sharma, GF 18 as Zahir Asif Jawed."
+   ],
+   "document": "Audited accounts 2017-18",
+   "from": "2017-04-01"
+  }
+ ]
+}
