@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Sunshree Suntec CHS – access rules (version 3.1)
+// Sunshree Suntec CHS – access rules (version 3.2)
 //
 //   public/dues, public/site        anyone can read (the website); dues amounts are masked here
 //   private/dues                    real amounts: approved members and committee / staff
@@ -141,6 +141,13 @@ service cloud.firestore {
         allow create: if moneyPerm() && request.resource.data.date > lockDate();
         allow update, delete: if false;   // ledger entries are permanent; mistakes are corrected by new entries
       }
+      // Receipts kept by the past committee (2011–2016): read by the accounts team and the unit's approved member;
+      // added or corrected by the committee or staff with the corrections permission; never deleted (mark as removed instead).
+      match /pastReceipts/{rid} {
+        allow read: if perm('view') || approvedFor(unitId);
+        allow create, update: if perm('corrections');
+        allow delete: if false;
+      }
       // Tally ledger history up to the takeover date (read-only, loaded by the committee).
       match /history/{docId} {
         allow read: if perm('view') || approvedFor(unitId);
@@ -195,6 +202,13 @@ service cloud.firestore {
     match /auditYears/{fy} {
       allow read: if perm('view') || approvedMember();
       allow write: if isCommittee();
+    }
+
+    // Permanent log of every change to the past committee's receipts (who, when, what, why).
+    match /pastReceiptEdits/{id} {
+      allow read: if perm('view');
+      allow create: if perm('corrections') && request.resource.data.by == request.auth.uid;
+      allow update, delete: if false;
     }
 
     // Read-only copy of the whole Tally books (groups, ledgers, vouchers) from the migration.

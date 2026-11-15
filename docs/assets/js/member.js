@@ -4,6 +4,7 @@ import { initFirebase, errorText, googleSignIn } from './firebase.js';
 import { getDues, fmt, esc, ownerCell } from './data.js';
 import { ddmmyyyy, monthLabel, money, todayIST } from './billing-core.js';
 import { mergeLedger } from './accounts.js';
+import { loadPastReceipts, preLedger } from './pastreceipts.js';
 import { loadAuditYears, listArchive, openArchiveDoc, yearEndRows } from './archive.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -273,9 +274,11 @@ async function loadAccount() {
 
   const liveEntries = ledgerSnap.docs.map((d) => d.data())
     .sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
-  // Full history: the Society's Tally ledger up to 30 Sep 2026, then these accounts.
-  const entries = mergeLedger(liveEntries, histSnap?.exists() ? histSnap.data() : null);
+  // Full history: 2011-12 to 2017-18 (past committee's receipts, balanced to the audited figures each 31 March),
+  // then the Society's Tally ledger up to 30 Sep 2026, then these accounts.
   audits = await loadAuditYears(fb).catch(() => []);
+  const oldReceipts = await loadPastReceipts(fb, unitId).catch(() => []);
+  const entries = mergeLedger(liveEntries, histSnap?.exists() ? histSnap.data() : null, preLedger(unitId, audits, oldReceipts));
   const cr = (v) => (v < 0 ? `<span class="amt-credit">${fmt(-v)} Cr</span>` : fmt(v));
   $('#account-years').innerHTML = yearEndRows(unitId, audits, entries, todayIST()).map((r) => `<tr>
     <td>${esc(r.fy)}</td><td>${ddmmyyyy(r.asOn)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}${r.note ? ` <small class="muted">${esc(r.note)}</small>` : ''}</td>
@@ -284,7 +287,7 @@ async function loadAccount() {
   let bal = 0;
   $('#account-ledger').innerHTML = entries.map((e) => {
     bal += (e.debit || 0) - (e.credit || 0);
-    return `<tr><td>${ddmmyyyy(e.date)}</td><td>${esc(e.particulars)}</td><td>${esc(e.receipt || '')}</td>
+    return `<tr${e.kind === 'memo' ? ' class="muted"' : ''}><td>${ddmmyyyy(e.date)}</td><td>${esc(e.particulars)}</td><td>${esc(e.receipt || '')}</td>
       <td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td>
       <td class="num">${bal < 0 ? `<span class="amt-credit">${fmt(-bal)} Cr</span>` : fmt(bal)}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No account entries yet.</td></tr>';

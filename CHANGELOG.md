@@ -6,6 +6,29 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.2.0] – 2026-11-15 – Past committee's receipts (2011–2016) in every unit ledger
+
+### Added
+- **Old receipts 2011–2016**: the per-unit receipt sheets kept by the past committee (MS EXCEL SHEET FROM PAST COMMITTEE.zip) are loaded into each unit as `units/{id}/pastReceipts/*` (Settings → *Past committee receipts*, from `past-receipts-2011-2016.json`, kept private). 1,099 lines for 57 units, 20 Oct 2011 to 22 Oct 2016: 1,088 payments (₹25,23,600 towards maintenance and lift AMC; ₹1,19,600 other: builder pending, transfer fees, society formation & share, drainage, property tax), plus 8 duplicate copies, 2 cancelled receipts and 1 line listed twice, kept on record but not counted.
+- **Unit ledgers now run from 2011.** For each audited year (2011-12 to 2017-18) the ledger shows the old receipts towards maintenance and, on 31 March, a balancing figure to the audited balance (charges for the year less any payments not in the receipt archive). Other payments are listed without changing the balance. At 1 April 2018 any difference with the Tally opening is shown as a line marked *Check* (A 103 ₹30,500, C 100 ₹31,500, C 502 ₹43,000, B 10 ₹4,500), so reports from 2018-19 onwards follow Tally exactly and every ledger still ends at today's balance. Members see the same full ledger in *My account*.
+- **Unit file → Old receipts 2011–2016**: every line with date, receipt no., what it was for, mode/remark, amount and status; filters (to check, not yet checked, checked, discrepancies, not counted); totals; receipts by year compared with the audit (2015-16 lists receipts by unit); change log.
+- **Check / edit** (committee and staff with the *corrections* permission): correct receipt no., date, cash/cheque amount, head, months, remark or status (payment, duplicate, cancelled, listed twice, removed after checking); record the result of checking the physical receipt book (matches / corrected / discrepancy) with a note; a reason is required. **Add a receipt from the book** for receipts missing from the sheets. Every change is written to `pastReceiptEdits` (who, when, before → after, reason) and can't be altered or deleted. Records are never deleted; mark them *Removed after checking* instead. Re-loading the file keeps lines already checked or corrected.
+- **Reports** for 2011-12 to 2016-17: *Member-wise statement* adds an *Old receipts* column (highlighted in 2015-16 where it differs from the audit's figure for the unit); *Year summary* adds receipts totals; *Collections* shows the old receipt register by head and mode; *Over the years* fills *Received* for those years.
+- `tools/past-receipts/`: the scripts that converted the Excel sheets, with notes.
+- `firestore.rules`: `units/{id}/pastReceipts` (read: accounts team and the unit's approved member; create/update: *corrections*; no delete) and `pastReceiptEdits` (read: *view*; create only, by the signed-in person; no update/delete).
+
+### How the Excel data was read (and what to check)
+- **Dates:** Excel had read dates typed as dd/mm/yy as mm/dd/yy whenever the day was 12 or less, storing day and month swapped (678 cells, corrected); 398 dates were typed as text and kept; 19 were already right. Receipt numbers run in time order across the Society, which confirmed each fix. 15 year slips were corrected (e.g. GF 17 receipt 403 typed as 2023 → March 2013; C 402 receipt 1023 typed 2017 → July 2015), 6 dates remain out of order with nearby receipts (receipts 210–215 read as 1 Sep 2012 but sit among July 2012 receipts), 4 lines had no date (estimated from receipt order). All are flagged *To check*.
+- **Other flags (34 lines in all):** amounts entered in the "Duplicate" column that are real payments (GF 07 ₹55,000 builder pending; C 102 ₹3,000 society formation & share and ₹5,000 drainage; C 403 ₹5,000 drainage and ₹1,000 property tax); C 403 receipt 1047 shows ₹23,700 but its remark and the 2015-16 audit say ₹18,700; C 403 receipt 834 listed twice (counted once); two lines on receipt 1169; the past committee's own notes ("NEED TO CHECK months", "Ch no to find").
+- **Sheets:** GF 18's sheet is a copy of GF 19's and was not loaded (GF 18 has no receipts in the files). No sheets with receipts for A 100, B 21, D 101 B, D 202, GF 01, GF 02, GF 03. Sheet "C001" is C 100 (stilt parking unit).
+- **Check against the audit (2015-16, the year the audit lists receipts by unit):** 39 of 63 units match to the rupee; the others are highlighted (e.g. A 101 audit ₹51,000 vs sheets ₹30,000; GF 17 has a ₹4,200 receipt the audit credits to GF 18; B 21 ₹20,800 with no sheet).
+- Not loaded: the expense sheets, lift collection 2013-14, electricity meter list, phone list and society-formation list (the last includes PAN numbers and sale prices, which should not go on the website).
+
+### Checked
+- For all 65 units, the ledger equals the audited balance on every 31 March from 2012 to 2018 (431 checks) and ends at today's balance.
+
+---
+
 ## [3.1.0] – 2026-11-15 – Audited accounts 2011-12 to 2017-18 and document archive
 
 ### Added

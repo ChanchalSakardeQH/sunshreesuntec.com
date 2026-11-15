@@ -503,29 +503,58 @@ export async function importTallyHistory(fb, data, units, onProgress = () => {})
  * The new accounts' "opening balance" entry is replaced by the Tally history; if the two balances
  * differ, a "difference" line keeps the final balance equal to the unit's balance today.
  */
-export function mergeLedger(live, history) {
-  if (!history) return live;
-  const take = history.takeoverDate || TAKEOVER_DATE;
-  const out = [];
-  if (history.opening?.amount) {
-    const a = history.opening.amount;
-    out.push({ date: history.opening.date, particulars: 'Opening balance (Tally)', receipt: '', debit: a > 0 ? a : 0, credit: a < 0 ? -a : 0, kind: 'opening', source: 'tally' });
+/**
+ * One ledger for a unit, oldest first:
+ *   pre      – 2011-12 to 2017-18 from the audited balances and the past committee's receipts (optional, see pastreceipts.js)
+ *   history  – Tally ledger up to the takeover date (optional)
+ *   live     – these accounts
+ * Where two sources meet and their balances differ, a "difference" line (marked Check) keeps the running balance
+ * continuous, so the ledger always ends at the unit's balance today.
+ */
+export function mergeLedger(live, history, pre) {
+  if (!history && !pre?.entries?.length) return live;
+  const out = [...(pre?.entries || [])];
+  const preEnd = pre ? pre.endBalance || 0 : 0;
+  const fmtR = (n) => `₹ ${new Intl.NumberFormat('en-IN').format(Math.abs(n))}${n < 0 ? ' Cr' : ''}`;
+  const bridge = (date, amount, text) => {
+    const d = Math.round(amount * 100) / 100;
+    if (Math.abs(d) >= 0.5) out.push({ date, particulars: text, receipt: '', debit: d > 0 ? d : 0, credit: d < 0 ? -d : 0, kind: 'opening', source: 'difference' });
+  };
+  if (history) {
+    const take = history.takeoverDate || TAKEOVER_DATE;
+    const a = history.opening?.amount || 0, od = history.opening?.date || '2018-04-01';
+    if (pre) {
+      // Tally is the book of record from 1 April 2018, so any difference with the audit is placed on that date
+      // (reports from 2018-19 onwards then follow Tally exactly).
+      const start = od > '2018-04-01' ? '2018-04-01' : od;
+      bridge(start, a - preEnd, `Difference: Tally ${od > '2018-04-01' ? `ledger starts on ${od.split('-').reverse().join('/')} at` : 'opening'} ${fmtR(a)} vs audited balance ${fmtR(preEnd)} on 31/03/2018`);
+    } else if (a) {
+      out.push({ date: od, particulars: 'Opening balance (Tally)', receipt: '', debit: a > 0 ? a : 0, credit: a < 0 ? -a : 0, kind: 'opening', source: 'tally' });
+    }
+    for (const e of history.entries || []) {
+      const kind = e.vchType === 'Receipt' && e.credit ? 'payment' : e.vchType === 'Journal' && e.debit ? 'bill' : 'adjustment';
+      out.push({
+        date: e.date, particulars: `${e.particulars}${e.vchType ? ` (${e.vchType} ${e.vchNo || ''})`.replace(' )', ')') : ''}`,
+        receipt: e.vchType === 'Receipt' ? `Tally ${e.vchNo}` : '', debit: e.debit || 0, credit: e.credit || 0, kind, source: 'tally'
+      });
+    }
+    const takenOver = live.filter((e) => e.kind === 'opening').reduce((t, e) => t + (e.debit || 0) - (e.credit || 0), 0);
+    const diff = Math.round(takenOver - (history.balanceAtTakeover || 0));
+    if (diff) {
+      out.push({ date: take, particulars: `Difference: opening balance taken over ₹ ${takenOver} vs Tally ₹ ${history.balanceAtTakeover} on ${take}`,
+        receipt: '', debit: diff > 0 ? diff : 0, credit: diff < 0 ? -diff : 0, kind: 'adjustment', source: 'difference' });
+    }
+    out.push(...live.filter((e) => e.kind !== 'opening'));
+  } else {
+    // No Tally ledger: the balance taken over by these accounts follows straight on from 31 March 2018.
+    const opening = live.filter((e) => e.kind === 'opening');
+    const takenOver = opening.reduce((t, e) => t + (e.debit || 0) - (e.credit || 0), 0);
+    const od = opening[0]?.date || TAKEOVER_DATE;
+    bridge(od, takenOver - preEnd, `Change between 31/03/2018 (audited ${fmtR(preEnd)}) and the balance taken over on ${od.split('-').reverse().join('/')} (${fmtR(takenOver)}); no ledger for this period`);
+    out.push(...live.filter((e) => e.kind !== 'opening'));
   }
-  for (const e of history.entries || []) {
-    const kind = e.vchType === 'Receipt' && e.credit ? 'payment' : e.vchType === 'Journal' && e.debit ? 'bill' : 'adjustment';
-    out.push({
-      date: e.date, particulars: `${e.particulars}${e.vchType ? ` (${e.vchType} ${e.vchNo || ''})`.replace(' )', ')') : ''}`,
-      receipt: e.vchType === 'Receipt' ? `Tally ${e.vchNo}` : '', debit: e.debit || 0, credit: e.credit || 0, kind, source: 'tally'
-    });
-  }
-  const takenOver = live.filter((e) => e.kind === 'opening').reduce((a, e) => a + (e.debit || 0) - (e.credit || 0), 0);
-  const diff = Math.round(takenOver - (history.balanceAtTakeover || 0));
-  if (diff) {
-    out.push({ date: take, particulars: `Difference: opening balance taken over ₹ ${takenOver} vs Tally ₹ ${history.balanceAtTakeover} on ${take}`,
-      receipt: '', debit: diff > 0 ? diff : 0, credit: diff < 0 ? -diff : 0, kind: 'adjustment', source: 'difference' });
-  }
-  out.push(...live.filter((e) => e.kind !== 'opening'));
-  return out.sort((a, b) => a.date.localeCompare(b.date) || ((a.source === 'tally' ? 0 : 1) - (b.source === 'tally' ? 0 : 1))
+  const rank = (e) => (e.source === 'archive' || e.source === 'audit' ? 0 : e.source === 'difference' && e.kind === 'opening' ? 1 : e.source === 'tally' ? 2 : 3);
+  return out.sort((a, b) => a.date.localeCompare(b.date) || rank(a) - rank(b)
     || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
 }
 
@@ -535,10 +564,14 @@ export async function loadHistory({ F, db }, unitId) {
 }
 
 /** Live ledgers merged with Tally history, for every unit. */
-export async function loadMergedLedgers(fb, units) {
+/**
+ * Live ledgers merged with Tally history and, when given, the 2011–2018 section
+ * (pre = { unitId: preLedger(...) } from pastreceipts.js).
+ */
+export async function loadMergedLedgers(fb, units, pre = {}) {
   const [live, hist] = await Promise.all([loadAllLedgers(fb, units), Promise.all(units.map((u) => loadHistory(fb, u.id)))]);
   const out = {}, histories = {};
-  units.forEach((u, i) => { histories[u.id] = hist[i]; out[u.id] = mergeLedger(live[u.id] || [], hist[i]); });
+  units.forEach((u, i) => { histories[u.id] = hist[i]; out[u.id] = mergeLedger(live[u.id] || [], hist[i], pre[u.id] || null); });
   return { ledgers: out, histories };
 }
 

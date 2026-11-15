@@ -165,3 +165,11 @@ table.trend td, table.trend th { padding-left: .5rem; padding-right: .5rem; }
 .bar { display: block; height: 10px; border-radius: 0 4px 4px 0; background: var(--stamp); min-width: 2px; }
 .bar.cr { background: var(--credit, #2e7d4f); }
 .src-tag { font-size: .75rem; color: var(--muted); }
+table.pr-table td { vertical-align: top; }
+table.pr-table tr.not-counted td { color: var(--muted); }
+table.pr-table tr.not-counted td.num { text-decoration: line-through; }
+table.pr-table .flags { display: block; margin-top: .25rem; font-size: .8rem; color: var(--warn-ink); }
+#pr-checks ul { margin: .25rem 0 .75rem; padding-left: 1.2rem; color: var(--warn-ink); font-size: .9rem; }
+.pill.bad { background: #fde8e8; color: #9b1c1c; }
+.warn-cell { background: var(--warn-bg); }
+table.pr-table td:last-child .btn { white-space: nowrap; }

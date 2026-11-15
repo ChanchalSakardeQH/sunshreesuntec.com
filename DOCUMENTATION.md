@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.1.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.2.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -27,6 +27,7 @@ This document explains what the system does, where the data lives, how every amo
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
+12A-4. Past committee's receipts (2011–2016)
 12B. Financial year and reports
 13. Monthly and yearly procedures
 14. Audit trail and records
@@ -389,6 +390,14 @@ Before Tally (from 2018-19), the Society's records are the yearly audit reports 
   - Unit file and My account: balance on 31 March of every year, and the 2018 audit-to-Tally check.
 - **Documents:** Accounts → *Documents* (committee uploads). PDFs are stored in Firestore in parts (`archiveDocs/{id}/parts/*`), readable only by approved members and the accounts team. Keep each under 15 MB; compress scans first. Name the year like 2011-12 so the report links to it.
 - **Known gaps** in the scans are listed under each year (*Notes on this year's file*).
+
+## 12A-4. Past committee's receipts (2011–2016)
+
+- **Source:** the past committee's Excel receipt sheets, one per unit, converted to `past-receipts-2011-2016.json` (private) by `tools/past-receipts/`. Settings → *Past committee receipts* loads them into `units/{id}/pastReceipts`. Loading again refreshes only lines nobody has checked yet.
+- **In the ledger:** for 2011-12 to 2017-18, each unit's ledger shows its old receipts towards maintenance and lift AMC, then on each 31 March a *balancing figure* to the audited balance. The balancing figure is the charges for the year less any payments missing from the receipt archive; the audits don't give charges by unit, except 2015-16. Other payments (builder pending, transfer fee, society formation & share, drainage, property tax) are listed but don't change the maintenance balance. On 1 April 2018 any difference with the Tally opening is a line marked *Check*.
+- **Checking against the receipt books:** Unit file → *Old receipts 2011–2016* → *Check / edit*. Record whether the line matches the book, correct it, or mark it as a duplicate, cancelled, listed twice or removed. Write what the book shows; the reason is required. Use *Add a receipt from the book* for receipts missing from the sheets. Work through *Lines to check* first (dates corrected, amounts in the wrong column, past committee's own notes), then the units highlighted in Reports → 2015-16 → Member-wise statement.
+- **Accountability:** every change is logged permanently in `pastReceiptEdits` (who, when, before → after, reason) and shown under the unit's *Change log*. Old receipts can't be deleted.
+- **Who:** committee and staff with the *corrections* permission (Accountant by default) can edit; the accounts team and the unit's approved member can view.
 
 ## 12B. Financial year and reports
 

@@ -15,6 +15,10 @@ import {
   yearEndRows, handoverCheck, bpmHistory
 } from './archive.js';
 import {
+  HEADS as PR_HEADS, STATUSES as PR_STATUSES, VERIFY as PR_VERIFY, VERIFY_LABEL, counts as prCounts, towardDues, loadPastReceipts, loadAllPastReceipts,
+  importPastReceipts, savePastReceipt, addPastReceipt, loadPastReceiptEdits, preLedger, receiptsByYear
+} from './pastreceipts.js';
+import {
   LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
   categoryIdFor, liftGroupFor, LIFT_GROUPS, LIFT_KINDS, addMonths, liftExpenseEndMonth, MAX_INTEREST_PA,
   PARTICULARS, buildContext, mmcRates, computeBill, prepareExtras, extrasForUnit, constructionCostOf,
@@ -1211,6 +1215,7 @@ function wireTallyImport() {
 function wireSettings() {
   wireTallyImport();
   wireAuditImport();
+  wirePastReceiptImport();
   const mf = $('#mmc-form');
   mf.addEventListener('input', () => mmcSummary());
   $('#mmc-add').addEventListener('click', () => {
@@ -1598,7 +1603,9 @@ async function loadUnitFile() {
   // Account
   const liveEntries = ledgerSnap.docs.map((d) => d.data()).sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
   ufHistory = await loadHistory(fb, fileUnit);
-  const entries = mergeLedger(liveEntries, ufHistory);
+  if (!auditCache.length) auditCache = await loadAuditYears(fb).catch(() => []);
+  ufOld = await loadPastReceipts(fb, fileUnit);
+  const entries = mergeLedger(liveEntries, ufHistory, preLedger(fileUnit, auditCache, ufOld));
   ufEntries = entries;
   const fys = entries.length ? fyList(entries[0].date, todayIST()) : [financialYear(todayIST())];
   const pick = $('#uf-fy'), keep = pick.value;
@@ -1680,10 +1687,12 @@ async function loadUnitFile() {
     </tbody></table></div>
     ${roleRange.length ? `<p><strong>Managing committee:</strong> ${roleRange.join('; ')}</p>` : ''}` : '';
 
+  renderOldReceipts();
   showUfPane(ufPane);
   applyAccess();
 }
 
+let ufOld = [];
 let ufEntries = [];
 let ufHistory = null;
 /** Unit ledger, all years or one financial year with its opening and closing balance. */
@@ -1692,10 +1701,12 @@ function renderUfLedger() {
   let bal = 0, rows = '';
   const line = (e) => {
     bal += (e.debit || 0) - (e.credit || 0);
-    const tag = e.source === 'tally' ? ' <span class="pill past">Tally</span>' : e.source === 'difference' ? ' <span class="pill warn">Check</span>' : '';
-    return `<tr><td>${dd(e.date)}</td><td>${esc(e.particulars)}${tag}</td><td>${esc(e.receipt || '')}</td><td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
+    const tag = e.source === 'tally' ? ' <span class="pill past">Tally</span>' : e.source === 'difference' ? ' <span class="pill warn">Check</span>'
+      : e.source === 'archive' ? ' <span class="pill past">Old receipt</span>' : e.source === 'audit' ? ' <span class="pill past">Audit</span>' : '';
+    return `<tr${e.kind === 'memo' ? ' class="muted"' : ''}><td>${dd(e.date)}</td><td>${esc(e.particulars)}${tag}</td><td>${esc(e.receipt || '')}</td><td class="num">${e.debit ? fmt(e.debit) : ''}</td><td class="num">${e.credit ? fmt(e.credit) : ''}</td><td class="num">${amt(bal)}</td></tr>`;
   };
-  const note = ufHistory ? `<tr class="fy-line"><td colspan="6" class="muted">Entries up to ${dd(ufHistory.takeoverDate)} are from the Society’s Tally ledger (${esc(ufHistory.period || '')}); later entries are from these accounts.${(ufHistory.after || []).length ? ` Tally also has ${ufHistory.after.length} entr${ufHistory.after.length > 1 ? 'ies' : 'y'} after that date, not carried over: ${esc(ufHistory.after.map((e) => `${dd(e.date)} ${e.particulars} ₹ ${fmt(e.debit || e.credit)}`).join('; '))}.` : ''}</td></tr>` : '';
+  const oldNote = ufOld.length || auditCache.length ? `<tr class="fy-line"><td colspan="6" class="muted">2011-12 to 2017-18: receipts from the past committee’s sheets (marked Old receipt) and, at each 31 March, a balancing figure to the audited balance (marked Audit).</td></tr>` : '';
+  const note = oldNote + (ufHistory ? `<tr class="fy-line"><td colspan="6" class="muted">Entries up to ${dd(ufHistory.takeoverDate)} are from the Society’s Tally ledger (${esc(ufHistory.period || '')}); later entries are from these accounts.${(ufHistory.after || []).length ? ` Tally also has ${ufHistory.after.length} entr${ufHistory.after.length > 1 ? 'ies' : 'y'} after that date, not carried over: ${esc(ufHistory.after.map((e) => `${dd(e.date)} ${e.particulars} ₹ ${fmt(e.debit || e.credit)}`).join('; '))}.` : ''}</td></tr>` : '');
   if (!fy) rows = note + ufEntries.map(line).join('');
   else {
     const { from, to } = fyBounds(fy);
@@ -1739,6 +1750,7 @@ function wireUnitFile() {
   $('#uf-pick').addEventListener('change', (e) => { fileUnit = e.target.value; sessionStorage.setItem('fileUnit', fileUnit); loadUnitFile().catch((err) => alert(errorText(err))); });
   $('#uf-print').addEventListener('click', () => window.print());
   $('#uf-fy').addEventListener('change', renderUfLedger);
+  wireOldReceipts();
   $('#uf-pay').addEventListener('click', () => { payFor = fileUnit; location.hash = '#payments'; });
   $('#uf-edit').addEventListener('click', () => openUnit(fileUnit).catch((err) => alert(errorText(err))));
   $('section[data-tab="unitfile"]').addEventListener('click', (e) => {
@@ -1812,8 +1824,11 @@ async function loadReports() {
 async function buildReport(fy) {
   $('#rp-status').textContent = 'Working out the figures…';
   $('#rp-body').innerHTML = '';
+  if (!auditCache.length) auditCache = await loadAuditYears(fb).catch(() => []);
+  const old = await allOldReceipts();
+  const pre = Object.fromEntries(units.map((u) => [u.id, preLedger(u.id, auditCache, old[u.id] || [])]));
   const [{ ledgers, histories }, bills, pays, closingSnap] = await Promise.all([
-    loadMergedLedgers(fb, units), fyBills(fb, fy), fyPayments(fb, fy),
+    loadMergedLedgers(fb, units, pre), fyBills(fb, fy), fyPayments(fb, fy),
     fb.F.getDoc(fb.F.doc(fb.db, 'fyClosing', fy)).catch(() => null)
   ]);
   // Tally entries for this year: bills by particulars, receipts for the register.
@@ -1821,7 +1836,8 @@ async function buildReport(fy) {
   const tally = Object.entries(histories).flatMap(([uid, h]) => (h?.entries || []).filter((e) => e.date >= fyFrom && e.date <= fyTo)
     .map((e) => ({ ...e, unitId: uid, unit: units.find((x) => x.id === uid)?.unit, name: units.find((x) => x.id === uid)?.name })));
   rpData = { fy, st: fyStatement(units, ledgers, fy), ledgers, bills, pays, tally, closing: closingSnap?.exists() ? closingSnap.data() : null,
-    audit: auditCache.find((a) => a.fy === fy) || null, audits: auditCache };
+    audit: auditCache.find((a) => a.fy === fy) || null, audits: auditCache,
+    old: Object.entries(old).flatMap(([uid, list]) => list.filter((r) => r.fy === fy).map((r) => ({ ...r, unitId: uid }))), oldAll: old };
   const lock = billing.lockedUpTo || '';
   $('#rp-status').innerHTML = rpData.closing?.status === 'closed'
     ? `<span class="pill past">Year closed</span> on ${esc(tsText(rpData.closing.closedAt))}. Entries dated up to ${longDate(lock || rpData.st.to)} are locked.`
@@ -1841,6 +1857,7 @@ function renderReport() {
     // Years covered by the audited accounts (before Tally): figures come from the audit report.
     if (rpKind === 'summary') { renderAuditSummary(head); return; }
     if (rpKind === 'members') { renderAuditMembers(head); return; }
+    if (rpKind === 'collections' && rpData.old.length) { renderOldCollections(head); return; }
     if (['heads', 'collections'].includes(rpKind)) {
       $('#rp-body').innerHTML = head + `<p class="muted">For ${fy} the Society’s records are the audited statements, not individual bills and receipts. See <strong>Audited statements</strong> for income by head and <strong>Member-wise statement</strong> for each unit’s balance.</p>`;
       rpCsv = null; return;
@@ -2186,7 +2203,9 @@ function renderAuditSummary(head) {
     </dl>
     <div class="table-scroll mt-sm"><table><tbody>
       ${prev ? `<tr><td>Members’ dues on 1 April (previous year end)</td><td class="num">${inr(prev.debtors.members)}</td></tr>` : ''}
-      ${maint != null ? `<tr><td>Maintenance and lift charges received (income)</td><td class="num">${inr(maint)}</td></tr>` : ''}
+      ${maint != null ? `<tr><td>Maintenance and lift charges (income as per audit)</td><td class="num">${inr(maint)}</td></tr>` : ''}
+      ${rpData.old.length ? `<tr><td>Received as per the past committee’s receipts (towards maintenance)</td><td class="num">${inr(rpData.old.filter(towardDues).reduce((t, r) => t + r.amount, 0))}</td></tr>
+        <tr><td>Other payments in those receipts (builder pending, transfer fees …)</td><td class="num">${inr(rpData.old.filter((r) => prCounts(r) && !towardDues(r)).reduce((t, r) => t + r.amount, 0))}</td></tr>` : ''}
       <tr><td>Bank balances</td><td class="num">${inr(bank)}</td></tr><tr><td>Cash in hand</td><td class="num">${inr(cash)}</td></tr><tr><td>Fixed deposits</td><td class="num">${inr(fd)}</td></tr>
       <tr><td>Annual general meeting</td><td class="num">${dmy(a.agmDate)}</td></tr><tr><td>Committee meetings</td><td class="num">${a.committeeMeetings}</td></tr>
     </tbody></table></div>`;
@@ -2205,15 +2224,18 @@ function renderAuditMembers(head) {
     const r = curMap[id];
     const name = r?.name || regName[id] || units.find((u) => u.id === id)?.name || '';
     return { id, unit: unitName(id), name, opening: prev ? (prev.duesComplete || id in prevMap ? (prevMap[id] ?? 0) : null) : null,
-      billed: r?.billed ?? null, received: r?.received ?? null, closing: r ? r.amount : (a.duesComplete ? 0 : null) };
+      billed: r?.billed ?? null, received: r?.received ?? null, closing: r ? r.amount : (a.duesComplete ? 0 : null),
+      oldRcpt: rpData.old.filter((x) => x.unitId === id && towardDues(x)).reduce((t, x) => t + x.amount, 0) };
   });
   const sum = (k) => rows.reduce((t, r) => t + (r[k] || 0), 0);
+  const showOld = rpData.old.length > 0;
   $('#rp-body').innerHTML = head + `<p class="muted">Each unit’s balance from the member-wise lists attached to the audit report${prev ? ` (opening = balance on 31 March ${a.from.slice(0, 4)} in the previous year’s report)` : ''}. Amounts with Cr are in the member’s favour.${a.duesComplete ? '' : ' <strong>This year’s file has only the commercial list; residential balances are not available.</strong>'}</p>
-    <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Name in the audited list</th>${prev ? '<th class="num">Opening (₹)</th>' : ''}${showFlow ? '<th class="num">Billed (₹)</th><th class="num">Received (₹)</th>' : ''}<th class="num">Closing on 31 March (₹)</th></tr></thead>
-    <tbody>${rows.map((r) => `<tr><td class="unit">${esc(r.unit)}</td><td>${esc(r.name)}</td>${prev ? `<td class="num">${r.opening == null ? '—' : amt(r.opening)}</td>` : ''}${showFlow ? `<td class="num">${r.billed ? fmt(r.billed) : ''}</td><td class="num">${r.received ? fmt(r.received) : ''}</td>` : ''}<td class="num">${r.closing == null ? '—' : amt(r.closing)}</td></tr>`).join('')}</tbody>
-    <tfoot><tr><td colspan="2">Total</td>${prev ? `<td class="num">${amt(sum('opening'))}</td>` : ''}${showFlow ? `<td class="num">${fmt(sum('billed'))}</td><td class="num">${fmt(sum('received'))}</td>` : ''}<td class="num">${amt(sum('closing'))}</td></tr></tfoot></table></div>
+    <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Name in the audited list</th>${prev ? '<th class="num">Opening (₹)</th>' : ''}${showFlow ? '<th class="num">Billed (₹)</th><th class="num">Received as per audit (₹)</th>' : ''}${showOld ? '<th class="num">Old receipts (₹)</th>' : ''}<th class="num">Closing on 31 March (₹)</th></tr></thead>
+    <tbody>${rows.map((r) => `<tr><td class="unit">${esc(r.unit)}</td><td>${esc(r.name)}</td>${prev ? `<td class="num">${r.opening == null ? '—' : amt(r.opening)}</td>` : ''}${showFlow ? `<td class="num">${r.billed ? fmt(r.billed) : ''}</td><td class="num">${r.received ? fmt(r.received) : ''}</td>` : ''}${showOld ? `<td class="num${showFlow && r.received != null && Math.round(r.received) !== Math.round(r.oldRcpt) ? ' warn-cell' : ''}">${r.oldRcpt ? fmt(r.oldRcpt) : ''}</td>` : ''}<td class="num">${r.closing == null ? '—' : amt(r.closing)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="2">Total</td>${prev ? `<td class="num">${amt(sum('opening'))}</td>` : ''}${showFlow ? `<td class="num">${fmt(sum('billed'))}</td><td class="num">${fmt(sum('received'))}</td>` : ''}${showOld ? `<td class="num">${fmt(sum('oldRcpt'))}</td>` : ''}<td class="num">${amt(sum('closing'))}</td></tr></tfoot></table></div>
+    ${showOld ? `<p class="muted">Old receipts: what the past committee’s sheets record as received towards maintenance in ${esc(a.fy)}${showFlow ? '; highlighted where it differs from the audit’s figure for the unit (check the unit file → Old receipts)' : ''}.</p>` : ''}
     <p class="muted">Audited members’ dues: commercial ₹ ${inr(a.debtors.commercial)} + residential ₹ ${inr(a.debtors.residential)} = ₹ ${inr(a.debtors.members)}.</p>`;
-  rpCsv = { name: `member-statement-${a.fy}-audited`, rows: [['Unit', 'Name', 'Opening', 'Billed', 'Received', 'Closing'], ...rows.map((r) => [r.unit, r.name, r.opening, r.billed, r.received, r.closing])] };
+  rpCsv = { name: `member-statement-${a.fy}-audited`, rows: [['Unit', 'Name', 'Opening', 'Billed', 'Received as per audit', 'Old receipts', 'Closing'], ...rows.map((r) => [r.unit, r.name, r.opening, r.billed, r.received, r.oldRcpt, r.closing])] };
 }
 
 /** Every year side by side: audited years, then the Tally / these-accounts years. */
@@ -2221,8 +2243,10 @@ async function renderTrend(head) {
   const body = $('#rp-body');
   const audits = rpData.audits;
   const ledgerYears = fyList('2018-04-01', todayIST()).reverse();
+  const oldBy = {};
+  for (const list of Object.values(rpData.oldAll || {})) for (const r of list) if (towardDues(r)) oldBy[r.fy] = (oldBy[r.fy] || 0) + r.amount;
   const rows = audits.map((a) => ({ fy: a.fy, src: 'Audited', cls: a.auditClass, income: a.income, exp: a.expenditure, surplus: a.surplus,
-    billed: null, received: null, dues: a.debtors.members, bpm: a.debtors.builderPending, ended: true }));
+    billed: null, received: oldBy[a.fy] ?? null, oldR: oldBy[a.fy] != null, dues: a.debtors.members, bpm: a.debtors.builderPending, ended: true }));
   for (const fy of ledgerYears) {
     const st = fyStatement(units, rpData.ledgers, fy);
     rows.push({ fy, src: fy < '2026-27' ? 'Tally' : 'These accounts', cls: '', income: null, exp: null, surplus: null,
@@ -2233,11 +2257,11 @@ async function renderTrend(head) {
     <div class="table-scroll"><table class="trend"><thead><tr><th>Year</th><th>Source</th><th class="num">Income (₹)</th><th class="num">Expen&shy;diture (₹)</th><th class="num">Surplus (₹)</th><th class="num">Maintenance billed (₹)</th><th class="num">Received (₹)</th><th class="num">Members’ dues at year end (₹)</th><th class="bar-cell"><span class="visually-hidden">Dues bar</span></th><th class="num">Builder pending (₹)</th></tr></thead>
     <tbody>${rows.map((r) => `<tr><td>${esc(r.fy)}</td><td><span class="src-tag">${esc(r.src)}${r.cls ? `, class ${esc(r.cls)}` : ''}</span></td>
       <td class="num">${inr(r.income)}</td><td class="num">${inr(r.exp)}</td><td class="num">${inr(r.surplus)}</td>
-      <td class="num">${r.billed == null ? '—' : fmt(r.billed)}</td><td class="num">${r.received == null ? '—' : fmt(r.received)}</td>
+      <td class="num">${r.billed == null ? '—' : fmt(r.billed)}</td><td class="num">${r.received == null ? '—' : fmt(r.received)}${r.oldR ? '<sup>*</sup>' : ''}</td>
       <td class="num">${amt(r.dues)}${r.ended ? '' : ' <small class="muted">so far</small>'}</td>
       <td class="bar-cell"><span class="bar" style="width:${Math.round((Math.abs(r.dues) / max) * 100)}%" title="${esc(r.fy)}: members’ dues ₹ ${fmt(r.dues)}"></span></td>
       <td class="num">${inr(r.bpm)}</td></tr>`).join('')}</tbody></table></div>
-    <p class="muted">Received for ledger years is net of cancelled receipts. Members’ dues from 2018-19 exclude ledgers missing from the Tally files (see the reconciliation in each unit file).</p>`;
+    <p class="muted">* Received in audited years: receipts towards maintenance recorded in the past committee’s Excel sheets (October 2011 to October 2016; 2016-17 is part of the year, and the files have no sheets for a few units). Received for ledger years is net of cancelled receipts. Members’ dues from 2018-19 follow each unit’s ledger, which continues from the audited balance on 31 March 2018 (differences with Tally are marked Check in the unit files).</p>`;
   rpCsv = { name: 'over-the-years', rows: [['Year', 'Source', 'Audit class', 'Income', 'Expenditure', 'Surplus', 'Billed', 'Received', 'Members dues at year end', 'Builder pending'],
     ...rows.map((r) => [r.fy, r.src, r.cls, r.income, r.exp, r.surplus, r.billed, r.received, r.dues, r.bpm])] };
 }
@@ -2264,4 +2288,174 @@ function wireAuditImport() {
       } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
     });
   });
+}
+
+/* ---------------- old receipts (past committee, 2011–2016) ---------------- */
+
+const prStatusLabel = Object.fromEntries(PR_STATUSES);
+let prEditing = null;   // record being edited, or { new: true }
+
+function prStatePill(r) {
+  const v = r.verify?.state || 'unchecked';
+  if (v === 'verified') return '<span class="pill ok">Checked</span>';
+  if (v === 'corrected') return '<span class="pill ok">Corrected</span>';
+  if (v === 'disputed') return '<span class="pill bad">Discrepancy</span>';
+  return (r.checks || []).length ? '<span class="pill warn">To check</span>' : '<span class="pill past">Not checked</span>';
+}
+
+function renderOldReceipts() {
+  const list = ufOld;
+  const counted = list.filter(prCounts), dues = list.filter(towardDues);
+  const toCheck = list.filter((r) => (r.checks || []).length && !['verified', 'corrected'].includes(r.verify?.state));
+  const checked = list.filter((r) => ['verified', 'corrected'].includes(r.verify?.state));
+  $('#pr-cards').innerHTML = list.length ? `
+    <div><dt>Receipts</dt><dd>${counted.length}<small class="muted"> of ${list.length} lines</small></dd></div>
+    <div><dt>Towards maintenance (₹)</dt><dd class="credit">${fmt(dues.reduce((t, r) => t + r.amount, 0))}</dd></div>
+    <div><dt>Other payments (₹)</dt><dd>${fmt(counted.filter((r) => !towardDues(r)).reduce((t, r) => t + r.amount, 0))}</dd></div>
+    <div><dt>Checked against the book</dt><dd>${checked.length} of ${list.length}</dd></div>
+    <div><dt>Lines to check</dt><dd class="${toCheck.length ? 'due' : ''}">${toCheck.length}</dd></div>` : '';
+  const f = $('#pr-filter').value;
+  const show = list.filter((r) => !f
+    || (f === 'check' && (r.checks || []).length && !['verified', 'corrected'].includes(r.verify?.state))
+    || (f === 'notcounted' && !prCounts(r))
+    || (['unchecked', 'verified', 'disputed'].includes(f) && ((r.verify?.state || 'unchecked') === f || (f === 'verified' && r.verify?.state === 'corrected'))));
+  const canEdit = canDo('corrections');
+  $('#pr-rows').innerHTML = show.map((r) => `<tr class="${prCounts(r) ? '' : 'not-counted'}">
+      <td>${dd(r.date)}</td><td>${esc(r.receiptNo)}</td>
+      <td>${esc(r.head)}${r.period ? `<span class="sub">${esc(r.period)}</span>` : ''}</td>
+      <td>${esc(r.mode || '')}${r.remark ? `<span class="sub">${esc(r.remark)}</span>` : ''}</td>
+      <td class="num">${fmt(prCounts(r) ? r.amount : (r.listedAmount || r.amount || 0))}</td>
+      <td>${prStatePill(r)}${prCounts(r) ? '' : ` <span class="pill past">${esc((prStatusLabel[r.status] || r.status).replace(/ \(not counted\)/, ''))}</span>`}
+        ${(r.checks || []).length && !['verified', 'corrected'].includes(r.verify?.state) ? `<span class="flags">${r.checks.map(esc).join('<br>')}</span>` : ''}
+        ${r.verify?.note ? `<span class="sub">${esc(r.verify.note)}</span>` : ''}</td>
+      <td>${canEdit ? `<button class="btn btn-small" type="button" data-pr="${esc(r.id)}">${r.verify?.state && r.verify.state !== 'unchecked' ? 'Edit' : 'Check / edit'}</button>` : ''}</td></tr>`).join('')
+    || `<tr><td colspan="7" class="empty">${list.length ? 'No lines match this filter.' : 'No old receipts for this unit. (Settings → Past committee receipts loads them; some units have no sheet in the files.)'}</td></tr>`;
+
+  // Year by year: receipts towards maintenance, and the audited figure where the audit lists each unit's receipts (2015-16).
+  const byYear = receiptsByYear(list);
+  const years = auditCache.filter((a) => byYear[a.fy] != null || (a.dues || []).some((d) => d.unitId === fileUnit && d.received != null));
+  $('#pr-years').innerHTML = years.length ? `<h3 class="mt-sm">Receipts towards maintenance, by year</h3>
+    <div class="table-scroll"><table><thead><tr><th>Year</th><th class="num">Old receipts (₹)</th><th class="num">Received as per audit (₹)</th><th></th></tr></thead><tbody>
+    ${years.map((a) => {
+      const aud = (a.dues || []).find((d) => d.unitId === fileUnit)?.received;
+      const mine = byYear[a.fy] || 0;
+      const diff = aud == null ? null : Math.round(aud - mine);
+      return `<tr><td>${esc(a.fy)}</td><td class="num">${fmt(mine)}</td><td class="num">${aud == null ? '—' : fmt(aud)}</td>
+        <td>${diff == null ? '<span class="muted">The audit doesn’t list receipts by unit this year</span>' : diff ? `<span class="pill warn">Differs by ₹ ${fmt(Math.abs(diff))}</span>` : '<span class="pill ok">Matches</span>'}</td></tr>`;
+    }).join('')}</tbody></table></div>` : '';
+  loadPastReceiptEdits(fb, fileUnit).then((log) => {
+    $('#pr-log').innerHTML = log.length ? `<div class="table-scroll"><table><thead><tr><th>When</th><th>By</th><th>Receipt</th><th>Change</th><th>Reason</th></tr></thead><tbody>
+      ${log.map((l) => `<tr><td>${esc(tsText(l.at))}</td><td>${esc(l.byName || '')}</td><td>${esc(l.receiptNo || '')}</td>
+        <td>${l.before === null ? 'Added' : Object.keys(l.after || {}).map((k) => `${esc(k)}: ${esc(String(l.before?.[k] ?? '—'))} → ${esc(String(l.after[k]))}`).join('<br>') || ''}${l.verifyAfter && l.verifyAfter !== l.verifyBefore ? `<br>${esc(VERIFY_LABEL[l.verifyAfter] || l.verifyAfter)}` : ''}</td>
+        <td>${esc(l.reason || '')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No changes yet.</p>';
+  }).catch(() => { $('#pr-log').innerHTML = ''; });
+}
+
+function openOldReceipt(id) {
+  const f = $('#pr-form');
+  const r = id ? ufOld.find((x) => x.id === id) : null;
+  prEditing = r || { new: true };
+  f.head.innerHTML = PR_HEADS.map((h) => `<option>${esc(h)}</option>`).join('');
+  f.status.innerHTML = PR_STATUSES.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('');
+  f.verify.innerHTML = PR_VERIFY.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('');
+  const u = units.find((x) => x.id === fileUnit);
+  $('#pr-title').textContent = r ? `Receipt ${r.receiptNo}, ${u?.unit || ''}` : `Add a receipt from the book, ${u?.unit || ''}`;
+  $('#pr-source').textContent = r ? `Source: ${r.source || ''}` : 'For a receipt found in the physical receipt books but missing from the Excel sheets.';
+  $('#pr-checks').innerHTML = r && (r.checks || []).length ? `<ul>${r.checks.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : '';
+  $('#pr-typed').textContent = r?.asTyped?.date ? `In the Excel sheet the date reads “${r.asTyped.date}”${r.asTyped.dateCell === 'excel-date' ? ' (as Excel stored it)' : ''}${r.listedAmount && r.listedAmount !== r.amount ? `; amount listed ₹ ${fmt(r.listedAmount)}` : ''}.` : '';
+  f.receiptNo.value = r?.receiptNo || '';
+  f.date.value = r?.date || '';
+  f.cash.value = r ? (r.cash || '') : '';
+  f.cheque.value = r ? (r.cheque || (r.cash ? '' : r.amount || '')) : '';
+  f.head.value = r?.head || 'Maintenance';
+  f.status.value = r?.status || 'payment';
+  f.period.value = r?.period || '';
+  f.remark.value = r?.remark || '';
+  f.verify.value = r?.verify?.state && r.verify.state !== 'unchecked' ? r.verify.state : (r ? 'verified' : 'verified');
+  f.verifyNote.value = r?.verify?.note || '';
+  f.reason.value = '';
+  setMsg(f, '');
+  $('#pr-dialog').showModal();
+}
+
+function wireOldReceipts() {
+  $('#pr-filter').addEventListener('change', renderOldReceipts);
+  $('#pr-add').addEventListener('click', () => openOldReceipt(null));
+  $('#pr-rows').addEventListener('click', (e) => { const b = e.target.closest('[data-pr]'); if (b) openOldReceipt(b.dataset.pr); });
+  const f = $('#pr-form');
+  $('[data-close]', f).addEventListener('click', () => $('#pr-dialog').close());
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(f);
+    const cash = Number(fd.get('cash')) || 0, cheque = Number(fd.get('cheque')) || 0;
+    const rec = {
+      receiptNo: String(fd.get('receiptNo')).trim(), date: String(fd.get('date')), cash, cheque, amount: cash + cheque,
+      mode: cash && cheque ? 'Cash + cheque' : cheque ? 'Cheque' : 'Cash', head: String(fd.get('head')), status: String(fd.get('status')),
+      period: String(fd.get('period')).trim(), remark: String(fd.get('remark')).trim()
+    };
+    const verify = { state: String(fd.get('verify')), note: String(fd.get('verifyNote')).trim() };
+    const reason = String(fd.get('reason')).trim();
+    if (!rec.receiptNo || !rec.date) return setMsg(f, 'Enter the receipt number and date.');
+    if (rec.date < '2011-04-01' || rec.date > '2018-03-31') return setMsg(f, 'Old receipts must be dated between 1 April 2011 and 31 March 2018.');
+    if (rec.status === 'payment' && !(rec.amount > 0)) return setMsg(f, 'Enter the amount (cash or cheque), or choose a status that isn’t counted.');
+    if (!reason) return setMsg(f, 'Write the reason for this change, e.g. what the receipt book shows.');
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        if (prEditing.new) await addPastReceipt(fb, fileUnit, rec, verify, reason, me?.name || me?.email || '');
+        else await savePastReceipt(fb, fileUnit, prEditing, rec, verify, reason, me?.name || me?.email || '');
+        $('#pr-dialog').close();
+        prCache = null;
+        await loadUnitFile();
+        showUfPane('oldrcpt');
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+}
+
+function wirePastReceiptImport() {
+  $('#pr-box').hidden = !canDo('committee');
+  $('#pr-import').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const msg = $('#pr-msg'), file = $('#pr-file').files[0];
+    if (!file) { msg.className = 'form-msg'; msg.textContent = 'Choose the past-receipts-2011-2016.json file first.'; return; }
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { msg.className = 'form-msg'; msg.textContent = 'That file isn’t valid.'; return; }
+    if (!String(data.format || '').startsWith('sunshreesuntec-past-receipts')) { msg.className = 'form-msg'; msg.textContent = 'This isn’t a past receipts file.'; return; }
+    if (!confirm(`Load ${data.receipts.length} old receipt lines into the unit ledgers?`)) return;
+    await busy(btn, async () => {
+      try {
+        const r = await importPastReceipts(fb, data, units, (i, n) => { $('#pr-progress').textContent = `${i} of ${n}…`; });
+        $('#pr-progress').textContent = '';
+        prCache = null;
+        msg.className = 'form-msg ok';
+        msg.textContent = `Loaded ${r.written} receipt lines${r.kept ? `; kept ${r.kept} lines already checked or corrected` : ''}.${r.skippedUnits.length ? ` Not loaded (unit not in the accounts): ${r.skippedUnits.join(', ')}.` : ''} See each unit file → Old receipts.`;
+      } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+    });
+  });
+}
+
+let prCache = null;
+async function allOldReceipts() {
+  prCache ??= await loadAllPastReceipts(fb, units).catch(() => ({}));
+  return prCache;
+}
+
+/** Collections for an audited year: the past committee's receipt register. */
+function renderOldCollections(head) {
+  const list = [...rpData.old].sort((a, b) => (a.date || '').localeCompare(b.date || '') || String(a.receiptNo).localeCompare(String(b.receiptNo), undefined, { numeric: true }));
+  const ok = list.filter(prCounts);
+  const byHead = {}, byMode = {};
+  ok.forEach((r) => { byHead[r.head] = (byHead[r.head] || 0) + r.amount; byMode[r.mode] = (byMode[r.mode] || 0) + r.amount; });
+  const checked = list.filter((r) => ['verified', 'corrected'].includes(r.verify?.state)).length;
+  $('#rp-body').innerHTML = head + `<p class="muted">From the past committee’s receipt sheets. ${checked} of ${list.length} lines have been checked against the receipt books so far.</p>
+    <dl class="dues-summary">${Object.entries(byHead).map(([h, a]) => `<div><dt>${esc(h)} (₹)</dt><dd>${fmt(a)}</dd></div>`).join('')}
+      ${Object.entries(byMode).map(([m, a]) => `<div><dt>${esc(m)} (₹)</dt><dd>${fmt(a)}</dd></div>`).join('')}
+      <div><dt>Total received (₹)</dt><dd class="credit">${fmt(ok.reduce((t, r) => t + r.amount, 0))}</dd></div></dl>
+    <h2>Receipt register</h2>
+    <div class="table-scroll"><table class="pr-table"><thead><tr><th>Date</th><th>Receipt no.</th><th>Unit</th><th>For</th><th>Mode / remark</th><th class="num">Amount (₹)</th><th>Status</th></tr></thead>
+    <tbody>${list.map((r) => `<tr class="${prCounts(r) ? '' : 'not-counted'}"><td>${dd(r.date)}</td><td>${esc(r.receiptNo)}</td><td class="unit">${esc(unitName(r.unitId))}</td>
+      <td>${esc(r.head)}${r.period ? `<span class="sub">${esc(r.period)}</span>` : ''}</td><td>${esc(r.mode || '')}${r.remark ? `<span class="sub">${esc(r.remark)}</span>` : ''}</td>
+      <td class="num">${fmt(prCounts(r) ? r.amount : (r.listedAmount || 0))}</td><td>${prStatePill(r)}</td></tr>`).join('')}</tbody></table></div>`;
+  rpCsv = { name: `old-receipts-${rpData.fy}`, rows: [['Date', 'Receipt no', 'Unit', 'Paid for', 'Months / details', 'Mode', 'Remark', 'Amount', 'Counted', 'Checked'],
+    ...list.map((r) => [r.date, r.receiptNo, unitName(r.unitId), r.head, r.period, r.mode, r.remark, prCounts(r) ? r.amount : 0, prCounts(r) ? 'yes' : (prStatusLabel[r.status] || r.status), VERIFY_LABEL[r.verify?.state || 'unchecked']])] };
 }

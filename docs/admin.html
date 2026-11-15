@@ -353,6 +353,7 @@
         <button type="button" data-pane="members" aria-pressed="false">Members (I &amp; J register)</button>
         <button type="button" data-pane="tenants" aria-pressed="false">Tenants and rental history</button>
         <button type="button" data-pane="comms" aria-pressed="false">Communication</button>
+        <button type="button" data-pane="oldrcpt" aria-pressed="false">Old receipts 2011–2016</button>
       </div>
 
       <div class="uf-pane" data-pane="account">
@@ -396,6 +397,50 @@
         <div class="form-actions"><button class="btn btn-primary" type="button" data-add="comms" data-perm="unitRecords">Add communication</button></div>
         <div class="table-scroll"><table><thead><tr><th>Date</th><th>How</th><th>Direction</th><th>Subject</th><th>Ref. no.</th><th>Follow up</th><th></th></tr></thead><tbody id="uf-comms"></tbody></table></div>
       </div>
+
+      <div class="uf-pane" data-pane="oldrcpt" hidden>
+        <h2>Old receipts, 2011–2016</h2>
+        <p class="muted">Receipts recorded by the past committee in their Excel sheets (October 2011 to October 2016). They are part of this unit’s ledger: receipts towards maintenance reduce the balance; other payments (builder pending, transfer fee …) are listed but don’t change it. Check each line against the physical receipt book and mark it, or correct it. Every change is logged with who made it and why.</p>
+        <dl class="dues-summary" id="pr-cards"></dl>
+        <div class="grid-tools">
+          <label class="inline-label">Show<select id="pr-filter">
+            <option value="">All lines</option><option value="check">Lines to check</option><option value="unchecked">Not yet checked</option>
+            <option value="verified">Checked</option><option value="disputed">Discrepancies</option><option value="notcounted">Not counted (duplicate, cancelled …)</option>
+          </select></label>
+          <button class="btn btn-primary" type="button" id="pr-add" data-perm="corrections">Add a receipt from the book</button>
+        </div>
+        <div class="table-scroll"><table class="pr-table"><thead><tr><th>Date</th><th>Receipt</th><th>For</th><th>Mode / remark</th><th class="num">Amount (₹)</th><th>Status</th><th></th></tr></thead><tbody id="pr-rows"></tbody></table></div>
+        <div id="pr-years"></div>
+        <details class="glossary mt-sm"><summary>Change log for this unit’s old receipts</summary><div id="pr-log"></div></details>
+      </div>
+
+      <dialog id="pr-dialog">
+        <form id="pr-form" class="form" method="dialog" novalidate>
+          <h2 id="pr-title">Old receipt</h2>
+          <p class="muted small-note" id="pr-source"></p>
+          <div id="pr-checks"></div>
+          <div class="rec-grid">
+            <label>Receipt no.<input type="text" name="receiptNo" required></label>
+            <label>Date<input type="date" name="date" required></label>
+            <label>Cash (₹)<input type="number" name="cash" min="0" step="0.01" inputmode="decimal"></label>
+            <label>Cheque / online (₹)<input type="number" name="cheque" min="0" step="0.01" inputmode="decimal"></label>
+            <label>Paid for<select name="head"></select></label>
+            <label>Status<select name="status"></select></label>
+            <label class="full">Months / details (as on the receipt)<input type="text" name="period"></label>
+            <label class="full">Bank, cheque no. or remark<input type="text" name="remark"></label>
+            <h3>Checked against the physical receipt book</h3>
+            <label class="full">Result<select name="verify"></select></label>
+            <label class="full">Note (e.g. receipt book no. and page)<input type="text" name="verifyNote"></label>
+            <label class="full">What the receipt book shows, or the reason for the change *<input type="text" name="reason" required placeholder="e.g. Receipt book 3, page 41 shows ₹18,700 by SBI cheque"></label>
+          </div>
+          <p class="muted small-note" id="pr-typed"></p>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Save</button>
+            <button class="btn" type="button" data-close>Close</button>
+          </div>
+        </form>
+      </dialog>
 
       <dialog id="rec-dialog">
         <form id="rec-form" class="form" method="dialog" novalidate>
@@ -549,6 +594,17 @@
         <p class="form-msg" id="audit-msg" role="alert"></p>
       </div>
 
+      <div class="callout" id="pr-box">
+        <h2>Past committee receipts (October 2011 – October 2016)</h2>
+        <p>Load the receipts from the past committee’s Excel sheets into each unit’s ledger, from <strong>past-receipts-2011-2016.json</strong> (keep it private). Loading again refreshes the lines nobody has checked yet; lines already checked or corrected are kept. Load the audited accounts first, so the ledger can balance each year to the audited figure.</p>
+        <div class="form-actions">
+          <input type="file" id="pr-file" accept=".json,application/json">
+          <button class="btn btn-primary" type="button" id="pr-import">Load past receipts</button>
+          <span id="pr-progress" class="muted"></span>
+        </div>
+        <p class="form-msg" id="pr-msg" role="alert"></p>
+      </div>
+
       <div class="callout" id="tally-box">
         <h2>Tally migration</h2>
         <p>Bring the Society’s Tally books into these accounts. Use the export file made on the accountant’s laptop by <strong>Export-TallyData.bat</strong> (tally-export-….json), or the earlier <strong>tally-ledgers-2018-2026.json</strong>. Keep these files private; they are read here in your browser and saved only to the Society’s database.</p>
@@ -646,7 +702,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.1.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
+    <p class="muted mt" id="version-note">Software version 3.2.0. How everything works: DOCUMENTATION.md; what changed and when: CHANGELOG.md (both in the GitHub repository).</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>
