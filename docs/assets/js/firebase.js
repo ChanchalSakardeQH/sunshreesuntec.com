@@ -2,6 +2,8 @@
 import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
+/** Shown at the foot of the accounts page and stored with each sign-in attempt. */
+export const SITE_VERSION = '3.4.0';
 let ready;
 
 /* ---------- Android app ----------
@@ -87,28 +89,7 @@ export function currentUser(fb) {
   });
 }
 
-/** Sign in with Google: popup, or full-page redirect where popups are blocked (some phones). */
-export async function googleSignIn(fb) {
-  if (inApp) {
-    // Google doesn't allow its sign-in page inside apps: the app asks Android for the phone's Google account
-    // and hands back a Google ID token, which signs in to the same account as on the website.
-    const idToken = await appCall('googleSignIn');
-    if (!idToken) return null;   // cancelled
-    return fb.A.signInWithCredential(fb.auth, fb.A.GoogleAuthProvider.credential(idToken));
-  }
-  const provider = new fb.A.GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-  try {
-    return await fb.A.signInWithPopup(fb.auth, provider);
-  } catch (err) {
-    if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') return null;
-    if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-environment') {
-      await fb.A.signInWithRedirect(fb.auth, provider);
-      return null;
-    }
-    throw err;
-  }
-}
+// Google and password sign-in, with progress messages and history, are in signin.js.
 
 export function errorText(err) {
   const code = err?.code || '';
@@ -119,6 +100,7 @@ export function errorText(err) {
     'auth/invalid-email': 'Enter a valid email address.',
     'auth/email-already-in-use': 'An account with this email already exists. Sign in instead.',
     'auth/weak-password': 'Use a password of at least 8 characters.',
+    'auth/user-disabled': 'This account has been switched off. Please contact the committee.',
     'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
     'auth/network-request-failed': 'No internet connection. Check your connection and try again.',
     'auth/operation-not-allowed': 'Google sign-in isn’t switched on yet. Please use email and password, or contact the committee.',

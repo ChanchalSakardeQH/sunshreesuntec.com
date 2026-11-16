@@ -6,6 +6,39 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.4.0] – 2026-11-16 – Sign-in feedback, sign-in history, rejected list
+
+### Added
+- **Clear feedback on sign-in** (`assets/js/signin.js`, used by the member and committee sign-in screens):
+  - after *Continue with Google* the button turns busy (turning ring) and can't be pressed again;
+  - a message under it says what is happening (*Opening Google sign-in…*, *Google account chosen. Signing you in…*, *Signed in as …*);
+  - failures are explained in plain words, with a small details line (code, time, app version, phone, the app's signing SHA-1) to screenshot for the committee;
+  - closing Google's window, being offline, and wrong passwords all get their own message.
+- **Sign-in history** (new collection `signInLog`; Members tab):
+  - every sign-in, registration and password-reset attempt, on the website and in the app, including failed and closed ones (never passwords or tokens);
+  - filters for period, result, method and website/app; counts (attempts, people or devices, signed in, failed, closed, still not in); Export CSV;
+  - a red box lists the most frequent failure codes with what to do (e.g. the app's SHA-1 to add in Firebase).
+- **Rejected and removed list** (Members tab): rejected requests and removed members are kept, with decision date, who decided and a reason. **Open** to correct details or change the status and see the history, **Back to waiting**, **Approve**, **Export CSV**.
+- **Reason when rejecting or removing:** *Reason* (the member sees it on their status page) and *Note for the history* (committee only). Members can also be edited from the waiting and approved lists.
+- **Decision history** (new collection `memberLog`, permanent): every approve, reject, remove, restore and edit with what changed, reason, note, who and when; saved in one batch with the decision.
+
+### Changed
+- The member's status page says *Access removed* or *Request not approved* and shows the committee's reason.
+- The Members tab loads all member records once (one query) instead of two.
+- The Google message on the member page is directly under the button.
+- The version at the foot of the accounts page comes from one place (`SITE_VERSION` in `firebase.js`).
+- Inside the app: Google sign-in answers with full details (needs app version built from this site version; older app copies still work, with less detail).
+
+### Security rules
+- `signInLog`: create only, also before sign-in, with exactly the listed fields, short texts, server time, and a user ID only for oneself; read by *approve members*; delete by the committee.
+- `memberLog`: create only by *approve members*, as oneself, with server time; read by *approve members*; never changed or deleted.
+- **Publish the new `firestore.rules`**, or the history isn't saved and rejecting/approving shows "This action isn't allowed".
+
+### Tested
+- 32 checks with a stand-in for Firebase and the app: busy button and message right after the click; a second tap doesn't start a second Google request; "closed at once" explained, with SHA-1 in the details and in the history; a slow success shows progress and is logged with the user; a person closing Google is logged as closed; wrong password logged with the email but not the password; website pop-up closed logged; reject with reason and note; edit; back to waiting; approve; remove access; decision history in order; both CSV exports; sign-in summary, problem box and filter; the removed member sees the reason. The 3.3.0 app checks (offline, files, print, sign-out) give the same results.
+
+---
+
 ## [3.3.0] – 2026-11-16 – Ready for the Android app
 
 ### Added (active only inside the Society's Android app; the website in a browser is unchanged)

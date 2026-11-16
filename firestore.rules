@@ -126,6 +126,34 @@ service cloud.firestore {
       allow delete: if isCommittee();
     }
 
+    // Decisions on member requests (approve, reject, remove, restore, edit): a permanent history.
+    match /memberLog/{id} {
+      allow read: if perm('members');
+      allow create: if perm('members')
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.uid is string && request.resource.data.uid.size() <= 128
+        && request.resource.data.action in ['approved', 'rejected', 'removed', 'restored', 'edited'];
+    }
+
+    // Sign-in attempts, written by the sign-in screens (also before anyone is signed in, so failures are seen).
+    // Only these fields, short texts, the server's time; a signed-in uid only for oneself. Passwords and tokens never.
+    match /signInLog/{id} {
+      function txt(f, n) { return request.resource.data[f] is string && request.resource.data[f].size() <= n; }
+      allow read: if perm('members');
+      allow delete: if isCommittee();
+      allow create: if request.resource.data.keys().hasOnly(['at', 'method', 'where', 'page', 'result', 'code', 'detail', 'email', 'uid', 'appVersion', 'siteVersion', 'device', 'ms'])
+        && request.resource.data.keys().hasAll(['at', 'method', 'where', 'page', 'result', 'code', 'detail', 'email', 'uid', 'appVersion', 'siteVersion', 'device', 'ms'])
+        && request.resource.data.at == request.time
+        && request.resource.data.method in ['google', 'password', 'register', 'reset']
+        && request.resource.data.where in ['app', 'web']
+        && request.resource.data.page in ['member', 'admin']
+        && request.resource.data.result in ['ok', 'cancelled', 'failed']
+        && txt('code', 80) && txt('detail', 500) && txt('email', 160) && txt('appVersion', 20) && txt('siteVersion', 20) && txt('device', 120)
+        && request.resource.data.ms is int && request.resource.data.ms >= 0 && request.resource.data.ms < 3600000
+        && (request.resource.data.uid == '' || (signedIn() && request.resource.data.uid == request.auth.uid));
+    }
+
     // ---------- accounts ----------
     match /units/{unitId} {
       allow read: if perm('view') || approvedFor(unitId);

@@ -468,6 +468,56 @@
         <thead><tr><th>Unit</th><th>Name</th><th>Mobile</th><th>Email</th><th></th></tr></thead>
         <tbody id="approved-rows"></tbody>
       </table></div>
+
+      <div class="section-head mt">
+        <h2>Rejected and removed</h2>
+        <button class="btn btn-small" type="button" id="rejected-csv">Export CSV</button>
+      </div>
+      <p class="muted small-note">Kept for the record. Open one to correct details, add a reason, or move it back to waiting or approved.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Unit</th><th>Name</th><th>Mobile</th><th>Email</th><th>Requested</th><th>Decision</th><th>Reason</th><th></th></tr></thead>
+        <tbody id="rejected-rows"></tbody>
+      </table></div>
+
+      <div class="section-head mt">
+        <h2>Sign-in history</h2>
+        <button class="btn btn-small" type="button" id="signin-csv">Export CSV</button>
+      </div>
+      <p class="muted small-note">Every attempt to sign in or register, on the website and in the app, including ones that failed or were closed.</p>
+      <div class="filter-row" id="signin-filters">
+        <label>Period<select id="si-days"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="0">Everything loaded</option></select></label>
+        <label>Result<select id="si-result"><option value="">All</option><option value="failed">Failed</option><option value="cancelled">Closed</option><option value="ok">Signed in</option></select></label>
+        <label>How<select id="si-method"><option value="">All</option><option value="google">Google</option><option value="password">Email and password</option><option value="register">Registration</option><option value="reset">Password reset</option></select></label>
+        <label>Where<select id="si-where"><option value="">Website and app</option><option value="app">App</option><option value="web">Website</option></select></label>
+      </div>
+      <div class="si-summary" id="si-summary"></div>
+      <div id="si-problems"></div>
+      <div class="table-scroll"><table class="signin-table">
+        <thead><tr><th>When</th><th>Who</th><th>How</th><th>Where</th><th>Result</th><th>Details</th></tr></thead>
+        <tbody id="signin-rows"></tbody>
+      </table></div>
+      <p class="muted small-note" id="si-foot"></p>
+
+      <dialog id="member-dialog">
+        <form id="member-form" class="form" method="dialog" novalidate>
+          <h2 id="member-dialog-title">Member request</h2>
+          <p class="muted small-note" id="member-dialog-sub"></p>
+          <label>Name<input name="name" required maxlength="120"></label>
+          <label>Unit<select name="unit" id="md-unit"></select></label>
+          <label>Mobile<input name="mobile" inputmode="numeric" maxlength="14"></label>
+          <label>Email<input name="email" readonly></label>
+          <label>Status<select name="status"><option value="pending">Waiting for approval</option><option value="approved">Approved</option><option value="rejected">Rejected / removed</option></select></label>
+          <label>Reason <span class="muted">(the member sees this)</span><textarea name="reason" rows="2" maxlength="300"></textarea></label>
+          <label>Note for the history <span class="muted">(committee only)</span><textarea name="note" rows="2" maxlength="300"></textarea></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" id="member-save">Save</button>
+            <button class="btn" type="button" data-close>Close</button>
+          </div>
+          <h3 class="mt-sm">History</h3>
+          <ul class="history-list" id="member-history"></ul>
+        </form>
+      </dialog>
     </section>
 
     <!-- WEBSITE -->
@@ -702,7 +752,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.3.0</p>
+    <p class="muted mt" id="version-note">Software version 3.4.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

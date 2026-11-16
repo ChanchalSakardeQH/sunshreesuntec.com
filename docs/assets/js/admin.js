@@ -1,5 +1,6 @@
 // Committee accounts: dashboard, monthly bills, payments + receipts, unit ledgers, member access, website content, settings.
-import { initFirebase, errorText, googleSignIn, inApp, saveBlob, signOutUser } from './firebase.js';
+import { initFirebase, errorText, inApp, saveBlob, signOutUser, SITE_VERSION } from './firebase.js';
+import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, showMsg } from './signin.js';
 import { initOfflineUi, requireOnline } from './offline.js';
 import { PERMS, PERM_LABEL, COMMITTEE_ONLY, STAFF_ROLES, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT } from './staff.js';
 import {
@@ -88,6 +89,7 @@ main().catch((err) => { console.error(err); $('#gate').textContent = errorText(e
 
 async function main() {
   initOfflineUi();
+  $('#version-note').textContent = `Software version ${SITE_VERSION}`;
   dues = await getDues();
   fb = await initFirebase();
   if (!fb) { $('#gate').textContent = 'The accounts aren’t available yet. Please contact the committee.'; return; }
@@ -95,17 +97,13 @@ async function main() {
   $('#admin-login').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget, fd = new FormData(form);
-    await busy($('button[type=submit]', form), async () => {
-      try { await fb.A.signInWithEmailAndPassword(fb.auth, String(fd.get('email')).trim(), String(fd.get('password'))); }
-      catch (err) { setMsg(form, errorText(err)); }
-    });
+    const email = String(fd.get('email')).trim(), password = String(fd.get('password'));
+    if (!email || !password) { showMsg(form, 'Enter your email and password.'); return; }
+    await busy($('button[type=submit]', form), () => signInWithPassword(fb, { page: 'admin', email, password, say: (t, k, d) => showMsg(form, t, k, d) }));
   });
-  $('#admin-google').addEventListener('click', async (e) => {
-    await busy(e.currentTarget, async () => {
-      try { await googleSignIn(fb); } catch (err) { setMsg($('#admin-login'), esc(errorText(err))); }
-    });
-  });
-  if (!inApp) fb.A.getRedirectResult(fb.auth).catch((err) => setMsg($('#admin-login'), esc(errorText(err))));
+  const sayAdmin = (text, kind, details) => showMsg($('#admin-login'), text, kind, details);
+  $('#admin-google').addEventListener('click', (e) => { if (requireOnline()) signInWithGoogle(fb, { page: 'admin', button: e.currentTarget, say: sayAdmin }); });
+  finishGoogleRedirect(fb, sayAdmin);
   $('#signout').addEventListener('click', () => signOutUser(fb));
   $('.nav-toggle').addEventListener('click', (e) => {
     const nav = $('#admin-nav');
@@ -874,44 +872,242 @@ function wireLift() {
 
 /* ---------------- members ---------------- */
 
+let memberDocs = [];        // every users record loaded for this tab
+let signinLog = [];         // latest sign-in attempts
+const tsDate = (ts) => (ts?.toDate ? ts.toDate() : null);
+const whenShort = (ts) => (tsDate(ts) ? fmtDate(tsDate(ts), { day: '2-digit', month: 'short', year: 'numeric' }) : '');
+const whenLong = (ts) => (tsDate(ts) ? tsDate(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
+const memberUnitLabel = (id) => { const u = units.find((x) => x.id === id) || dues.units.find((x) => x.id === id); return u ? u.unit : (id || ''); };
+const csvText = (rows) => rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+const saveCsv = (rows, name) => saveBlob(new Blob(['﻿' + csvText(rows)], { type: 'text/csv' }), name).catch((err) => alert(errorText(err)));
+
 async function loadMembers() {
   const { F, db } = fb;
-  const byStatus = (s) => F.getDocs(F.query(F.collection(db, 'users'), F.where('status', '==', s)));
-  const [pend, appr] = await Promise.all([byStatus('pending'), byStatus('approved')]);
-  const label = (id) => { const u = units.find((x) => x.id === id) || dues.units.find((x) => x.id === id); return u ? u.unit : id; };
+  const all = await F.getDocs(F.collection(db, 'users'));
+  memberDocs = all.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const pend = memberDocs.filter((m) => m.status === 'pending').sort((a, b) => (tsDate(a.createdAt) || 0) - (tsDate(b.createdAt) || 0));
+  const appr = memberDocs.filter((m) => m.status === 'approved').sort((a, b) => memberUnitLabel(a.unit).localeCompare(memberUnitLabel(b.unit), 'en', { numeric: true }));
+  const rej = memberDocs.filter((m) => m.status === 'rejected').sort((a, b) => (tsDate(b.decidedAt) || 0) - (tsDate(a.decidedAt) || 0));
   const approvedByUnit = {};
-  appr.docs.forEach((d) => (approvedByUnit[d.data().unit] ??= []).push(d.data().name));
-  const when = (ts) => (ts?.toDate ? fmtDate(ts.toDate(), { day: '2-digit', month: 'short', year: 'numeric' }) : '');
-  const contact = (p) => `<td><a href="tel:+91${esc(p.mobile)}">+91 ${esc(p.mobile)}</a></td><td><a href="mailto:${esc(p.email)}">${esc(p.email)}</a></td>`;
+  appr.forEach((p) => (approvedByUnit[p.unit] ??= []).push(p.name));
+  const contact = (p) => `<td>${p.mobile ? `<a href="tel:+91${esc(p.mobile)}">+91 ${esc(p.mobile)}</a>` : ''}</td><td><a href="mailto:${esc(p.email)}">${esc(p.email)}</a></td>`;
+  const gpill = (p) => (p.provider === 'google' ? ' <span class="status-pill">Google</span>' : '');
 
-  $('#pending-rows').innerHTML = pend.docs.map((d) => {
-    const p = d.data(), dup = approvedByUnit[p.unit];
-    return `<tr><td class="unit">${esc(label(p.unit))}${dup ? `<span class="dup-warning">Already approved: ${esc(dup.join(', '))}</span>` : ''}</td>
-      <td>${esc(p.name)}${p.provider === 'google' ? ' <span class="status-pill">Google</span>' : ''}</td>${contact(p)}<td>${when(p.createdAt)}</td>
-      <td><div class="row-actions"><button class="btn btn-small btn-primary" type="button" data-act="approved" data-uid="${d.id}">Approve</button>
-      <button class="btn btn-small btn-danger" type="button" data-act="rejected" data-uid="${d.id}" data-confirm="Reject this request?">Reject</button></div></td></tr>`;
+  $('#pending-rows').innerHTML = pend.map((p) => {
+    const dup = approvedByUnit[p.unit];
+    return `<tr><td class="unit">${esc(memberUnitLabel(p.unit))}${dup ? `<span class="dup-warning">Already approved: ${esc(dup.join(', '))}</span>` : ''}</td>
+      <td>${esc(p.name)}${gpill(p)}</td>${contact(p)}<td>${whenShort(p.createdAt)}</td>
+      <td><div class="row-actions"><button class="btn btn-small btn-primary" type="button" data-act="approve" data-uid="${esc(p.id)}">Approve</button>
+      <button class="btn btn-small btn-danger" type="button" data-act="reject" data-uid="${esc(p.id)}">Reject</button>
+      <button class="btn btn-small" type="button" data-act="edit" data-uid="${esc(p.id)}">Edit</button></div></td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No requests waiting.</td></tr>';
 
-  $('#approved-rows').innerHTML = appr.docs.map((d) => {
-    const p = d.data();
-    return `<tr><td class="unit">${esc(label(p.unit))}</td><td>${esc(p.name)}</td>${contact(p)}
-      <td><div class="row-actions"><button class="btn btn-small btn-danger" type="button" data-act="rejected" data-uid="${d.id}" data-confirm="Remove this member’s access?">Remove access</button></div></td></tr>`;
-  }).join('') || '<tr><td colspan="5" class="empty">No approved members yet.</td></tr>';
+  $('#approved-rows').innerHTML = appr.map((p) => `<tr><td class="unit">${esc(memberUnitLabel(p.unit))}</td><td>${esc(p.name)}${gpill(p)}</td>${contact(p)}
+      <td><div class="row-actions"><button class="btn btn-small" type="button" data-act="edit" data-uid="${esc(p.id)}">Edit</button>
+      <button class="btn btn-small btn-danger" type="button" data-act="remove" data-uid="${esc(p.id)}">Remove access</button></div></td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">No approved members yet.</td></tr>';
+
+  $('#rejected-rows').innerHTML = rej.map((p) => `<tr><td class="unit">${esc(memberUnitLabel(p.unit))}</td><td>${esc(p.name)}${gpill(p)}</td>${contact(p)}
+      <td>${whenShort(p.createdAt)}</td>
+      <td>${p.removed ? 'Access removed' : 'Rejected'}${p.decidedAt ? `<br><span class="muted">${whenShort(p.decidedAt)}${p.decidedByEmail ? ` · ${esc(p.decidedByEmail)}` : ''}</span>` : ''}</td>
+      <td>${esc(p.reason || '')}</td>
+      <td><div class="row-actions"><button class="btn btn-small" type="button" data-act="edit" data-uid="${esc(p.id)}">Open</button>
+      <button class="btn btn-small" type="button" data-act="restore" data-uid="${esc(p.id)}" title="Move back to Requests waiting">Back to waiting</button>
+      <button class="btn btn-small btn-primary" type="button" data-act="approve" data-uid="${esc(p.id)}">Approve</button></div></td></tr>`).join('')
+    || '<tr><td colspan="8" class="empty">Nothing rejected or removed.</td></tr>';
+
+  await loadSigninLog();
+}
+
+/** Saves a change to a member record and writes it to the member history (memberLog). */
+async function decideMember(m, patch, action, { reason = '', note = '', changes = '' } = {}) {
+  const { F, db } = fb, me = fb.auth.currentUser;
+  const decided = action === 'edited' ? {} : { decidedAt: F.serverTimestamp(), decidedBy: uid, decidedByEmail: me?.email || '' };
+  // One batch: the decision and its history entry are saved together or not at all.
+  const batch = F.writeBatch(db);
+  batch.update(F.doc(db, 'users', m.id), { ...patch, ...decided });
+  batch.set(F.doc(F.collection(db, 'memberLog')), {
+    uid: m.id, action, by: uid, byEmail: me?.email || '', at: F.serverTimestamp(),
+    name: patch.name ?? m.name ?? '', unit: patch.unit ?? m.unit ?? '', reason, note, changes
+  });
+  await batch.commit();
+}
+
+const ACTION_TEXT = { approved: 'Approved', rejected: 'Rejected', removed: 'Access removed', restored: 'Moved back to waiting', edited: 'Details edited' };
+let dialogMember = null;
+
+async function openMemberDialog(m, mode) {
+  dialogMember = m;
+  const form = $('#member-form');
+  form.reset();
+  setMsg(form, '');
+  const unitList = units.length ? units : dues.units;
+  $('#md-unit').innerHTML = `${unitList.some((u) => u.id === m.unit) ? '' : `<option value="${esc(m.unit || '')}">${esc(m.unit || 'Choose unit')}</option>`}${
+    unitList.map((u) => `<option value="${esc(u.id)}">${esc(u.unit)}${u.name ? ' – ' + esc(u.name) : ''}</option>`).join('')}`;
+  form.name.value = m.name || ''; form.unit.value = m.unit || ''; form.mobile.value = m.mobile || ''; form.email.value = m.email || '';
+  form.reason.value = m.reason || '';
+  form.status.value = mode === 'reject' || mode === 'remove' ? 'rejected' : (m.status || 'pending');
+  form.dataset.mode = mode;
+  $('#member-dialog-title').textContent = mode === 'reject' ? `Reject request: ${m.name}` : mode === 'remove' ? `Remove access: ${m.name}` : m.name || 'Member request';
+  $('#member-dialog-sub').textContent = [`Requested ${whenLong(m.createdAt) || '—'}`, m.provider === 'google' ? 'signs in with Google' : 'signs in with email and password',
+    m.decidedAt ? `last decision ${whenLong(m.decidedAt)}${m.decidedByEmail ? ` by ${m.decidedByEmail}` : ''}` : ''].filter(Boolean).join(' · ');
+  $('#member-save').textContent = mode === 'reject' ? 'Reject' : mode === 'remove' ? 'Remove access' : 'Save';
+  $('#member-save').classList.toggle('btn-danger', mode === 'reject' || mode === 'remove');
+  $('#member-history').innerHTML = '<li class="muted">Loading…</li>';
+  $('#member-dialog').showModal();
+  if (mode === 'reject' || mode === 'remove') form.reason.focus();
+  try {
+    const snap = await fb.F.getDocs(fb.F.query(fb.F.collection(fb.db, 'memberLog'), fb.F.where('uid', '==', m.id)));
+    const items = snap.docs.map((d) => d.data()).sort((a, b) => (tsDate(b.at) || 0) - (tsDate(a.at) || 0));
+    const first = `<li>Request sent<br><span class="muted">${whenLong(m.createdAt) || '—'} · ${esc(memberUnitLabel(m.unit))}</span></li>`;
+    $('#member-history').innerHTML = items.map((h) => `<li><strong>${esc(ACTION_TEXT[h.action] || h.action)}</strong>${h.changes ? `: ${esc(h.changes)}` : ''}
+      ${h.reason ? `<br>Reason: ${esc(h.reason)}` : ''}${h.note ? `<br>Note: ${esc(h.note)}` : ''}
+      <br><span class="muted">${whenLong(h.at)}${h.byEmail ? ` · ${esc(h.byEmail)}` : ''}</span></li>`).join('') + first;
+  } catch (err) { $('#member-history').innerHTML = `<li class="muted">${esc(errorText(err))}</li>`; }
+}
+
+async function saveMemberDialog() {
+  const form = $('#member-form'), m = dialogMember;
+  if (!m) return;
+  const name = form.name.value.trim().replace(/\s+/g, ' ');
+  const mobile = form.mobile.value.replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, '');
+  const unit = form.unit.value, status = form.status.value;
+  const reason = form.reason.value.trim(), note = form.note.value.trim();
+  if (name.length < 3) return setMsg(form, 'Enter the full name.');
+  if (!unit) return setMsg(form, 'Choose the unit.');
+  if (mobile && !/^[6-9]\d{9}$/.test(mobile)) return setMsg(form, 'Enter a 10-digit Indian mobile number.');
+  const patch = { name, unit, mobile, reason };
+  const changes = [];
+  if (name !== (m.name || '')) changes.push(`name ${m.name || '—'} → ${name}`);
+  if (unit !== (m.unit || '')) changes.push(`unit ${memberUnitLabel(m.unit) || '—'} → ${memberUnitLabel(unit)}`);
+  if (mobile !== (m.mobile || '')) changes.push(`mobile ${m.mobile || '—'} → ${mobile || '—'}`);
+  if (reason !== (m.reason || '') && status === m.status) changes.push('reason updated');
+  let action = 'edited';
+  if (status !== m.status) {
+    patch.status = status;
+    if (status === 'approved') { action = 'approved'; patch.removed = false; }
+    else if (status === 'pending') { action = 'restored'; patch.removed = false; }
+    else { action = m.status === 'approved' ? 'removed' : 'rejected'; patch.removed = m.status === 'approved'; }
+  } else if (!changes.length && !note) { $('#member-dialog').close(); return; }
+  await busy($('#member-save'), async () => {
+    try {
+      await decideMember(m, patch, action, { reason, note, changes: changes.join('; ') });
+      $('#member-dialog').close();
+      await loadMembers();
+    } catch (err) { setMsg(form, esc(errorText(err))); }
+  });
+}
+
+/* ----- sign-in history ----- */
+
+const METHOD_TEXT = { google: 'Google', password: 'Email + password', register: 'Registration', reset: 'Password reset' };
+const RESULT_PILL = { ok: '<span class="status-pill ok">Signed in</span>', cancelled: '<span class="status-pill closed">Closed</span>', failed: '<span class="status-pill failed">Failed</span>' };
+const RESULT_WORD = { ok: 'Signed in', cancelled: 'Closed', failed: 'Failed' };
+// Plain-language explanation of common failure codes, with what the committee can do.
+const PROBLEM_HELP = {
+  'closed-at-once': 'Google closed its account chooser straight away in the app. Google doesn’t accept this app copy yet: add the app’s SHA-1 fingerprint (shown below) in Firebase console → Project settings → Your apps → Android app → Add fingerprint. It works a few minutes later, without rebuilding the app.',
+  'no-client-id': 'The app was built without the Web client ID. Add WEB_CLIENT_ID in app-config.properties (build menu option 7) and build again.',
+  'no-account': 'The phone has no Google account. The member can add one in the phone’s Settings → Accounts, or use email and password.',
+  'auth/invalid-credential': 'Wrong email or password (or an expired Google answer). If it repeats for one person, they can use “Forgot password?”.',
+  'auth/operation-not-allowed': 'Google sign-in is switched off in Firebase console → Authentication → Sign-in method.',
+  'auth/unauthorized-domain': 'This web address isn’t in Firebase console → Authentication → Settings → Authorised domains.',
+  'auth/network-request-failed': 'The phone or computer had no working internet connection.',
+  'auth/too-many-requests': 'Too many tries from one device; Firebase blocks it for a few minutes.',
+  'auth/popup-blocked': 'The browser blocked Google’s window.'
+};
+
+async function loadSigninLog() {
+  const { F, db } = fb;
+  try {
+    const snap = await F.getDocs(F.query(F.collection(db, 'signInLog'), F.orderBy('at', 'desc'), F.limit(1000)));
+    signinLog = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (tsDate(b.at) || 0) - (tsDate(a.at) || 0));
+    $('#si-foot').textContent = signinLog.length >= 1000 ? 'Showing the latest 1,000 attempts.' : '';
+  } catch (err) {
+    signinLog = [];
+    $('#si-foot').textContent = `The sign-in history couldn’t be loaded: ${errorText(err)}`;
+  }
+  renderSigninLog();
+}
+
+function filteredSignins() {
+  const days = Number($('#si-days').value), res = $('#si-result').value, how = $('#si-method').value, where = $('#si-where').value;
+  const from = days ? Date.now() - days * 86400000 : 0;
+  return signinLog.filter((e) => (!from || (tsDate(e.at) || new Date()) >= from)
+    && (!res || e.result === res) && (!how || e.method === how) && (!where || e.where === where));
+}
+
+function renderSigninLog() {
+  const list = filteredSignins();
+  const people = new Set(list.map((e) => e.email || e.device || e.id));
+  const n = (r) => list.filter((e) => e.result === r).length;
+  const failedPeople = new Set(list.filter((e) => e.result !== 'ok').map((e) => e.email || e.device));
+  const okPeople = new Set(list.filter((e) => e.result === 'ok').map((e) => e.email));
+  const stuck = [...failedPeople].filter((p) => p && !okPeople.has(p)).length;
+  $('#si-summary').innerHTML = `<span><b>${list.length}</b> attempts</span><span><b>${people.size}</b> people or devices</span>
+    <span><b>${n('ok')}</b> signed in</span><span><b>${n('failed')}</b> failed</span><span><b>${n('cancelled')}</b> closed</span>
+    <span title="Had a failed or closed attempt and no successful one in this period"><b>${stuck}</b> still not in</span>`;
+
+  // Problems: failure codes in this period, most frequent first, with what to do.
+  const byCode = {};
+  list.filter((e) => e.result === 'failed').forEach((e) => {
+    const c = e.code || 'unknown';
+    (byCode[c] ??= { count: 0, people: new Set(), sample: e }).count++;
+    byCode[c].people.add(e.email || e.device);
+  });
+  $('#si-problems').innerHTML = Object.entries(byCode).sort((a, b) => b[1].count - a[1].count).slice(0, 5).map(([code, x]) => {
+    const sha = /SHA-1 ([0-9A-F:]{59})/.exec(x.sample.detail || '')?.[1];
+    return `<div class="si-problem"><p><strong>${esc(code)}</strong>: ${x.count} time${x.count === 1 ? '' : 's'}, ${x.people.size} ${x.people.size === 1 ? 'person or device' : 'people or devices'}</p>
+      ${PROBLEM_HELP[code] ? `<p>${esc(PROBLEM_HELP[code])}</p>` : ''}
+      ${sha ? `<p>App SHA-1 to add: <code>${esc(sha)}</code> (app ${esc(x.sample.appVersion || '?')})</p>` : ''}</div>`;
+  }).join('');
+
+  $('#signin-rows').innerHTML = list.map((e) => `<tr>
+      <td class="si-when">${whenLong(e.at) || 'just now'}</td>
+      <td>${e.email ? esc(e.email) : '<span class="muted">—</span>'}</td>
+      <td>${esc(METHOD_TEXT[e.method] || e.method)}${e.page === 'admin' ? ' <span class="status-pill">Committee page</span>' : ''}</td>
+      <td>${e.where === 'app' ? `App${e.appVersion ? ' ' + esc(e.appVersion) : ''}` : 'Website'}</td>
+      <td>${RESULT_PILL[e.result] || esc(e.result)}</td>
+      <td class="si-detail">${[e.code, e.detail, e.device, e.ms ? `${(e.ms / 1000).toFixed(1)} s` : ''].filter(Boolean).map(esc).join(' · ')}</td></tr>`).join('')
+    || '<tr><td colspan="6" class="empty">No sign-in attempts in this period.</td></tr>';
 }
 
 function wireMembers() {
   const handler = async (e) => {
     const btn = e.target.closest('button[data-act]');
-    if (!btn || (btn.dataset.confirm && !confirm(btn.dataset.confirm))) return;
+    if (!btn) return;
+    const m = memberDocs.find((x) => x.id === btn.dataset.uid);
+    if (!m) return;
+    const act = btn.dataset.act;
+    if (act === 'edit') return openMemberDialog(m, 'edit');
+    if (act === 'reject') return openMemberDialog(m, 'reject');
+    if (act === 'remove') return openMemberDialog(m, 'remove');
+    if (act === 'restore' && !confirm(`Move ${m.name}'s request back to Requests waiting?`)) return;
     await busy(btn, async () => {
       try {
-        await fb.F.updateDoc(fb.F.doc(fb.db, 'users', btn.dataset.uid), { status: btn.dataset.act, decidedAt: fb.F.serverTimestamp(), decidedBy: uid });
+        if (act === 'approve') await decideMember(m, { status: 'approved', removed: false }, 'approved');
+        if (act === 'restore') await decideMember(m, { status: 'pending', removed: false }, 'restored');
         await loadMembers();
       } catch (err) { alert(errorText(err)); }
     });
   };
-  $('#pending-rows').addEventListener('click', handler);
-  $('#approved-rows').addEventListener('click', handler);
+  ['#pending-rows', '#approved-rows', '#rejected-rows'].forEach((id) => $(id).addEventListener('click', handler));
+
+  const form = $('#member-form');
+  form.addEventListener('submit', (e) => { e.preventDefault(); saveMemberDialog(); });
+  $('[data-close]', form).addEventListener('click', () => $('#member-dialog').close());
+
+  $('#rejected-csv').addEventListener('click', () => {
+    const rows = memberDocs.filter((m) => m.status === 'rejected').map((m) => [memberUnitLabel(m.unit), m.name, m.mobile, m.email,
+      m.provider === 'google' ? 'Google' : 'Email + password', whenLong(m.createdAt), m.removed ? 'Access removed' : 'Rejected',
+      whenLong(m.decidedAt), m.decidedByEmail || '', m.reason || '']);
+    saveCsv([['Unit', 'Name', 'Mobile', 'Email', 'Signs in with', 'Requested', 'Decision', 'Decided on', 'Decided by', 'Reason'], ...rows], 'rejected-and-removed-members.csv');
+  });
+  ['#si-days', '#si-result', '#si-method', '#si-where'].forEach((id) => $(id).addEventListener('change', renderSigninLog));
+  $('#signin-csv').addEventListener('click', () => {
+    const rows = filteredSignins().map((e) => [whenLong(e.at), e.email, METHOD_TEXT[e.method] || e.method, e.page === 'admin' ? 'Committee page' : 'Member page',
+      e.where === 'app' ? 'App' : 'Website', e.appVersion, RESULT_WORD[e.result] || e.result, e.code, e.detail, e.device, e.ms ? (e.ms / 1000).toFixed(1) : '']);
+    saveCsv([['When', 'Email', 'How', 'Page', 'Where', 'App version', 'Result', 'Code', 'Details', 'Phone or browser', 'Seconds'], ...rows], `sign-in-history-${todayIST()}.csv`);
+  });
 }
 
 /* ---------------- website ---------------- */

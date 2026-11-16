@@ -120,7 +120,9 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `settings/billing` | Charge basis, AGM categories, MMC inputs, interest %, non-occupancy %, sinking / repairs %, lift billing, due days, last billed month | Committee, GitHub Action |
 | `public/dues` | Names and balances shown on the public dues page | Committee, GitHub Action |
 | `public/site` | Society and bank details, committee, contact, notices, basis-of-charges text | Committee |
-| `users/{uid}` | Member access requests: name, unit, mobile, email, status (pending / approved / rejected) | Member (create), Committee (decide) |
+| `users/{uid}` | Member access requests: name, unit, mobile, email, status (pending / approved / rejected), `removed` (true when an approved member's access was removed), `reason` (shown to the member), `decidedAt`, `decidedBy`, `decidedByEmail` | Member (create), Committee (decide) |
+| `memberLog/{id}` | Permanent history of decisions on member requests: user, action (approved / rejected / removed / restored / edited), what changed, reason, committee note, who and when. Saved in one batch with the decision | Committee / staff with *approve members* (create only) |
+| `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
 | `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation. Committee: Staff tab |
 | `staffInvites/{email}` | Invitations: name, mobile, role, permissions, who invited, when | Committee |
 | `staffAgreements/{id}` | Permanent acceptance record: name signed, email, role, permissions, agreement version and title, date-time, device | Staff member (create only; never changed or deleted) |
@@ -334,6 +336,12 @@ Documents are stored as links (e.g. Google Drive), because file uploads would ne
 
 Rejected or removed members lose access immediately. Google sign-in requires **Authentication → Sign-in method → Google** to be enabled in Firebase.
 
+**Feedback while signing in.** After *Continue with Google* the button turns busy and can't be pressed again, and a message under it says what is happening: *Opening Google sign-in…*, *Signing you in…*, *Signed in as …*, or what went wrong in plain words. A failure also shows a small details line (code, time, app version, phone, the app's SHA-1) that a member can screenshot for the committee. Email-and-password sign-in shows the same kind of messages. (`assets/js/signin.js`.)
+
+**Rejected and removed (Members tab).** Rejecting a request or removing an approved member opens a short form: *Reason* (the member sees it on their status page) and *Note for the history* (committee only). The person moves to **Rejected and removed**, which keeps everyone ever rejected or removed with the decision date, who decided and the reason. From there: **Open** (correct name, unit or mobile; change the status; see the full history), **Back to waiting**, **Approve**, and **Export CSV**. Every decision and edit is also written to `memberLog`, which can't be changed or deleted.
+
+**Sign-in history (Members tab).** Every attempt (Google, email and password, registration, password reset; website and app; including ones that failed or were closed) with filters for period, result, method and website/app, counts (attempts, people or devices, signed in, failed, closed, *still not in* = had a problem and no successful sign-in in the period), **Export CSV**, and a red box for the most frequent failure codes with what to do. Example: *closed-at-once* in the app means Google refused this app copy; the box shows the app's SHA-1 to add in Firebase. The history keeps the latest 1,000 attempts on screen; older ones stay in the database. Writing is allowed before sign-in (so failures are recorded) but only with the fixed fields and lengths in the rules.
+
 ## 12A. Staff: roles, access and agreement
 
 ### Adding staff (committee)
@@ -420,7 +428,8 @@ The books follow the Indian financial year, 1 April to 31 March. Everything is s
 
 The Society's Android app (kept separately from this repository, with its own README) shows these same pages from files packed inside the app.
 - **Offline:** inside the app the accounts are cached on the phone (`firebase.js` turns on the persistent cache when `window.SSApp` exists). `offline.js` shows the offline bar, saves documents for offline use and blocks changes while offline.
-- **Sign-in:** *Continue with Google* asks the app (`SSApp.googleSignIn`) for the phone's Google account and signs in with the returned ID token. Email and password work as on the website. Approval and access rules are unchanged.
+- **Sign-in:** *Continue with Google* asks the app (`SSApp.googleSignIn`) for the phone's Google account and signs in with the returned ID token. The app answers with JSON (`status` ok / cancelled / error, `token`, `code`, `message`, `ms`, `quick`, app version, phone, signing `sha1`); `SSApp.diagnostics()` gives the same details without signing in. A "cancel" within 2.5 seconds (`quick`) is treated as a set-up problem, not as the person closing the chooser: in practice it means the app's SHA-1 isn't in Firebase. Email and password work as on the website. Approval and access rules are unchanged.
+- **App log:** the app writes Google sign-in steps and page errors to the phone's log (tags `SSApp`, `SSApp-web`). Build menu option 9 reads them over USB, saves them in `release\android\logs` and prints the app's SHA-1.
 - **Files and printing:** `saveBlob()` sends documents and CSV files to the app (`SSApp.saveFile`); `window.print` goes to Android printing.
 - **Sign-out** in the app also clears the offline copy and saved files (`signOutUser`).
 - When pages change, rebuild the app and send members the new APK; data changes need no rebuild.
@@ -450,7 +459,8 @@ The Society's Android app (kept separately from this repository, with its own RE
 | Every bill | Exact lines and notes as issued, method used, who created it (committee user ID or `github-actions`), when |
 | Every receipt | Who recorded it, when, balance before and after; cancellation reason, who and when |
 | Lift expenses | Invoice details, units sharing, who recorded it |
-| Member approvals | Who approved / rejected and when |
+| Member approvals | Who approved / rejected / removed / restored / edited, when, what changed, reason and note (`memberLog`, permanent) |
+| Sign-in attempts | Every attempt, success or failure, with code and device (`signInLog`) |
 | Settings | `lastRun` (month, time, count, by) and `lastBilledMonth` |
 
 Bills keep the amounts they were issued with, even if rates change later. Receipts cannot be deleted.
@@ -490,6 +500,9 @@ See `README.md` for step-by-step instructions. Summary:
 | GitHub monthly run failed | Missing or wrong secret, or workflow paused after 60 days without commits | Actions tab → read the log; re-add secret; Enable workflow; or generate from Bills |
 | Website shows old README instead of site | Pages source not set to `/docs` | Settings → Pages → folder `/docs` |
 | “Google sign-in isn't switched on yet” | Google provider disabled | Firebase → Authentication → Sign-in method → Google → Enable |
+| App: “Google sign-in closed by itself” (screen blinks after *Continue with Google*) | The app copy's SHA-1 isn't registered with Google (each signing key has its own: test build, release build, Play Store) | Members → Sign-in history shows the SHA-1 (or build menu option 9). Firebase → Project settings → Your apps → Android app → Add fingerprint. Works a few minutes later, no rebuild |
+| App: “isn't set up in this copy of the app” | Built without the Web client ID | Build menu option 7, then build again |
+| Sign-in history stays empty | Rules for `signInLog` not published | Publish `firestore.rules` |
 | “This website address isn't authorised for sign-in” | Domain missing | Firebase → Authentication → Settings → Authorized domains |
 | Staff member: “isn't a committee or staff account” | Signed in with a different Gmail than invited, or invitation cancelled | Sign in with the invited Gmail; check Staff → Invitations |
 | Staff member stuck on the agreement | New version published | Read, tick, sign, accept |

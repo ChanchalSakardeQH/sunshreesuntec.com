@@ -173,3 +173,26 @@ table.pr-table .flags { display: block; margin-top: .25rem; font-size: .8rem; co
 .pill.bad { background: #fde8e8; color: #9b1c1c; }
 .warn-cell { background: var(--warn-bg); }
 table.pr-table td:last-child .btn { white-space: nowrap; }
+
+/* ---------- Members: rejected list, sign-in history (3.4) ---------- */
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.section-head h2 { margin: 0; }
+.filter-row { display: flex; flex-wrap: wrap; gap: .75rem 1rem; margin: .75rem 0; }
+.filter-row label { display: grid; gap: .2rem; font-size: .88rem; font-weight: 600; }
+.filter-row select { font: inherit; font-weight: 400; padding: .4rem .5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+.si-summary { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0 .75rem; }
+.si-summary span { background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: .2rem .7rem; font-size: .88rem; }
+.si-summary b { font-variant-numeric: tabular-nums; }
+.si-problem { border-left: 4px solid var(--due); background: #FBEFEF; padding: .6rem .8rem; margin: .5rem 0; border-radius: 0 var(--radius) var(--radius) 0; }
+.si-problem p { margin: .2rem 0; }
+.si-problem code { word-break: break-all; user-select: all; }
+@media (prefers-color-scheme: dark) { .si-problem { background: #2A1C1E; } }
+.status-pill.ok { background: #E3F1E8; color: #2B6A45; }
+.status-pill.failed { background: #FBE4E4; color: #9A2B2B; }
+.status-pill.closed { background: #FFF4D6; color: #6B4E00; }
+.signin-table td { vertical-align: top; }
+.signin-table .si-detail { font-size: .82rem; color: var(--muted); max-width: 26rem; word-break: break-word; }
+.signin-table .si-when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.history-list { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .4rem; font-size: .9rem; }
+.history-list li { border-left: 3px solid var(--line); padding-left: .6rem; }
+.history-list .muted { font-size: .82rem; }

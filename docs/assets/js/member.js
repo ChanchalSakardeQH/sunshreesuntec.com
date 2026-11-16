@@ -1,6 +1,7 @@
 // Member access: register (mobile + email) → committee approves in admin.html → member sees own unit's
 // balance, bills, receipts and account entries. Enforced by the server's access rules.
-import { initFirebase, errorText, googleSignIn, inApp, saveBlob, signOutUser } from './firebase.js';
+import { initFirebase, errorText, inApp, saveBlob, signOutUser } from './firebase.js';
+import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, logSignIn, showMsg } from './signin.js';
 import { initOfflineUi, markSaved, saveForOffline } from './offline.js';
 import { getDues, fmt, esc, ownerCell } from './data.js';
 import { ddmmyyyy, monthLabel, money, todayIST } from './billing-core.js';
@@ -142,7 +143,10 @@ function renderStatus(user) {
     ? `<h2>Request sent</h2><p>Your request for ${unit} is waiting for approval. The committee checks each request against the member register before giving access.</p>${verify}`
     : profile.status === 'approved'
       ? `<h2>Access approved</h2><p>Your access to ${unit} is approved.</p>${verify}`
-      : `<h2>Request not approved</h2><p>Your request for ${unit} wasn’t approved. Contact the Society office with proof of ownership if you think this is a mistake.</p>`;
+      : `<h2>${profile.removed ? 'Access removed' : 'Request not approved'}</h2>
+        <p>${profile.removed ? `Your access to ${unit} has been removed by the committee.` : `Your request for ${unit} wasn’t approved.`}
+        Contact the Society office with proof of ownership if you think this is a mistake.</p>
+        ${profile.reason ? `<p><strong>Reason:</strong> ${esc(profile.reason)}</p>` : ''}`;
   $('#member-status').innerHTML = `${body}<p class="form-msg" role="alert"></p>
     <div class="form-actions">${verifyBtns}<button class="btn" type="button" data-signout>Sign out</button></div>`;
 }
@@ -152,22 +156,19 @@ function renderStatus(user) {
 function wireForms() {
   const { A, F, auth, db } = fb;
   $('#auth-panels').hidden = false;
-  $('#member-google').addEventListener('click', async (e) => {
-    setMsg($('#google-box'), '');
-    await busy(e.currentTarget, async () => {
-      try { await googleSignIn(fb); } catch (err) { setMsg($('#google-box'), errorText(err)); }
-    });
-  });
-  if (!inApp) A.getRedirectResult(auth).catch((err) => setMsg($('#google-box'), errorText(err)));
+  const sayGoogle = (text, kind, details) => showMsg($('#google-box'), text, kind, details);
+  $('#member-google').addEventListener('click', (e) => signInWithGoogle(fb, { page: 'member', button: e.currentTarget, say: sayGoogle }));
+  finishGoogleRedirect(fb, sayGoogle);
   $$('.switch-btn').forEach((b) => b.addEventListener('click', () => switchAuthPanel(b.dataset.panel)));
 
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget, fd = new FormData(form);
-    setMsg(form, '');
+    const email = String(fd.get('email')).trim(), password = String(fd.get('password'));
+    if (!email || !password) { showMsg(form, 'Enter your email and password.'); return; }
     await busy($('button[type=submit]', form), async () => {
-      try { await A.signInWithEmailAndPassword(auth, String(fd.get('email')).trim(), String(fd.get('password'))); form.reset(); }
-      catch (err) { setMsg(form, errorText(err)); }
+      const ok = await signInWithPassword(fb, { page: 'member', email, password, say: (t, k, d) => showMsg(form, t, k, d) });
+      if (ok) form.reset();
     });
   });
 
@@ -175,8 +176,14 @@ function wireForms() {
     const form = $('#login-form');
     const email = String(new FormData(form).get('email')).trim();
     if (!email) { setMsg(form, 'Enter your email above, then choose “Forgot password?” again.'); return; }
-    try { await A.sendPasswordResetEmail(auth, email); setMsg(form, `If ${email} is registered, a password reset link is on its way.`, true); }
-    catch (err) { setMsg(form, errorText(err)); }
+    try {
+      await A.sendPasswordResetEmail(auth, email);
+      setMsg(form, `If ${email} is registered, a password reset link is on its way.`, true);
+      logSignIn(fb, { method: 'reset', page: 'member', result: 'ok', email });
+    } catch (err) {
+      setMsg(form, errorText(err));
+      logSignIn(fb, { method: 'reset', page: 'member', result: 'failed', code: err?.code || 'unknown', email });
+    }
   });
 
   $('#register-form').addEventListener('submit', async (e) => {
@@ -209,8 +216,12 @@ function wireForms() {
         }
         const provider = user.providerData.some((p) => p.providerId === 'google.com') ? 'google' : 'password';
         await F.setDoc(F.doc(db, 'users', user.uid), { name, unit, mobile, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
+        logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `request for ${unit} (${provider})` });
         form.reset();
-      } catch (err) { setMsg(form, errorText(err)); }
+      } catch (err) {
+        setMsg(form, errorText(err));
+        logSignIn(fb, { method: 'register', page: 'member', result: 'failed', code: err?.code || 'unknown', email: email || auth.currentUser?.email || '', detail: `request for ${unit}` });
+      }
       finally {
         registering = false;
         if (auth.currentUser) await onUser(auth.currentUser).catch(showFatal);
