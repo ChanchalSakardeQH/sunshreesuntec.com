@@ -39,13 +39,17 @@ service cloud.firestore {
     }
 
     function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    // Unit account (balance, bills, receipts, ledger): approved for that unit with full access.
+    // Access 'basic' (e.g. a caretaker) sees only Society accounts and documents. Older records have no 'access': full.
     function approvedFor(unitId) {
       return signedIn()
         && request.auth.token.email_verified == true
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && profile().status == 'approved'
+        && profile().get('access', 'full') == 'full'
         && profile().unit == unitId;
     }
+    function fullAccess() { return profile().get('access', 'full') == 'full'; }
     function changes() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
     // Books closed up to this date (end of the last closed financial year); '' = nothing closed.
@@ -72,7 +76,7 @@ service cloud.firestore {
 
     // Real amounts: signed-in approved members and committee / staff with view access.
     match /private/{docId} {
-      allow read: if perm('view') || approvedMember();
+      allow read: if perm('view') || (approvedMember() && fullAccess());
       allow write: if isCommittee() || (docId == 'dues' && (moneyPerm() || perm('editUnits')));
     }
 
@@ -114,7 +118,8 @@ service cloud.firestore {
     match /users/{uid} {
       allow create: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['name', 'unit', 'mobile', 'email', 'status', 'createdAt', 'provider'])
+        && request.resource.data.keys().hasOnly(['name', 'unit', 'mobile', 'email', 'status', 'createdAt', 'provider', 'relation'])
+        && (!('relation' in request.resource.data) || request.resource.data.relation in ['owner', 'jointOwner', 'family', 'tenant', 'caretaker'])
         && request.resource.data.status == 'pending'
         && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 120
         && request.resource.data.unit is string && request.resource.data.unit.size() <= 12
@@ -133,7 +138,8 @@ service cloud.firestore {
         && request.resource.data.by == request.auth.uid
         && request.resource.data.at == request.time
         && request.resource.data.uid is string && request.resource.data.uid.size() <= 128
-        && request.resource.data.action in ['approved', 'rejected', 'removed', 'restored', 'edited'];
+        && request.resource.data.action in ['approved', 'rejected', 'removed', 'restored', 'edited', 'notified'];
+      allow delete: if isCommittee();   // only when deleting a test or mistaken record permanently
     }
 
     // Sign-in attempts, written by the sign-in screens (also before anyone is signed in, so failures are seen).

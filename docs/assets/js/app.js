@@ -189,7 +189,7 @@ async function toggleAmounts() {
     sessionStorage.removeItem('revealAfterLogin');
     renderDues(); renderHomeBlocks();
   } catch {
-    toLogin('Amounts are shown after the committee approves your login and your email is confirmed.');
+    toLogin('Amounts are shown to approved members whose access includes the unit account, once their email is confirmed.');
   }
 }
 document.addEventListener('click', (e) => {

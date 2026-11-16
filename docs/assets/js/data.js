@@ -56,3 +56,17 @@ export function totals(units) {
 }
 
 export const normalise = (s) => String(s).toLowerCase().replace(/[\s\-.]/g, '');
+
+/* ---------- Who a registered person is, for their unit (3.5) ---------- */
+export const RELATIONS = {
+  owner: 'Owner',
+  jointOwner: 'Joint owner',
+  family: 'Family member of the owner',
+  tenant: 'Tenant',
+  caretaker: 'Caretaker / agent'
+};
+export const relationLabel = (r) => RELATIONS[r] || 'Owner';
+/** What an approved person can see: 'full' = their unit's account and the Society's accounts; 'basic' = Society accounts and documents only. */
+export const ACCESS = { full: 'Unit account and Society documents', basic: 'Society documents only (no unit account)' };
+/** Suggested access when approving: owners and their family see the unit account; tenants and caretakers start with documents only. */
+export const defaultAccess = (relation) => (['tenant', 'caretaker'].includes(relation) ? 'basic' : 'full');

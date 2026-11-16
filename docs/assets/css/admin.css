@@ -196,3 +196,10 @@ table.pr-table td:last-child .btn { white-space: nowrap; }
 .history-list { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .4rem; font-size: .9rem; }
 .history-list li { border-left: 3px solid var(--line); padding-left: .6rem; }
 .history-list .muted { font-size: .82rem; }
+/* 3.5: tell the member, relation pills, delete selection */
+.notify-box { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.notify-box p { margin: 0; flex: 1 1 18rem; }
+.notify-box .form-actions { margin: 0; }
+.rel-pill { display: inline-block; font-size: .78rem; font-weight: 600; padding: .05rem .45rem; border-radius: 4px; background: var(--stamp-soft); color: var(--stamp); white-space: nowrap; }
+.access-note { font-size: .85rem; color: var(--muted); }
+.si-check { width: 2rem; }

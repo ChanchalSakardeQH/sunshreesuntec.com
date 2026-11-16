@@ -458,6 +458,7 @@
     <!-- MEMBERS -->
     <section class="tab" data-tab="members" hidden>
       <h1>Member access</h1>
+      <div class="callout notify-box" id="member-notice" hidden></div>
       <h2>Requests waiting</h2>
       <div class="table-scroll"><table>
         <thead><tr><th>Unit</th><th>Name</th><th>Mobile</th><th>Email</th><th>Requested</th><th></th></tr></thead>
@@ -465,7 +466,7 @@
       </table></div>
       <h2 class="mt">Approved members</h2>
       <div class="table-scroll"><table>
-        <thead><tr><th>Unit</th><th>Name</th><th>Mobile</th><th>Email</th><th></th></tr></thead>
+        <thead><tr><th>Unit</th><th>Name</th><th>Can see</th><th>Mobile</th><th>Email</th><th></th></tr></thead>
         <tbody id="approved-rows"></tbody>
       </table></div>
 
@@ -493,9 +494,13 @@
       <div class="si-summary" id="si-summary"></div>
       <div id="si-problems"></div>
       <div class="table-scroll"><table class="signin-table">
-        <thead><tr><th>When</th><th>Who</th><th>How</th><th>Where</th><th>Result</th><th>Details</th></tr></thead>
+        <thead><tr><th class="si-check" hidden><input type="checkbox" id="si-all" aria-label="Select all shown"></th><th>When</th><th>Who</th><th>How</th><th>Where</th><th>Result</th><th>Details</th></tr></thead>
         <tbody id="signin-rows"></tbody>
       </table></div>
+      <div class="form-actions" id="si-delete-bar" hidden>
+        <button class="btn btn-small btn-danger" type="button" id="si-delete" disabled>Delete selected</button>
+        <span class="muted small-note">Committee only: for test entries. Deleted entries can't be brought back.</span>
+      </div>
       <p class="muted small-note" id="si-foot"></p>
 
       <dialog id="member-dialog">
@@ -504,6 +509,12 @@
           <p class="muted small-note" id="member-dialog-sub"></p>
           <label>Name<input name="name" required maxlength="120"></label>
           <label>Unit<select name="unit" id="md-unit"></select></label>
+          <label>Relation to the unit<select name="relation">
+            <option value="owner">Owner</option><option value="jointOwner">Joint owner</option><option value="family">Family member of the owner</option>
+            <option value="tenant">Tenant</option><option value="caretaker">Caretaker / agent</option></select></label>
+          <label>Can see<select name="access">
+            <option value="full">Unit account (bills, receipts, balance) and Society documents</option>
+            <option value="basic">Society accounts and documents only</option></select></label>
           <label>Mobile<input name="mobile" inputmode="numeric" maxlength="14"></label>
           <label>Email<input name="email" readonly></label>
           <label>Status<select name="status"><option value="pending">Waiting for approval</option><option value="approved">Approved</option><option value="rejected">Rejected / removed</option></select></label>
@@ -513,6 +524,7 @@
           <div class="form-actions">
             <button class="btn btn-primary" type="submit" id="member-save">Save</button>
             <button class="btn" type="button" data-close>Close</button>
+            <button class="btn btn-danger" type="button" id="member-delete" hidden title="For test or mistaken records: removes the record and its history">Delete permanently</button>
           </div>
           <h3 class="mt-sm">History</h3>
           <ul class="history-list" id="member-history"></ul>
@@ -752,7 +764,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.4.0</p>
+    <p class="muted mt" id="version-note">Software version 3.5.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

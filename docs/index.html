@@ -156,7 +156,7 @@
     <section class="tab" data-tab="member" hidden aria-labelledby="member-title">
       <div class="wrap narrow page">
         <h1 id="member-title">Member access</h1>
-        <p>Registered members can see the full maintenance account for their own unit. Continue with Google, or register with email and password; then add your unit and mobile number. The committee checks each request against the member register before approving it.</p>
+        <p>Registered members can see the full maintenance account for their own unit. Owners, joint owners, family members, tenants and caretakers can each register. Continue with Google, or register with email and password; then add your unit, who you are and your mobile number. The committee checks each request against the member register before approving it.</p>
 
         <p class="callout" id="member-note" hidden></p>
         <p class="callout" id="member-unavailable" hidden>Member login isn’t switched on yet. Please check back soon.</p>
@@ -188,13 +188,23 @@
             <label>Unit / flat / shop number
               <select name="unit" id="register-unit" required><option value="">Choose your unit</option></select>
             </label>
+            <label>You are
+              <select name="relation" id="register-relation" required>
+                <option value="owner">Owner</option>
+                <option value="jointOwner">Joint owner</option>
+                <option value="family">Family member of the owner</option>
+                <option value="tenant">Tenant</option>
+                <option value="caretaker">Caretaker / agent of the owner</option>
+              </select>
+            </label>
+            <p class="muted small-note reg-relation-note" id="register-relation-note">Owners and their family see the unit’s bills, receipts and balance once approved.</p>
             <label>Mobile number
               <span class="input-prefix"><span>+91</span><input type="tel" name="mobile" inputmode="numeric" autocomplete="tel-national" placeholder="98XXXXXXXX" maxlength="10" required></span>
             </label>
             <label class="reg-only">Email<input type="email" name="email" autocomplete="email" required></label>
             <label class="reg-only">Password (at least 8 characters)<input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
             <label class="reg-only">Confirm password<input type="password" name="confirm" autocomplete="new-password" minlength="8" required></label>
-            <label class="check"><input type="checkbox" name="declare" required> I am the owner or authorised representative of this unit.</label>
+            <label class="check"><input type="checkbox" name="declare" required> The details above are true. I understand the committee checks them before giving access.</label>
             <p class="form-msg" role="alert"></p>
             <div class="form-actions">
               <button class="btn btn-primary" type="submit">Send request</button>
@@ -212,6 +222,8 @@
             </div>
             <button class="btn" type="button" data-signout>Sign out</button>
           </div>
+          <p class="callout" id="account-basic" hidden></p>
+          <div id="account-money">
           <dl class="dues-summary" id="account-summary"></dl>
           <h3>Bills</h3>
           <div class="table-scroll">
@@ -242,6 +254,7 @@
               <thead><tr><th scope="col">Date</th><th scope="col">Particulars</th><th scope="col">Receipt no.</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th><th scope="col" class="num">Balance</th></tr></thead>
               <tbody id="account-ledger"></tbody>
             </table>
+          </div>
           </div>
         </div>
 

@@ -6,6 +6,34 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.5.0] – 2026-11-16 – Several people per unit, telling members, deleting test records
+
+### Added
+- **Who you are, when registering:** *Owner*, *Joint owner*, *Family member of the owner*, *Tenant* or *Caretaker / agent* (`relation`), with a short note on what each will see. Several people can register for one unit, each with their own email.
+- **What each approved person can see** (`access`, set by the committee): *Unit account and Society documents* (full) or *Society accounts and documents only* (basic). Suggested: full for owners, joint owners and family; basic for tenants and caretakers. Changed any time with **Edit**.
+- Members tab: relation label on every request and member, *Can see* column for approved members, the duplicate warning names relations, relation and access in the edit form and the rejected CSV.
+- **Tell the member** after approve, reject or remove: **Send email** and **Send WhatsApp** open a ready message (with the reason) in the committee member's own email or WhatsApp; recorded in the history as *Member told*.
+- **Delete permanently** (committee only): a rejected or removed record with its history, from *Open*; and ticked entries in the sign-in history (**Delete selected**). For test or mistaken entries.
+
+### Changed
+- A basic-access member's account page shows their unit and relation, a note on what they can see, and the Society's accounts and documents, without the unit's balance, bills, receipts or ledger.
+- Registration: the tick box now reads "The details above are true…" (it previously said "I am the owner…").
+- The message after the dues-page eye for someone without unit-account access explains why.
+
+### Security rules
+- Unit account data and `private/dues` need `access` full (records without it count as full, so existing members are unaffected).
+- `users` create may include `relation` (one of the five values); members can't set `access` themselves.
+- `memberLog`: action `notified` allowed; the committee may delete (used only by *Delete permanently*).
+- **Publish the new `firestore.rules`.**
+
+### Not included
+- Emails aren't sent automatically: that needs a mail server (for example a paid Firebase plan with a mail extension, or a scheduled job with a mail account). The ready-made email / WhatsApp message is the way for now.
+
+### Tested
+- 17 new checks: tenant registration with its note; pending label and duplicate warning with relations; approve gives a tenant documents-only access; email and WhatsApp links with the right address, number and wording (removal includes the reason); *Member told* recorded; permanent delete removes the record and its history but keeps others'; access changed with Edit; sign-in entries ticked and deleted; a basic-access tenant sees the note and no unit money; with full access the account shows. The 32 checks of 3.4.0 still pass.
+
+---
+
 ## [3.4.0] – 2026-11-16 – Sign-in feedback, sign-in history, rejected list
 
 ### Added

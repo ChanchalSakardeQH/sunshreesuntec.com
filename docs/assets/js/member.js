@@ -3,7 +3,7 @@
 import { initFirebase, errorText, inApp, saveBlob, signOutUser } from './firebase.js';
 import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, logSignIn, showMsg } from './signin.js';
 import { initOfflineUi, markSaved, saveForOffline } from './offline.js';
-import { getDues, fmt, esc, ownerCell } from './data.js';
+import { getDues, fmt, esc, ownerCell, RELATIONS, relationLabel } from './data.js';
 import { ddmmyyyy, monthLabel, money, todayIST } from './billing-core.js';
 import { mergeLedger } from './accounts.js';
 import { loadPastReceipts, preLedger } from './pastreceipts.js';
@@ -136,11 +136,12 @@ async function onUser(user) {
 function renderStatus(user) {
   showPanel('status');
   const unit = esc(unitLabel(profile.unit));
+  const as = profile.relation ? ` as ${esc(relationLabel(profile.relation).toLowerCase())}` : '';
   const verify = user.emailVerified ? '' : `<p>Confirm your email address: open the link we sent to <strong>${esc(user.email)}</strong>. Check your spam folder if it isn’t in your inbox.</p>`;
   const verifyBtns = user.emailVerified ? '' : `<button class="btn" type="button" data-act="resend">Resend link</button>
     <button class="btn btn-primary" type="button" data-act="recheck">I’ve confirmed my email</button>`;
   const body = profile.status === 'pending'
-    ? `<h2>Request sent</h2><p>Your request for ${unit} is waiting for approval. The committee checks each request against the member register before giving access.</p>${verify}`
+    ? `<h2>Request sent</h2><p>Your request for ${unit}${as} is waiting for approval. The committee checks each request against the member register before giving access.</p>${verify}`
     : profile.status === 'approved'
       ? `<h2>Access approved</h2><p>Your access to ${unit} is approved.</p>${verify}`
       : `<h2>${profile.removed ? 'Access removed' : 'Request not approved'}</h2>
@@ -160,6 +161,13 @@ function wireForms() {
   $('#member-google').addEventListener('click', (e) => signInWithGoogle(fb, { page: 'member', button: e.currentTarget, say: sayGoogle }));
   finishGoogleRedirect(fb, sayGoogle);
   $$('.switch-btn').forEach((b) => b.addEventListener('click', () => switchAuthPanel(b.dataset.panel)));
+  const relNote = { owner: 'Owners and their family see the unit’s bills, receipts and balance once approved.',
+    tenant: 'Tenants first see the Society’s notices, accounts and documents. The committee can also give you the unit’s bills and balance (for example if you pay the maintenance).',
+    caretaker: 'Caretakers and agents first see the Society’s accounts and documents. The committee can give more access with the owner’s consent.' };
+  $('#register-relation').addEventListener('change', (e) => {
+    const r = e.currentTarget.value;
+    $('#register-relation-note').textContent = relNote[r] || relNote.owner;
+  });
 
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -192,11 +200,12 @@ function wireForms() {
     const name = String(fd.get('name')).trim().replace(/\s+/g, ' ');
     const unit = String(fd.get('unit'));
     const mobile = String(fd.get('mobile')).replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, '');
+    const relation = RELATIONS[String(fd.get('relation'))] ? String(fd.get('relation')) : 'owner';
     const completing = Boolean(auth.currentUser);
     if (name.length < 3) return setMsg(form, 'Enter your full name.');
     if (!unit) return setMsg(form, 'Choose your unit.');
     if (!/^[6-9]\d{9}$/.test(mobile)) return setMsg(form, 'Enter a 10-digit Indian mobile number.');
-    if (!fd.get('declare')) return setMsg(form, 'Tick the box to confirm you are the owner or authorised representative.');
+    if (!fd.get('declare')) return setMsg(form, 'Tick the box to confirm the details are true.');
     let email = '', password = '';
     if (!completing) {
       email = String(fd.get('email')).trim();
@@ -215,8 +224,8 @@ function wireForms() {
           await A.sendEmailVerification(user);
         }
         const provider = user.providerData.some((p) => p.providerId === 'google.com') ? 'google' : 'password';
-        await F.setDoc(F.doc(db, 'users', user.uid), { name, unit, mobile, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
-        logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `request for ${unit} (${provider})` });
+        await F.setDoc(F.doc(db, 'users', user.uid), { name, unit, mobile, relation, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
+        logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `request for ${unit} as ${relationLabel(relation)} (${provider})` });
         form.reset();
       } catch (err) {
         setMsg(form, errorText(err));
@@ -257,7 +266,17 @@ async function loadAccount() {
   const { F, db } = fb;
   const unitId = profile.unit;
   $('#account-unit').textContent = unitLabel(unitId);
-  $('#account-name').textContent = profile.name;
+  $('#account-name').textContent = `${profile.name} · ${relationLabel(profile.relation)}`;
+  // Access 'basic' (set by the committee, e.g. for a caretaker): Society accounts and documents only.
+  const basic = profile.access === 'basic';
+  $('#account-money').hidden = basic;
+  $('#account-basic').hidden = !basic;
+  if (basic) {
+    $('#account-basic').textContent = `Your access is to the Society’s accounts and documents. The bills, receipts and balance of ${unitLabel(unitId)} are shown to the owner’s side; if you need them (for example to pay maintenance), ask the committee to give you access to the unit account.`;
+    audits = await loadAuditYears(fb).catch(() => []);
+    await loadSocietyAccounts().catch((err) => console.warn('Society accounts unavailable', err));
+    return;
+  }
 
   const [unitSnap, billSnap, paySnap, ledgerSnap, histSnap] = await Promise.all([
     F.getDoc(F.doc(db, 'units', unitId)).catch(() => null),
