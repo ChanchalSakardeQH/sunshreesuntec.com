@@ -6,6 +6,7 @@ rules_version = '2';
 //   private/dues                    real amounts: approved members and committee / staff
 //   admins/{uid}                    committee members (no "kind") and staff (kind: 'staff', role, perms)
 //   staffInvites/{email}            staff invited by the committee; claimed on first sign-in
+//   staffRequests/{uid}             staff and officials asking for access from the registration form (3.6)
 //   staffAgreements/{id}            permanent log of staff accepting the agreement
 //   settings/staffAgreement         current agreement text and version
 //   users/{uid}                     member access requests: pending → approved / rejected
@@ -22,7 +23,11 @@ service cloud.firestore {
     function adminPath() { return /databases/$(database)/documents/admins/$(request.auth.uid); }
     function isTeam() { return signedIn() && exists(adminPath()); }
     function me() { return get(adminPath()).data; }
-    function active() { return me().get('active', true) == true; }
+    // Active, and (auditors, officials) before the end date of their access if one is set.
+    function active() {
+      return me().get('active', true) == true
+        && (me().get('validUntil', null) == null || request.time < me().get('validUntil', null));
+    }
     function isCommittee() { return isTeam() && me().get('kind', 'committee') != 'staff' && active(); }
     function agreementOk() {
       return me().get('agreementVersion', 0)
@@ -32,7 +37,8 @@ service cloud.firestore {
     function perm(p) {
       return isCommittee()
         || (isTeam() && active() && me().get('kind', '') == 'staff'
-            && me().get('perms', {}).get(p, false) == true && agreementOk());
+            && me().get('perms', {}).get(p, false) == true
+            && (me().get('agreementRequired', true) == false || agreementOk()));
     }
     function moneyPerm() {
       return perm('generateBills') || perm('recordPayments') || perm('cancelReceipts') || perm('corrections');
@@ -101,6 +107,22 @@ service cloud.firestore {
       allow delete: if isCommittee();
     }
 
+    // Staff and officials asking for access (registration form). The committee approves by creating admins/{uid}.
+    match /staffRequests/{uid} {
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'role', 'org', 'mobile', 'email', 'status', 'createdAt', 'provider'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 120
+        && request.resource.data.role in ['Society Manager', 'Accountant', 'Office Assistant', 'Housekeeping', 'Watchman / Security', 'Auditor', 'Government official (DDR / Registrar)', 'Other']
+        && request.resource.data.org is string && request.resource.data.org.size() <= 160
+        && request.resource.data.mobile is string && request.resource.data.mobile.matches('^[6-9][0-9]{9}$')
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      allow read: if (signedIn() && request.auth.uid == uid) || isCommittee();
+      allow update, delete: if isCommittee();
+    }
+
     match /staffInvites/{email} {
       allow read: if isCommittee() || (signedIn() && request.auth.token.email == email);
       allow write: if isCommittee();
@@ -126,7 +148,7 @@ service cloud.firestore {
         && request.resource.data.mobile is string && request.resource.data.mobile.matches('^[6-9][0-9]{9}$')
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.createdAt == request.time;
-      allow read: if (signedIn() && request.auth.uid == uid) || perm('members');
+      allow read: if (signedIn() && request.auth.uid == uid) || perm('members') || perm('directory');
       allow update: if perm('members');
       allow delete: if isCommittee();
     }

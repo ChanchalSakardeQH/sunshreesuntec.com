@@ -123,7 +123,9 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `users/{uid}` | Member access requests: name, unit, mobile, email, `relation` (owner / jointOwner / family / tenant / caretaker), `access` (full / basic, set by the committee), status (pending / approved / rejected), `removed` (true when an approved member's access was removed), `reason` (shown to the member), `decidedAt`, `decidedBy`, `decidedByEmail` | Member (create), Committee (decide) |
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
 | `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
-| `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation. Committee: Staff tab |
+| `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, `agreementRequired` (false = no agreement needed, e.g. auditors), `validUntil` (access ends after this date), `org`, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation, or by the committee approving a request. Committee: Staff tab |
+| `staffRequests/{uid}` | Staff and officials asking for access from the registration form: name, role, organisation, mobile, email, status (pending / approved / rejected), reason, who decided and when | The person (create, own only); committee (decide) |
+| `settings/rolePolicies` | Access by role: for each role its permissions, whether the agreement is required, and how many days access lasts | Committee |
 | `staffInvites/{email}` | Invitations: name, mobile, role, permissions, who invited, when | Committee |
 | `staffAgreements/{id}` | Permanent acceptance record: name signed, email, role, permissions, agreement version and title, date-time, device | Staff member (create only; never changed or deleted) |
 | `settings/staffAgreement` | Current agreement: title, introduction, role responsibilities, commitments, closing, version, published by / on | Committee |
@@ -353,6 +355,32 @@ The rules enforce this: `approvedFor()` and `private/dues` need `access` full (r
 
 ## 12A. Staff: roles, access and agreement
 
+### Staff and officials asking for access (3.6)
+On the website's Member page → Register → **I am registering as: Society staff or an official**: name, role (*Society Manager, Accountant, Office Assistant, Housekeeping, Watchman / Security, Auditor, Government official (DDR / Registrar), Other*), organisation or office (optional), mobile. The form shows what that role usually gets. The request appears in Accounts → **Staff → Requests from staff and officials**:
+- **Approve** opens the access form filled from the role's policy (permissions, agreement, *Access until* date), which the committee can change before confirming. This creates their staff login. They then open the Society accounts page and sign in with the same email.
+- **Reject** asks for a reason (they see it). Rejected requests stay listed: **Back to waiting** or **Delete**.
+- After either, **Send email** / **Send WhatsApp** opens a ready message, as for members.
+- Until approved, the accounts page tells them their request is waiting (or why it was rejected).
+
+### Access by role (committee)
+Staff → **Access by role**: for each role, the permissions it gets, whether the staff agreement must be accepted first, and how long access lasts (0 = until removed). Defaults:
+
+| Role | Permissions | Agreement | Access lasts |
+|---|---|---|---|
+| Society Manager | View accounts, record payments, edit units, lift expenses, unit files, approve members, website, residents directory | Yes | until removed |
+| Accountant | View accounts, record payments, cancel receipts, generate bills, corrections, lift expenses | Yes | until removed |
+| Office Assistant | View accounts, record payments, unit files | Yes | until removed |
+| Housekeeping | Residents directory | Yes | until removed |
+| Watchman / Security | Residents directory | Yes | until removed |
+| Auditor | View accounts (read-only) | No | 90 days |
+| Government official (DDR / Registrar) | View accounts (read-only) | No | 30 days |
+| Other | none (the committee chooses) | Yes | until removed |
+
+Changing a policy applies to new approvals and invitations only; people who already have access are changed with **Edit** (which also has *Must accept the staff agreement* and *Access until*). When the *Access until* date passes, the rules refuse all access and the accounts page says access has ended; the committee can extend it with Edit.
+
+### Residents directory
+Permission *Residents directory* (watchman, housekeeping, manager; committee always): Accounts → **Directory** lists each unit with the name in the Society's records and the people approved on the website (name, relation, mobile as a tap-to-call link), with a search box. Nothing about money. The rules let these staff read approved member records (name, relation, mobile) and nothing else.
+
 ### Adding staff (committee)
 Accounts → **Staff** → Add staff: full name, Gmail address, mobile, role, and access (pre-ticked by role, can be changed). The person opens sunshreesuntec.com/admin.html, chooses **Continue with Google** with that Gmail, reads the agreement, ticks acceptance, types their full name, and starts work.
 
@@ -369,7 +397,8 @@ Accounts → **Staff** → Add staff: full name, Gmail address, mobile, role, an
 | Lift expenses | Record lift AMC / repair expenses | Yes | Yes | – |
 | Approve members | Approve / remove member logins | – | Yes | – |
 | Website | Notices, committee and contact details | – | Yes | – |
-| Committee only | Settings (rates, charge basis, society / bank details), opening import, staff, agreement | – | – | – |
+| Residents directory | Units, names, mobiles of approved people (Directory tab) | – | Yes | – |
+| Committee only | Settings (rates, charge basis, society / bank details), opening import, staff, agreement, access by role | – | – | – |
 
 Defaults are pre-ticked when inviting; the committee may give or withhold any permission per person.
 

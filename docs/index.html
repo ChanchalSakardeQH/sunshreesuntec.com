@@ -156,7 +156,7 @@
     <section class="tab" data-tab="member" hidden aria-labelledby="member-title">
       <div class="wrap narrow page">
         <h1 id="member-title">Member access</h1>
-        <p>Registered members can see the full maintenance account for their own unit. Owners, joint owners, family members, tenants and caretakers can each register. Continue with Google, or register with email and password; then add your unit, who you are and your mobile number. The committee checks each request against the member register before approving it.</p>
+        <p>Registered members can see the full maintenance account for their own unit. Owners, joint owners, family members, tenants and caretakers can each register. Continue with Google, or register with email and password; then add your unit, who you are and your mobile number. The committee checks each request against the member register before approving it. Society staff and officials (auditor, DDR office) can also ask for access here.</p>
 
         <p class="callout" id="member-note" hidden></p>
         <p class="callout" id="member-unavailable" hidden>Member login isn’t switched on yet. Please check back soon.</p>
@@ -184,11 +184,21 @@
           </form>
 
           <form id="register-form" class="form" hidden novalidate>
-            <label>Full name (as in the member register)<input type="text" name="name" autocomplete="name" required></label>
-            <label>Unit / flat / shop number
+            <fieldset class="reg-kind">
+              <legend>I am registering as</legend>
+              <label class="check"><input type="radio" name="kind" value="member" checked> <span>A member of a unit<br><span class="muted small-note">Owner, joint owner, family, tenant, caretaker</span></span></label>
+              <label class="check"><input type="radio" name="kind" value="staff"> <span>Society staff or an official<br><span class="muted small-note">Manager, accountant, housekeeping, watchman, auditor, DDR / Registrar office</span></span></label>
+            </fieldset>
+            <label>Full name<input type="text" name="name" autocomplete="name" required></label>
+            <label class="reg-staff" hidden>Role
+              <select name="role" id="register-role"></select>
+            </label>
+            <label class="reg-staff" hidden>Organisation or office <span class="muted">(optional, e.g. audit firm, DDR office, agency)</span><input type="text" name="org" maxlength="160"></label>
+            <p class="muted small-note reg-staff" id="register-role-note" hidden></p>
+            <label class="reg-member">Unit / flat / shop number
               <select name="unit" id="register-unit" required><option value="">Choose your unit</option></select>
             </label>
-            <label>You are
+            <label class="reg-member">You are
               <select name="relation" id="register-relation" required>
                 <option value="owner">Owner</option>
                 <option value="jointOwner">Joint owner</option>
@@ -197,7 +207,7 @@
                 <option value="caretaker">Caretaker / agent of the owner</option>
               </select>
             </label>
-            <p class="muted small-note reg-relation-note" id="register-relation-note">Owners and their family see the unit’s bills, receipts and balance once approved.</p>
+            <p class="muted small-note reg-relation-note reg-member" id="register-relation-note">Owners and their family see the unit’s bills, receipts and balance once approved.</p>
             <label>Mobile number
               <span class="input-prefix"><span>+91</span><input type="tel" name="mobile" inputmode="numeric" autocomplete="tel-national" placeholder="98XXXXXXXX" maxlength="10" required></span>
             </label>

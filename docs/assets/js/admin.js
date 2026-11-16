@@ -2,7 +2,7 @@
 import { initFirebase, errorText, inApp, saveBlob, signOutUser, SITE_VERSION } from './firebase.js';
 import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, showMsg } from './signin.js';
 import { initOfflineUi, requireOnline } from './offline.js';
-import { PERMS, PERM_LABEL, COMMITTEE_ONLY, STAFF_ROLES, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT } from './staff.js';
+import { PERMS, PERM_LABEL, COMMITTEE_ONLY, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT, setRolePolicies, rolePolicy, roleNames, DEFAULT_ROLE_POLICIES, accessEnds, accessEnded } from './staff.js';
 import {
   loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
   updateUnitDetails, importOpening, rebuildPublicDues,
@@ -32,8 +32,8 @@ import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } 
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'members', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'members', 'directory', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
@@ -143,7 +143,11 @@ async function startSession(user) {
   if (!snap?.exists()) {
     const inv = user.email ? await F.getDoc(F.doc(db, 'staffInvites', user.email)).catch(() => null) : null;
     if (!inv?.exists()) {
-      gate(`${esc(user.email || 'This account')} isn’t a committee or staff account. If the committee has invited you, sign in with the exact Gmail address they invited.`, true);
+      const req = await F.getDoc(F.doc(db, 'staffRequests', user.uid)).catch(() => null);
+      const r = req?.exists() ? req.data() : null;
+      if (r?.status === 'pending') gate(`Your request to work as ${esc(r.role)} is waiting for the committee’s approval. Please try again after you hear from them.`, true);
+      else if (r?.status === 'rejected') gate(`Your request to work as ${esc(r.role)} wasn’t approved.${r.reason ? ` Reason: ${esc(r.reason)}.` : ''} Please contact the Society office.`, true);
+      else gate(`${esc(user.email || 'This account')} isn’t a committee or staff account. Staff and officials can ask for access on the website’s Member page (Register → Society staff or an official). If the committee has invited you, sign in with the exact Gmail address they invited.`, true);
       return;
     }
     if (!user.emailVerified) {
@@ -162,9 +166,10 @@ async function startSession(user) {
 
   me = { uid: user.uid, email: user.email, ...snap.data() };
   if (me.active === false) { gate('Your access has been suspended by the committee.', true); return; }
+  if (accessEnded(me)) { gate(`Your access ended on ${esc(accessEnds(me).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }))}. Please contact the committee if you still need it.`, true); return; }
 
   agreement = await loadAgreement();
-  if (me.kind === 'staff') {
+  if (me.kind === 'staff' && me.agreementRequired !== false) {
     if (!agreement) { gate('The committee hasn’t published the staff agreement yet. Please try again later.', true); return; }
     if (me.agreementVersion !== agreement.version) { showAgreement(); return; }
   }
@@ -245,9 +250,9 @@ function route() {
   $$('.tab').forEach((t) => (t.hidden = t.dataset.tab !== id));
   $$('#admin-nav a').forEach((a) => (a.getAttribute('href') === '#' + id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   $('#admin-nav').classList.remove('open');
-  $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website'].includes(id) || !canDo('view');
+  $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website', 'directory'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, lift: loadLift, members: loadMembers, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, lift: loadLift, members: loadMembers, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -1057,6 +1062,27 @@ async function saveMemberDialog() {
   });
 }
 
+/* ----- residents directory (watchman, housekeeping, manager) ----- */
+
+let directoryPeople = null;
+async function loadDirectory() {
+  const { F, db } = fb;
+  if (!directoryPeople) {
+    const snap = await F.getDocs(F.query(F.collection(db, 'users'), F.where('status', '==', 'approved')));
+    directoryPeople = snap.docs.map((d) => d.data());
+    $('#dir-search').addEventListener('input', renderDirectory);
+  }
+  renderDirectory();
+}
+function renderDirectory() {
+  const q = $('#dir-search').value.trim().toLowerCase();
+  const list = (units.length ? units : dues.units).map((u) => ({ id: u.id, unit: u.unit, name: u.name || '', people: directoryPeople.filter((p) => p.unit === u.id) }));
+  const hit = (x) => !q || [x.unit, x.name, ...x.people.flatMap((p) => [p.name, p.mobile])].some((v) => String(v || '').toLowerCase().includes(q));
+  $('#dir-rows').innerHTML = list.filter(hit).map((x) => `<tr><td class="unit">${esc(x.unit)}</td><td>${esc(x.name)}</td>
+    <td>${x.people.length ? `<ul>${x.people.map((p) => `<li>${esc(p.name)} <span class="rel-pill">${esc(relationLabel(p.relation))}</span>${p.mobile ? ` <a href="tel:+91${esc(p.mobile)}">+91 ${esc(p.mobile)}</a>` : ''}</li>`).join('')}</ul>` : '<span class="muted">—</span>'}</td></tr>`).join('')
+    || '<tr><td colspan="3" class="empty">No match.</td></tr>';
+}
+
 /* ----- sign-in history ----- */
 
 const METHOD_TEXT = { google: 'Google', password: 'Email + password', register: 'Registration', reset: 'Password reset' };
@@ -1637,27 +1663,94 @@ const accessSummary = (rec) => (isCommitteeRecord(rec) ? 'Full access' : PERMS.f
 const permChecks = (perms) => PERMS.map(([k, label]) => `<label><input type="checkbox" name="p_${k}" ${perms?.[k] ? 'checked' : ''}> ${esc(label)}</label>`).join('');
 const readPerms = (fd) => Object.fromEntries(PERMS.map(([k]) => [k, Boolean(fd.get('p_' + k))]));
 let staffList = [];
+let staffRequests = [];
+const dateShort = (d) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+const dateInput = (d) => (d ? new Date(d.getTime() + 5.5 * 3600000).toISOString().slice(0, 10) : '');
+const endOfDay = (v) => (v ? fb.F.Timestamp.fromDate(new Date(`${v}T23:59:59+05:30`)) : null);
+const plusDays = (n) => (n ? dateInput(new Date(Date.now() + n * 86400000)) : '');
+
+function fillRoleSelects() {
+  const opts = roleNames().map((r) => `<option>${esc(r)}</option>`).join('');
+  ['#invite-role', '#staff-role'].forEach((id) => {
+    const sel = $(id), keep = sel.value;
+    sel.innerHTML = opts;
+    if (keep && roleNames().includes(keep)) sel.value = keep;
+  });
+}
+
+function renderRolePolicies() {
+  $('#role-policies').innerHTML = roleNames().map((r, i) => {
+    const p = rolePolicy(r);
+    return `<details class="role-policy" data-role="${esc(r)}"><summary>${esc(r)}${p.group === 'official' ? '<span class="group-pill">Official</span>' : ''}
+      <span class="muted">· ${p.perms.length} of ${PERMS.length} permissions · ${p.agreement ? 'agreement required' : 'no agreement'} · ${p.days ? `${p.days} days` : 'until removed'}</span></summary>
+      <div class="perm-grid">${PERMS.map(([k, label]) => `<label><input type="checkbox" name="rp${i}_${k}" ${p.perms.includes(k) ? 'checked' : ''}> ${esc(label)}</label>`).join('')}</div>
+      <div class="rp-row"><label class="check"><input type="checkbox" name="rp${i}_agreement" ${p.agreement ? 'checked' : ''}> Must accept the staff agreement</label>
+      <label>Access lasts (days, 0 = until removed)<input type="number" name="rp${i}_days" min="0" max="3650" value="${p.days}"></label></div></details>`;
+  }).join('');
+}
+
+function renderStaffRequests() {
+  const list = staffRequests.filter((r) => r.status !== 'approved')
+    .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || (tsDate(b.createdAt) || 0) - (tsDate(a.createdAt) || 0));
+  $('#staff-request-rows').innerHTML = list.map((r) => `<tr><td><strong>${esc(r.name)}</strong>${r.provider === 'google' ? ' <span class="status-pill">Google</span>' : ''}</td>
+      <td>${esc(r.role)}${rolePolicy(r.role).group === 'official' ? '<span class="group-pill">Official</span>' : ''}</td><td>${esc(r.org || '')}</td>
+      <td>${r.mobile ? `<a href="tel:+91${esc(r.mobile)}">+91 ${esc(r.mobile)}</a>` : ''}</td><td><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></td>
+      <td>${whenShort(r.createdAt)}${r.status === 'rejected' ? `<br><span class="warn">Rejected${r.reason ? `: ${esc(r.reason)}` : ''}</span>` : ''}</td>
+      <td><div class="row-actions">${r.status === 'pending'
+        ? `<button class="btn btn-small btn-primary" type="button" data-sr="approve" data-uid="${esc(r.uid)}">Approve</button>
+           <button class="btn btn-small btn-danger" type="button" data-sr="reject" data-uid="${esc(r.uid)}">Reject</button>`
+        : `<button class="btn btn-small" type="button" data-sr="restore" data-uid="${esc(r.uid)}">Back to waiting</button>
+           <button class="btn btn-small btn-danger" type="button" data-sr="delete" data-uid="${esc(r.uid)}">Delete</button>`}</div></td></tr>`).join('')
+    || '<tr><td colspan="7" class="empty">No requests.</td></tr>';
+}
+
+function staffNotify(r, action) {
+  const box = $('#staff-notice');
+  const first = (r.name || '').split(' ')[0] || 'Sir / Madam';
+  const sign = `\n\nRegards,\n${me?.name || 'Managing Committee'}\nSunshree Suntec Co-op. Housing Society Ltd.`;
+  const link = SITE_LINK.replace('/#member', '/admin.html');
+  const t = action === 'approved'
+    ? { subject: `Sunshree Suntec: your access as ${r.role} is approved`, body: `Dear ${first},\n\nYour access to the Society’s accounts as ${r.role} has been approved${r.until ? ` until ${r.until}` : ''}. Open ${link} and sign in with ${r.email}.${r.agreement ? ' Please read and accept the staff agreement shown at your first sign-in.' : ''}${sign}` }
+    : { subject: `Sunshree Suntec: your request as ${r.role}`, body: `Dear ${first},\n\nYour request for access to the Society’s accounts as ${r.role} was not approved.${r.reason ? `\nReason: ${r.reason}` : ''}\n\nPlease contact the Society office if you think this is a mistake.${sign}` };
+  const mail = `mailto:${encodeURIComponent(r.email || '')}?subject=${encodeURIComponent(t.subject)}&body=${encodeURIComponent(t.body)}`;
+  const wa = r.mobile ? `https://wa.me/91${r.mobile}?text=${encodeURIComponent(`${t.subject}\n\n${t.body}`)}` : '';
+  box.innerHTML = `<p><strong>${action === 'approved' ? 'Approved' : 'Rejected'}: ${esc(r.name)} (${esc(r.role)}).</strong> Let them know:</p>
+    <div class="form-actions"><a class="btn btn-small btn-primary" href="${esc(mail)}" data-snotify="email">Send email</a>
+    ${wa ? `<a class="btn btn-small" href="${esc(wa)}" target="_blank" rel="noopener" data-snotify="whatsapp">Send WhatsApp</a>` : ''}
+    <button class="btn btn-small" type="button" data-snotify="close">Close</button></div>`;
+  box.dataset.uid = r.uid; box.dataset.action = action;
+  box.hidden = false;
+  box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
 
 async function loadStaff() {
   const { F, db } = fb;
   agreement = await ensureAgreement();
-  const [adm, inv, acc] = await Promise.all([
+  const [adm, inv, acc, pol, reqs] = await Promise.all([
     F.getDocs(F.collection(db, 'admins')),
     F.getDocs(F.collection(db, 'staffInvites')),
-    F.getDocs(F.collection(db, 'staffAgreements'))
+    F.getDocs(F.collection(db, 'staffAgreements')),
+    F.getDoc(F.doc(db, 'settings', 'rolePolicies')).catch(() => null),
+    F.getDocs(F.collection(db, 'staffRequests')).catch(() => ({ docs: [] }))
   ]);
+  setRolePolicies(pol?.exists() ? pol.data().roles : null);
+  fillRoleSelects();
+  renderRolePolicies();
+  staffRequests = reqs.docs.map((d) => ({ uid: d.id, ...d.data() }));
+  renderStaffRequests();
   staffList = adm.docs.map((d) => ({ uid: d.id, ...d.data() }));
   const claimed = new Set(staffList.map((x) => (x.email || '').toLowerCase()));
 
   $('#staff-rows').innerHTML = staffList.sort((a, b) => (isCommitteeRecord(b) - isCommitteeRecord(a)) || (a.name || '').localeCompare(b.name || '')).map((x) => {
     const committee = x.kind !== 'staff';
-    const agr = committee ? '<span class="muted">Not required</span>'
+    const agr = committee || x.agreementRequired === false ? '<span class="muted">Not required</span>'
       : x.agreementVersion === agreement.version ? `<span class="pill-ok">v${x.agreementVersion} accepted</span><br><span class="muted">${esc(tsText(x.agreementAcceptedAt))}</span>`
       : `<span class="warn">${x.agreementVersion ? `Accepted v${x.agreementVersion}; v${agreement.version} pending` : 'Not yet accepted'}</span>`;
     return `<tr><td><strong>${esc(x.name || x.email || x.uid)}</strong><br><span class="muted">${esc(x.email || '')}</span></td>
       <td>${esc(committee ? `Committee${x.role ? ' – ' + x.role : ''}` : x.role)}</td>
       <td>${esc(accessSummary(x))}</td><td>${agr}</td><td>${esc(tsText(x.lastLoginAt))}</td>
-      <td>${x.active === false ? '<span class="warn">Suspended</span>' : 'Active'}</td>
+      <td>${x.active === false ? '<span class="warn">Suspended</span>' : accessEnded(x) ? `<span class="warn">Ended ${esc(dateShort(accessEnds(x)))}</span>`
+        : accessEnds(x) ? `Active until ${esc(dateShort(accessEnds(x)))}` : 'Active'}</td>
       <td>${committee || x.uid === uid ? '' : `<button class="btn btn-small" type="button" data-edit-staff="${esc(x.uid)}">Edit</button>`}</td></tr>`;
   }).join('') || '<tr><td colspan="7" class="empty">No one yet.</td></tr>';
 
@@ -1679,14 +1772,13 @@ async function loadStaff() {
   ef.intro.value = agreement.intro || '';
   ef.common.value = (agreement.common || []).join('\n');
   ef.closing.value = agreement.closing || '';
-  const roles = [...new Set([...Object.keys(STAFF_ROLES), ...Object.keys(agreement.roles || {})])];
+  const roles = [...new Set([...roleNames(), ...Object.keys(agreement.roles || {})])];
   $('#role-texts').innerHTML = roles.map((r) => `<label>Responsibilities of ${esc(r)} (one per line)<textarea name="role_${esc(r)}" rows="6">${esc((agreement.roles?.[r] || []).join('\n'))}</textarea></label>`).join('');
 }
 
 function wireStaff() {
-  const roleOptions = Object.keys(STAFF_ROLES).map((r) => `<option>${esc(r)}</option>`).join('');
   const f = $('#invite-form');
-  $('#invite-role').innerHTML = roleOptions;
+  fillRoleSelects();
   const fillInvitePerms = () => { $('#invite-perms').innerHTML = permChecks(permsFor(f.role.value)); };
   f.role.addEventListener('change', fillInvitePerms);
   fillInvitePerms();
@@ -1720,33 +1812,118 @@ function wireStaff() {
     await loadStaff();
   });
 
+  // One dialog for: edit a staff member, approve a request (with the role's policy, adjustable), reject a request.
   const sf = $('#staff-form');
-  $('#staff-role').innerHTML = roleOptions;
-  let editingStaff = null;
-  $('#staff-rows').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-edit-staff]');
-    if (!b) return;
-    editingStaff = staffList.find((x) => x.uid === b.dataset.editStaff);
-    $('#staff-title').textContent = `${editingStaff.name || editingStaff.email}`;
-    sf.role.value = editingStaff.role;
-    $('#staff-perms').innerHTML = permChecks(editingStaff.perms);
-    sf.active.checked = editingStaff.active !== false;
+  let editingStaff = null, mode = 'edit';
+  const openStaffDialog = (rec, m) => {
+    editingStaff = rec; mode = m;
+    const pol = rolePolicy(rec.role);
+    $('#staff-title').textContent = m === 'approve' ? `Approve: ${rec.name}` : m === 'reject' ? `Reject: ${rec.name}` : `${rec.name || rec.email}`;
+    $('#staff-sub').textContent = [rec.role, rec.org, rec.email, rec.mobile ? `+91 ${rec.mobile}` : ''].filter(Boolean).join(' · ');
+    $('.staff-edit-only', sf).hidden = m === 'reject';
+    $('.staff-reject-only', sf).hidden = m !== 'reject';
+    $('#staff-remove').hidden = m !== 'edit';
+    $('button[type=submit]', sf).textContent = m === 'approve' ? 'Approve' : m === 'reject' ? 'Reject' : 'Save';
+    $('button[type=submit]', sf).classList.toggle('btn-danger', m === 'reject');
+    sf.reason.value = '';
+    if (m !== 'reject') {
+      if (!roleNames().includes(rec.role)) fillRoleSelects();
+      sf.role.value = roleNames().includes(rec.role) ? rec.role : 'Other';
+      $('#staff-perms').innerHTML = permChecks(m === 'approve' ? permsFor(rec.role) : rec.perms);
+      sf.agreementRequired.checked = m === 'approve' ? pol.agreement : rec.agreementRequired !== false;
+      sf.validUntil.value = m === 'approve' ? plusDays(pol.days) : dateInput(accessEnds(rec));
+      sf.active.checked = m === 'approve' ? true : rec.active !== false;
+    }
     setMsg(sf, '');
     $('#staff-dialog').showModal();
+  };
+  $('#staff-rows').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-edit-staff]');
+    if (b) openStaffDialog(staffList.find((x) => x.uid === b.dataset.editStaff), 'edit');
   });
-  sf.role.addEventListener('change', () => { $('#staff-perms').innerHTML = permChecks(permsFor(sf.role.value)); });
+  $('#staff-request-rows').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-sr]');
+    const r = b && staffRequests.find((x) => x.uid === b.dataset.uid);
+    if (!r) return;
+    const act = b.dataset.sr;
+    if (act === 'approve' || act === 'reject') { openStaffDialog(r, act); return; }
+    if (act === 'delete' && !confirm(`Delete ${r.name}'s request permanently? It can't be undone.`)) return;
+    await busy(b, async () => {
+      try {
+        if (act === 'restore') await fb.F.updateDoc(fb.F.doc(fb.db, 'staffRequests', r.uid), { status: 'pending', reason: '' });
+        if (act === 'delete') await fb.F.deleteDoc(fb.F.doc(fb.db, 'staffRequests', r.uid));
+        await loadStaff();
+      } catch (err) { alert(errorText(err)); }
+    });
+  });
+  $('#staff-notice').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-snotify]');
+    if (!a) return;
+    const box = $('#staff-notice');
+    if (a.dataset.snotify === 'close') { box.hidden = true; return; }
+    const r = staffRequests.find((x) => x.uid === box.dataset.uid) || staffList.find((x) => x.uid === box.dataset.uid);
+    if (r) logNotified({ id: box.dataset.uid, name: r.name, unit: '' }, a.dataset.snotify, box.dataset.action);
+  });
+  sf.role.addEventListener('change', () => {
+    const pol = rolePolicy(sf.role.value);
+    $('#staff-perms').innerHTML = permChecks(permsFor(sf.role.value));
+    if (mode === 'approve') { sf.agreementRequired.checked = pol.agreement; sf.validUntil.value = plusDays(pol.days); }
+  });
   $('[data-close]', sf).addEventListener('click', () => $('#staff-dialog').close());
   sf.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(sf);
+    const fd = new FormData(sf), F = fb.F, db = fb.db, r = editingStaff;
+    const role = String(fd.get('role')), perms = readPerms(fd), validUntil = endOfDay(String(fd.get('validUntil') || ''));
+    const agreementRequired = Boolean(fd.get('agreementRequired'));
+    if (mode !== 'reject' && validUntil && validUntil.toDate() < new Date()) return setMsg(sf, 'The “Access until” date has passed. Choose a later date or leave it empty.');
     await busy($('button[type=submit]', sf), async () => {
       try {
-        await fb.F.updateDoc(fb.F.doc(fb.db, 'admins', editingStaff.uid), { role: String(fd.get('role')), perms: readPerms(fd), active: Boolean(fd.get('active')) });
-        $('#staff-dialog').close();
+        if (mode === 'edit') {
+          await F.updateDoc(F.doc(db, 'admins', r.uid), { role, perms, active: Boolean(fd.get('active')), agreementRequired, validUntil });
+          $('#staff-dialog').close();
+        } else if (mode === 'approve') {
+          if (!Object.values(perms).some(Boolean)) return setMsg(sf, 'Give at least one kind of access.');
+          const batch = F.writeBatch(db);
+          batch.set(F.doc(db, 'admins', r.uid), { kind: 'staff', role, perms, name: r.name, email: r.email, mobile: r.mobile || '', org: r.org || '',
+            active: true, agreementRequired, validUntil, createdAt: F.serverTimestamp(), invitedBy: uid, fromRequest: true });
+          batch.update(F.doc(db, 'staffRequests', r.uid), { status: 'approved', decidedAt: F.serverTimestamp(), decidedBy: uid, decidedByEmail: fb.auth.currentUser?.email || '' });
+          batch.set(F.doc(F.collection(db, 'memberLog')), { uid: r.uid, action: 'approved', by: uid, byEmail: fb.auth.currentUser?.email || '', at: F.serverTimestamp(),
+            name: r.name, unit: '', reason: '', note: '', changes: `staff access as ${role}${validUntil ? ` until ${fd.get('validUntil')}` : ''}` });
+          await batch.commit();
+          $('#staff-dialog').close();
+          staffNotify({ ...r, role, until: validUntil ? dateShort(validUntil.toDate()) : '', agreement: agreementRequired }, 'approved');
+        } else {
+          const reason = String(fd.get('reason') || '').trim().slice(0, 300);
+          const batch = F.writeBatch(db);
+          batch.update(F.doc(db, 'staffRequests', r.uid), { status: 'rejected', reason, decidedAt: F.serverTimestamp(), decidedBy: uid, decidedByEmail: fb.auth.currentUser?.email || '' });
+          batch.set(F.doc(F.collection(db, 'memberLog')), { uid: r.uid, action: 'rejected', by: uid, byEmail: fb.auth.currentUser?.email || '', at: F.serverTimestamp(),
+            name: r.name, unit: '', reason, note: '', changes: `staff request as ${r.role}` });
+          await batch.commit();
+          $('#staff-dialog').close();
+          staffNotify({ ...r, reason }, 'rejected');
+        }
         await loadStaff();
       } catch (err) { setMsg(sf, esc(errorText(err))); }
     });
   });
+
+  $('#role-policy-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget, fd = new FormData(form), roles = {};
+    roleNames().forEach((r, i) => {
+      roles[r] = { group: rolePolicy(r).group, perms: PERMS.map(([k]) => k).filter((k) => fd.get(`rp${i}_${k}`)),
+        agreement: Boolean(fd.get(`rp${i}_agreement`)), days: Math.max(0, Math.min(3650, Math.round(Number(fd.get(`rp${i}_days`)) || 0))) };
+    });
+    await busy($('button[type=submit]', form), async () => {
+      try {
+        await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'rolePolicies'), { roles, updatedAt: fb.F.serverTimestamp(), updatedBy: uid });
+        setRolePolicies(roles);
+        renderRolePolicies();
+        setMsg(form, 'Saved. New approvals and invitations use these settings.', true);
+      } catch (err) { setMsg(form, esc(errorText(err))); }
+    });
+  });
+
   $('#staff-remove').addEventListener('click', async () => {
     if (!editingStaff || !confirm(`Remove all access for ${editingStaff.name || editingStaff.email}? Their past entries and agreement record stay.`)) return;
     try {

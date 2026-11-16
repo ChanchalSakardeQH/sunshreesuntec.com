@@ -6,6 +6,34 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.6.0] – 2026-11-16 – Staff and officials can ask for access; access by role; residents directory
+
+### Added
+- **Registration for staff and officials:** the Member page's registration form asks *I am registering as: a member of a unit / Society staff or an official*. Staff and officials choose a role (Society Manager, Accountant, Office Assistant, Housekeeping, Watchman / Security, Auditor, Government official (DDR / Registrar), Other), give their organisation or office and mobile, and see what the role usually gets. Requests go to the new `staffRequests` collection, separate from member requests.
+- **Requests from staff and officials** (Accounts → Staff): **Approve** opens the access form filled from the role's policy (adjustable), creating their staff login in one step with the request and history; **Reject** with a reason; rejected requests can go back to waiting or be deleted; **Send email / WhatsApp** to tell them.
+- **Access by role** (`settings/rolePolicies`, Staff tab): each role has its own permissions, whether the staff agreement is required, and how long access lasts. Defaults: auditors and government officials get read-only access without the staff agreement, for 90 and 30 days; housekeeping and watchmen get only the residents directory.
+- **Access until** and **Must accept the staff agreement** per person (Staff → Edit). Expired access is refused by the rules and explained on sign-in.
+- **Residents directory** (new permission and Accounts → Directory tab): units, names in the Society's records and approved people with relation and tap-to-call mobile, with search; no money information.
+- The accounts page tells someone with a pending or rejected staff request what is happening, and points others to the registration form.
+
+### Changed
+- The registration tick box wording depends on the choice (staff: confidentiality commitment).
+- The Member page tells a signed-in staff member which role their account has.
+
+### Security rules
+- `active()` also checks `validUntil`; `perm()` skips the agreement check when `agreementRequired` is false.
+- New `staffRequests`: create only for oneself, with the listed fields, a role from the list, a valid mobile and one's own email; read by oneself and the committee; decided by the committee.
+- `users` can be read by staff with *Residents directory*.
+- **Publish the new `firestore.rules`.**
+
+### Android app
+- New icon: the Society's seal on white, sized to Android's safe zone (whole seal visible in round, square and rounded launcher shapes), also used for Android 13+ themed icons; 512 px Play Store icon in `app/src/main/ic_launcher-playstore.png`; source SVG in `branding/`.
+
+### Tested
+- 20 new checks: staff registration fields and role note; request saved without a unit record; waiting message on both pages; three requests listed; approval form filled from the Auditor policy (view only, no agreement, 90 days) and the Watchman policy (directory, agreement); staff login created, request marked approved, notice shown, list shows the end date; rejection with reason, kept and shown to the person; role policy saved; auditor signs in without the agreement and sees only view tabs; watchman accepts the agreement and sees only the directory, with search; expired access refused. The 3.5.0 (17) and 3.4.0 (31) checks still pass.
+
+---
+
 ## [3.5.0] – 2026-11-16 – Several people per unit, telling members, deleting test records
 
 ### Added

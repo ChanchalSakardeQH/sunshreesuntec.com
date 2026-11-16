@@ -13,7 +13,8 @@ export const PERMS = [
   ['liftExpenses', 'Record lift AMC / repair expenses'],
   ['unitRecords', 'Maintain unit files: member register (I & J), tenants and rental history, communication'],
   ['members', 'Approve or remove member logins'],
-  ['website', 'Publish notices and contact details on the website']
+  ['website', 'Publish notices and contact details on the website'],
+  ['directory', 'Residents directory: units, names and mobile numbers (for visitors, deliveries, emergencies)']
 ];
 export const PERM_LABEL = Object.fromEntries(PERMS);
 
@@ -25,19 +26,51 @@ export const COMMITTEE_ONLY = [
   'Edit and publish the staff agreement'
 ];
 
-export const STAFF_ROLES = {
-  'Accountant': ['view', 'recordPayments', 'cancelReceipts', 'generateBills', 'corrections', 'liftExpenses'],
-  'Society Manager': ['view', 'recordPayments', 'editUnits', 'liftExpenses', 'unitRecords', 'members', 'website'],
-  'Office Assistant': ['view', 'recordPayments', 'unitRecords']
+/**
+ * Access policy of each role: the permissions a new person in that role gets, whether they must accept the staff
+ * agreement before working, and for how many days access lasts (0 = until the committee removes it).
+ * These are the defaults; the committee changes them in Accounts → Staff → Access by role (saved in settings/rolePolicies).
+ * group: 'staff' works for the Society; 'official' inspects it (auditors, government officials).
+ */
+export const DEFAULT_ROLE_POLICIES = {
+  'Society Manager': { group: 'staff', perms: ['view', 'recordPayments', 'editUnits', 'liftExpenses', 'unitRecords', 'members', 'website', 'directory'], agreement: true, days: 0 },
+  'Accountant': { group: 'staff', perms: ['view', 'recordPayments', 'cancelReceipts', 'generateBills', 'corrections', 'liftExpenses'], agreement: true, days: 0 },
+  'Office Assistant': { group: 'staff', perms: ['view', 'recordPayments', 'unitRecords'], agreement: true, days: 0 },
+  'Housekeeping': { group: 'staff', perms: ['directory'], agreement: true, days: 0 },
+  'Watchman / Security': { group: 'staff', perms: ['directory'], agreement: true, days: 0 },
+  'Auditor': { group: 'official', perms: ['view'], agreement: false, days: 90 },
+  'Government official (DDR / Registrar)': { group: 'official', perms: ['view'], agreement: false, days: 30 },
+  'Other': { group: 'staff', perms: [], agreement: true, days: 0 }
 };
+/** Roles offered on the public registration form. */
+export const SELF_REGISTER_ROLES = ['Society Manager', 'Accountant', 'Office Assistant', 'Housekeeping', 'Watchman / Security', 'Auditor', 'Government official (DDR / Registrar)', 'Other'];
 
-export const permsFor = (role) => Object.fromEntries(PERMS.map(([k]) => [k, (STAFF_ROLES[role] || []).includes(k)]));
+let policies = DEFAULT_ROLE_POLICIES;
+/** Uses the committee's saved policies (settings/rolePolicies) on top of the defaults. */
+export function setRolePolicies(saved) {
+  const merged = structuredClone(DEFAULT_ROLE_POLICIES);
+  Object.entries(saved || {}).forEach(([role, p]) => {
+    if (!p || typeof p !== 'object') return;
+    merged[role] = { group: p.group || merged[role]?.group || 'staff', perms: Array.isArray(p.perms) ? p.perms.filter((k) => PERM_LABEL[k]) : (merged[role]?.perms || []),
+      agreement: p.agreement !== false, days: Math.max(0, Math.min(3650, Number(p.days) || 0)) };
+  });
+  policies = merged;
+  return merged;
+}
+export const rolePolicy = (role) => policies[role] || policies.Other;
+export const roleNames = () => Object.keys(policies);
+
+export const permsFor = (role) => Object.fromEntries(PERMS.map(([k]) => [k, rolePolicy(role).perms.includes(k)]));
 
 /** A signed-in admins/{uid} record is a committee member unless it is marked kind: 'staff'. */
 export const isCommitteeRecord = (rec) => Boolean(rec) && rec.kind !== 'staff' && rec.active !== false;
 
+/** Date access ends (auditors, officials), or null. */
+export const accessEnds = (rec) => (rec?.validUntil?.toDate ? rec.validUntil.toDate() : null);
+export const accessEnded = (rec) => { const t = accessEnds(rec); return Boolean(t) && t <= new Date(); };
+
 export function can(rec, perm) {
-  if (!rec || rec.active === false) return false;
+  if (!rec || rec.active === false || accessEnded(rec)) return false;
   if (rec.kind !== 'staff') return true;
   return Boolean(rec.perms?.[perm]);
 }

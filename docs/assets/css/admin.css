@@ -203,3 +203,12 @@ table.pr-table td:last-child .btn { white-space: nowrap; }
 .rel-pill { display: inline-block; font-size: .78rem; font-weight: 600; padding: .05rem .45rem; border-radius: 4px; background: var(--stamp-soft); color: var(--stamp); white-space: nowrap; }
 .access-note { font-size: .85rem; color: var(--muted); }
 .si-check { width: 2rem; }
+/* 3.6: role policies, directory */
+.role-policy { border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem .8rem; margin: .4rem 0; background: var(--surface); }
+.role-policy summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
+.role-policy summary .muted { font-weight: 400; }
+.role-policy .rp-row { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: end; margin: .5rem 0; }
+.role-policy .rp-row input[type=number] { width: 6rem; }
+.dir-table td { vertical-align: top; }
+.dir-table ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
+.group-pill { display: inline-block; font-size: .75rem; padding: .05rem .4rem; border-radius: 4px; background: #FFF4D6; color: #6B4E00; margin-left: .3rem; }

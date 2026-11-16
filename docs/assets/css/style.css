@@ -318,3 +318,6 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 .offline-bar { position: sticky; top: 0; z-index: 50; padding: .55rem 1rem; background: #7A4B00; color: #fff; font-size: .9rem; line-height: 1.35; text-align: center; }
 .offline-bar[hidden] { display: none; }
 @media print { .offline-bar { display: none !important; } }
+/* 3.6: registration kind */
+.reg-kind { border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .8rem .7rem; margin: 0 0 .5rem; display: grid; gap: .35rem; }
+.reg-kind legend { font-weight: 600; padding: 0 .3rem; }

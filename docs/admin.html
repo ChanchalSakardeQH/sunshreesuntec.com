@@ -30,6 +30,7 @@
         <a href="#documents" data-need="view">Documents</a>
         <a href="#members" data-need="members">Members</a>
         <a href="#website" data-need="website">Website</a>
+        <a href="#directory" data-need="directory">Directory</a>
         <a href="#staff" data-need="committee">Staff</a>
         <a href="#settings" data-need="committee">Settings</a>
         <a href="#profile">My profile</a>
@@ -563,7 +564,15 @@
       <h1>Staff and access</h1>
       <p class="muted">Give an Accountant, Society Manager or other staff member their own login with only the access they need. Before they can work, they must accept the Commitment, Confidentiality and Work Responsibilities Agreement; their acceptance is recorded with name, date and time. Everything they do is recorded in the accounts under their account.</p>
 
-      <h2>Add staff</h2>
+      <div class="callout notify-box" id="staff-notice" hidden></div>
+      <h2>Requests from staff and officials</h2>
+      <p class="muted small-note">People who registered on the website as a manager, accountant, housekeeping, watchman, auditor or government official. <strong>Approve</strong> gives them access by their role (shown before you confirm, and you can change it); <strong>Reject</strong> asks for a reason.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Name</th><th>Role</th><th>Organisation</th><th>Mobile</th><th>Email</th><th>Requested</th><th></th></tr></thead>
+        <tbody id="staff-request-rows"></tbody>
+      </table></div>
+
+      <h2 class="mt">Add staff</h2>
       <form id="invite-form" class="form entry-form" novalidate>
         <label>Full name<input type="text" name="name" required></label>
         <label>Gmail address (used to sign in)<input type="email" name="email" required></label>
@@ -580,6 +589,14 @@
         <thead><tr><th>Name</th><th>Role</th><th>Access</th><th>Agreement</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead>
         <tbody id="staff-rows"></tbody>
       </table></div>
+
+      <h2 class="mt">Access by role</h2>
+      <p class="muted small-note">What a new person in each role gets when you approve or invite them: permissions, whether they must accept the staff agreement first, and how long access lasts (0 = until removed). Changing a role here doesn’t change people who already have access: edit them in the list above.</p>
+      <form id="role-policy-form" class="form wide-form" novalidate>
+        <div id="role-policies"></div>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save access by role</button></div>
+      </form>
 
       <h2 class="mt">Invitations not yet used</h2>
       <div class="table-scroll"><table>
@@ -612,9 +629,15 @@
       <dialog id="staff-dialog">
         <form id="staff-form" class="form" method="dialog" novalidate>
           <h2 id="staff-title">Staff</h2>
+          <p class="muted small-note" id="staff-sub"></p>
+          <div class="staff-edit-only">
           <label>Role<select name="role" id="staff-role"></select></label>
           <fieldset class="charges"><legend>Access</legend><div class="perm-grid" id="staff-perms"></div></fieldset>
+          <label class="check"><input type="checkbox" name="agreementRequired"> Must accept the staff agreement before working</label>
+          <label>Access until <span class="muted">(leave empty: until removed)</span><input type="date" name="validUntil"></label>
           <label class="check"><input type="checkbox" name="active"> Access active (untick to suspend)</label>
+          </div>
+          <label class="staff-reject-only" hidden>Reason <span class="muted">(they see this)</span><textarea name="reason" rows="2" maxlength="300"></textarea></label>
           <p class="form-msg" role="alert"></p>
           <div class="form-actions">
             <button class="btn btn-primary" type="submit">Save</button>
@@ -623,6 +646,17 @@
           </div>
         </form>
       </dialog>
+    </section>
+
+    <!-- DIRECTORY (watchman, housekeeping, manager) -->
+    <section class="tab" data-tab="directory" hidden>
+      <h1>Residents directory</h1>
+      <p class="muted">For visitors, deliveries and emergencies: each unit with the name in the Society’s records and the people approved on the website. Keep it confidential: don’t copy, forward or share it.</p>
+      <label class="inline-label">Search<input type="search" id="dir-search" placeholder="Unit, name or mobile" autocomplete="off"></label>
+      <div class="table-scroll"><table class="dir-table">
+        <thead><tr><th>Unit</th><th>Name in Society records</th><th>Registered people</th></tr></thead>
+        <tbody id="dir-rows"></tbody>
+      </table></div>
     </section>
 
     <!-- PROFILE -->
@@ -764,7 +798,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.5.0</p>
+    <p class="muted mt" id="version-note">Software version 3.6.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

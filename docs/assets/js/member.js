@@ -6,6 +6,7 @@ import { initOfflineUi, markSaved, saveForOffline } from './offline.js';
 import { getDues, fmt, esc, ownerCell, RELATIONS, relationLabel } from './data.js';
 import { ddmmyyyy, monthLabel, money, todayIST } from './billing-core.js';
 import { mergeLedger } from './accounts.js';
+import { SELF_REGISTER_ROLES, rolePolicy, PERM_LABEL } from './staff.js';
 import { loadPastReceipts, preLedger } from './pastreceipts.js';
 import { loadAuditYears, listArchive, openArchiveDoc, archiveBlob, yearEndRows } from './archive.js';
 
@@ -75,6 +76,16 @@ function switchAuthPanel(name) {
   $('#register-form').hidden = name !== 'register';
 }
 
+/** Member of a unit, or staff / official: shows the matching fields. */
+function setRegisterKind() {
+  const staff = $('#register-form [name=kind]:checked')?.value === 'staff';
+  $$('#register-form .reg-member').forEach((el) => { el.hidden = staff; const i = $('select, input', el); if (i) i.required = !staff; });
+  $$('#register-form .reg-staff').forEach((el) => { el.hidden = !staff; });
+  $('#register-form input[name=declare]').closest('label').lastChild.textContent = staff
+    ? ' The details above are true. I will use any access only for the Society’s work and keep members’ information confidential.'
+    : ' The details above are true. I understand the committee checks them before giving access.';
+}
+
 function setRegisterMode(completing) {
   $$('#register-form .reg-only').forEach((l) => { l.hidden = completing; $('input', l).required = !completing; });
   $('.switcher').hidden = completing;
@@ -97,29 +108,33 @@ async function onUser(user) {
     return;
   }
 
-  const [adminSnap, profSnap] = await Promise.all([
+  const [adminSnap, profSnap, staffSnap] = await Promise.all([
     F.getDoc(F.doc(db, 'admins', user.uid)).catch(() => null),
-    F.getDoc(F.doc(db, 'users', user.uid))
+    F.getDoc(F.doc(db, 'users', user.uid)),
+    F.getDoc(F.doc(db, 'staffRequests', user.uid)).catch(() => null)
   ]);
   const isAdmin = Boolean(adminSnap?.exists());
   $('.nav-admin').hidden = !isAdmin;
   profile = profSnap.exists() ? profSnap.data() : null;
+  const staffReq = staffSnap?.exists() ? staffSnap.data() : null;
 
   if (!profile) {
     if (isAdmin) {
+      const a = adminSnap.data();
       showPanel('status');
-      $('#member-status').innerHTML = `<p>You’re signed in with a committee account (${esc(user.email)}).</p>
-        <div class="form-actions"><a class="btn btn-primary" href="admin.html">Open accounts</a>
+      $('#member-status').innerHTML = `<p>You’re signed in with a ${a.kind === 'staff' ? `staff account (${esc(a.role || 'staff')})` : 'committee account'}: ${esc(user.email)}.</p>
+        <div class="form-actions"><a class="btn btn-primary" href="admin.html">Open Society accounts</a>
         <button class="btn" type="button" data-signout>Sign out</button></div>`;
       return;
     }
+    if (staffReq) { renderStaffStatus(user, staffReq); return; }
     setRegisterMode(true);
     switchAuthPanel('register');
     showPanel('auth');
     const rf = $('#register-form');
     if (!rf.name.value && user.displayName) rf.name.value = user.displayName;
     const viaGoogle = user.providerData.some((p) => p.providerId === 'google.com');
-    setMsg(rf, `${viaGoogle ? `Signed in with Google as ${user.email}. ` : ''}Finish your request: add your name, unit and mobile number.`, true);
+    setMsg(rf, `${viaGoogle ? `Signed in with Google as ${user.email}. ` : ''}Finish your request below.`, true);
     return;
   }
 
@@ -131,6 +146,17 @@ async function onUser(user) {
     return;
   }
   renderStatus(user);
+}
+
+function renderStaffStatus(user, req) {
+  showPanel('status');
+  const role = esc(req.role), verify = user.emailVerified ? '' : `<p>Confirm your email address: open the link we sent to <strong>${esc(user.email)}</strong>.</p>`;
+  const body = req.status === 'rejected'
+    ? `<h2>Request not approved</h2><p>Your request to work as ${role} wasn’t approved.</p>${req.reason ? `<p><strong>Reason:</strong> ${esc(req.reason)}</p>` : ''}<p>Please contact the Society office if you think this is a mistake.</p>`
+    : req.status === 'approved'
+      ? `<h2>Access ended</h2><p>Your access as ${role} has ended or was removed. Please contact the Society office if you still need it.</p>`
+      : `<h2>Request sent</h2><p>Your request to work as ${role}${req.org ? ` (${esc(req.org)})` : ''} is waiting for the committee. Once approved, open the Society accounts page and sign in with <strong>${esc(user.email)}</strong>.</p>${verify}`;
+  $('#member-status').innerHTML = `${body}<div class="form-actions"><a class="btn" href="admin.html">Society accounts page</a><button class="btn" type="button" data-signout>Sign out</button></div>`;
 }
 
 function renderStatus(user) {
@@ -168,6 +194,17 @@ function wireForms() {
     const r = e.currentTarget.value;
     $('#register-relation-note').textContent = relNote[r] || relNote.owner;
   });
+  // Staff and officials: role, and what that role usually gets (the committee decides the final access).
+  $('#register-role').innerHTML = SELF_REGISTER_ROLES.map((r) => `<option>${esc(r)}</option>`).join('');
+  const roleNote = () => {
+    const pol = rolePolicy($('#register-role').value);
+    const what = pol.perms.map((k) => (PERM_LABEL[k] || k).split(':')[0].toLowerCase());
+    $('#register-role-note').textContent = `After approval you sign in on the Society accounts page. ${what.length ? `Usual access for this role: ${what.join('; ')}.` : 'The committee decides your access.'}${
+      pol.days ? ` Access lasts ${pol.days} days unless the committee extends it.` : ''} The committee checks every request.`;
+  };
+  $('#register-role').addEventListener('change', roleNote);
+  roleNote();
+  $$('#register-form [name=kind]').forEach((r) => r.addEventListener('change', setRegisterKind));
 
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -201,9 +238,12 @@ function wireForms() {
     const unit = String(fd.get('unit'));
     const mobile = String(fd.get('mobile')).replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, '');
     const relation = RELATIONS[String(fd.get('relation'))] ? String(fd.get('relation')) : 'owner';
+    const staff = fd.get('kind') === 'staff';
+    const role = SELF_REGISTER_ROLES.includes(String(fd.get('role'))) ? String(fd.get('role')) : 'Other';
+    const org = String(fd.get('org') || '').trim().replace(/\s+/g, ' ').slice(0, 160);
     const completing = Boolean(auth.currentUser);
     if (name.length < 3) return setMsg(form, 'Enter your full name.');
-    if (!unit) return setMsg(form, 'Choose your unit.');
+    if (!staff && !unit) return setMsg(form, 'Choose your unit.');
     if (!/^[6-9]\d{9}$/.test(mobile)) return setMsg(form, 'Enter a 10-digit Indian mobile number.');
     if (!fd.get('declare')) return setMsg(form, 'Tick the box to confirm the details are true.');
     let email = '', password = '';
@@ -224,12 +264,17 @@ function wireForms() {
           await A.sendEmailVerification(user);
         }
         const provider = user.providerData.some((p) => p.providerId === 'google.com') ? 'google' : 'password';
-        await F.setDoc(F.doc(db, 'users', user.uid), { name, unit, mobile, relation, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
-        logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `request for ${unit} as ${relationLabel(relation)} (${provider})` });
-        form.reset();
+        if (staff) {
+          await F.setDoc(F.doc(db, 'staffRequests', user.uid), { name, role, org, mobile, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
+          logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `staff request as ${role}${org ? ` (${org})` : ''} (${provider})` });
+        } else {
+          await F.setDoc(F.doc(db, 'users', user.uid), { name, unit, mobile, relation, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
+          logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `request for ${unit} as ${relationLabel(relation)} (${provider})` });
+        }
+        form.reset(); setRegisterKind();
       } catch (err) {
         setMsg(form, errorText(err));
-        logSignIn(fb, { method: 'register', page: 'member', result: 'failed', code: err?.code || 'unknown', email: email || auth.currentUser?.email || '', detail: `request for ${unit}` });
+        logSignIn(fb, { method: 'register', page: 'member', result: 'failed', code: err?.code || 'unknown', email: email || auth.currentUser?.email || '', detail: staff ? `staff request as ${role}` : `request for ${unit}` });
       }
       finally {
         registering = false;
