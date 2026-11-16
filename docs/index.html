@@ -156,39 +156,60 @@
     <section class="tab" data-tab="member" hidden aria-labelledby="member-title">
       <div class="wrap narrow page">
         <h1 id="member-title">Member access</h1>
-        <p>Registered members can see the full maintenance account for their own unit. Owners, joint owners, family members, tenants and caretakers can each register. Continue with Google, or register with email and password; then add your unit, who you are and your mobile number. The committee checks each request against the member register before approving it. Society staff and officials (auditor, DDR office) can also ask for access here.</p>
+        <p>Owners, joint owners, family members, tenants and caretakers, and the Society’s staff and officials, each register once with their own Gmail. The committee checks every request; after approval, sign in with the same Gmail to see your unit’s account.</p>
 
         <p class="callout" id="member-note" hidden></p>
         <p class="callout" id="member-unavailable" hidden>Member login isn’t switched on yet. Please check back soon.</p>
 
         <div id="auth-panels" hidden>
-          <div class="google-box" id="google-box">
-            <button class="btn btn-google" type="button" id="member-google"><span aria-hidden="true" class="g-logo">G</span> Continue with Google</button>
-            <p class="form-msg" role="alert" aria-live="polite"></p>
-            <p class="muted small-note">Sign in or register with your Google account: no password needed. New members then add their unit and mobile number and wait for committee approval.</p>
-            <p class="or-line"><span>or with email and password</span></p>
-          </div>
-          <div class="switcher" role="group" aria-label="Sign in or register">
-            <button type="button" class="switch-btn" data-panel="login" aria-pressed="true">Sign in</button>
-            <button type="button" class="switch-btn" data-panel="register" aria-pressed="false">Register</button>
+          <!-- First choice: new or already registered -->
+          <div class="auth-start" id="auth-start">
+            <button class="choice-card" type="button" data-go="register">
+              <span class="choice-step">New here?</span>
+              <strong>Register</strong>
+              <span>Takes two minutes. You need a Gmail (Google) account.</span>
+            </button>
+            <button class="choice-card" type="button" data-go="signin">
+              <span class="choice-step">Already registered?</span>
+              <strong>Sign in</strong>
+              <span>With the same Gmail you registered with.</span>
+            </button>
           </div>
 
-          <form id="login-form" class="form" novalidate>
-            <label>Email<input type="email" name="email" autocomplete="email" required></label>
-            <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
-            <p class="form-msg" role="alert"></p>
-            <div class="form-actions">
-              <button class="btn btn-primary" type="submit">Sign in</button>
-              <button class="btn-link" type="button" id="forgot-btn">Forgot password?</button>
+          <!-- Sign in -->
+          <div id="auth-signin" hidden>
+            <h2>Sign in</h2>
+            <div class="google-box" id="google-box">
+              <button class="btn btn-google" type="button" id="member-google"><span aria-hidden="true" class="g-logo">G</span> Sign in with Google</button>
+              <p class="form-msg" role="alert" aria-live="polite"></p>
+              <p class="muted small-note">Use the Gmail you registered with.</p>
             </div>
-          </form>
+            <details class="pw-box" id="pw-box">
+              <summary>Registered earlier with an email and password?</summary>
+              <form id="login-form" class="form" novalidate>
+                <label>Email<input type="email" name="email" autocomplete="email" required></label>
+                <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+                <p class="form-msg" role="alert"></p>
+                <div class="form-actions">
+                  <button class="btn btn-primary" type="submit">Sign in</button>
+                  <button class="btn-link" type="button" id="forgot-btn">Forgot password?</button>
+                </div>
+              </form>
+            </details>
+            <p class="auth-switch">Not registered yet? <button class="btn-link" type="button" data-go="register">Register first</button></p>
+          </div>
 
+          <!-- Register: details first, then Gmail -->
           <form id="register-form" class="form" hidden novalidate>
+            <h2 id="register-title">Register</h2>
+            <p class="muted small-note" id="register-intro">Fill in the form, then confirm with your Gmail. Your request goes to the committee in one step.</p>
+            <h3 class="reg-step"><span>1</span> Who you are</h3>
             <fieldset class="reg-kind">
-              <legend>I am registering as</legend>
+              <legend class="visually-hidden">I am registering as</legend>
               <label class="check"><input type="radio" name="kind" value="member" checked> <span>A member of a unit<br><span class="muted small-note">Owner, joint owner, family, tenant, caretaker</span></span></label>
               <label class="check"><input type="radio" name="kind" value="staff"> <span>Society staff or an official<br><span class="muted small-note">Manager, accountant, housekeeping, watchman, auditor, DDR / Registrar office</span></span></label>
             </fieldset>
+            <h3 class="reg-step"><span>2</span> Your details</h3>
             <label>Full name<input type="text" name="name" autocomplete="name" required></label>
             <label class="reg-staff" hidden>Role
               <select name="role" id="register-role"></select>
@@ -211,14 +232,14 @@
             <label>Mobile number
               <span class="input-prefix"><span>+91</span><input type="tel" name="mobile" inputmode="numeric" autocomplete="tel-national" placeholder="98XXXXXXXX" maxlength="10" required></span>
             </label>
-            <label class="reg-only">Email<input type="email" name="email" autocomplete="email" required></label>
-            <label class="reg-only">Password (at least 8 characters)<input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
-            <label class="reg-only">Confirm password<input type="password" name="confirm" autocomplete="new-password" minlength="8" required></label>
             <label class="check"><input type="checkbox" name="declare" required> The details above are true. I understand the committee checks them before giving access.</label>
-            <p class="form-msg" role="alert"></p>
+            <h3 class="reg-step" id="reg-step3"><span>3</span> Confirm with your Gmail</h3>
+            <p class="muted small-note" id="reg-gmail-note">Google asks you to choose your Gmail. That Gmail becomes your login: no new password to remember.</p>
+            <p class="form-msg" role="alert" aria-live="polite"></p>
             <div class="form-actions">
-              <button class="btn btn-primary" type="submit">Send request</button>
+              <button class="btn btn-google" type="submit" id="register-submit"><span aria-hidden="true" class="g-logo">G</span> Continue with Google and send request</button>
             </div>
+            <p class="auth-switch" id="register-switch">Already registered? <button class="btn-link" type="button" data-go="signin">Sign in</button></p>
           </form>
         </div>
 

@@ -6,6 +6,23 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.9.0] – 2026-11-16 – Register first with Gmail; people who tried but never registered
+
+### Changed
+- **Member login redesigned for first-time users:** two clear choices, *New here? Register* and *Already registered? Sign in*.
+  - **Register** is one form in three numbered steps: who you are, your details, then **Continue with Google and send request**. The Gmail chosen becomes the login and the request reaches the committee in the same step. Details are checked before Google opens and kept if Google is closed.
+  - **Sign in** is **Sign in with Google**; anyone who signs in without having registered is asked to finish the registration there.
+  - Email-and-password: no new accounts; existing ones still sign in under *Registered earlier with an email and password?* (with *Forgot password?*).
+- App sign-in problems now point to the website in the phone's browser instead of password sign-in.
+
+### Added
+- **Tried but never registered** (Members tab): people in the sign-in history with no request or login, what happened, and **Send the steps by email**. Example: prasadanuja07@gmail.com tried email and password and a password reset on 16 Nov 2026 without registering, so no request reached *Requests waiting*.
+
+### Tested
+- 14 new checks: the two choices; the three-step form without passwords; details checked before Google; request saved straight after Google with the Gmail, unit and relation; nothing left pending; Google closed keeps the details; *Sign in with Google* without registering leads to *Finish your registration* and *Send request*; a watchman's staff request in one go; an older password account still signs in; the list of people who tried but never registered, with the right explanation, excluding members, and the email with the steps. The 3.4–3.8 suites pass (their sign-in steps now go through *Sign in*).
+
+---
+
 ## [3.8.0] – 2026-11-16 – Bill sheets with several items, payment proofs, lift costs recovered from members
 
 ### Added

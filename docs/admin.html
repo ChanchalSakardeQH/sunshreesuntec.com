@@ -483,6 +483,15 @@
       </table></div>
 
       <div class="section-head mt">
+        <h2>Tried but never registered</h2>
+      </div>
+      <p class="muted small-note">People in the sign-in history with no request, member record or staff login: usually they pressed <em>Sign in</em> before registering. Send them the steps.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Email</th><th class="num">Tries</th><th>Last try</th><th>What happened</th><th></th></tr></thead>
+        <tbody id="stray-rows"></tbody>
+      </table></div>
+
+      <div class="section-head mt">
         <h2>Sign-in history</h2>
         <button class="btn btn-small" type="button" id="signin-csv">Export CSV</button>
       </div>
@@ -989,7 +998,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.8.0</p>
+    <p class="muted mt" id="version-note">Software version 3.9.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

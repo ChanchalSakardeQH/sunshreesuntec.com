@@ -69,13 +69,13 @@ let running = false;
 const appMessage = (r) => {
   if (r.status === 'cancelled' && r.quick) {
     return 'Google sign-in closed by itself, so you are not signed in. This copy of the app isn’t accepted by Google yet. '
-      + 'Please sign in with email and password for now. The committee can see this problem in the sign-in history.';
+      + 'For now, open sunshreesuntec.com in the phone’s browser (Chrome) to register or sign in there. The committee can see this problem in the sign-in history.';
   }
   return ({
-    'no-account': 'No Google account was found on this phone. Add one in the phone’s Settings → Accounts, or sign in with email and password.',
-    'no-client-id': 'Google sign-in isn’t set up in this copy of the app. Please sign in with email and password.',
+    'no-account': 'No Google account was found on this phone. Add your Gmail in the phone’s Settings → Accounts, then try again.',
+    'no-client-id': 'Google sign-in isn’t set up in this copy of the app. Please use sunshreesuntec.com in the phone’s browser for now.',
     'bridge': 'The app couldn’t open Google sign-in. Close the app, open it again and retry, or sign in with email and password.'
-  })[r.code] || 'Google sign-in didn’t work on this phone. Try once more, or sign in with email and password.';
+  })[r.code] || 'Google sign-in didn’t work on this phone. Try once more, or use sunshreesuntec.com in the phone’s browser.';
 };
 
 const appDetails = (r, ms) => [

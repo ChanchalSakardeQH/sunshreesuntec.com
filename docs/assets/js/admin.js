@@ -886,6 +886,7 @@ function wireLift() {
 
 let memberDocs = [];        // every users record loaded for this tab
 let signinLog = [];         // latest sign-in attempts
+let knownEmails = new Set(), knownUids = new Set();
 const tsDate = (ts) => (ts?.toDate ? ts.toDate() : null);
 const whenShort = (ts) => (tsDate(ts) ? fmtDate(tsDate(ts), { day: '2-digit', month: 'short', year: 'numeric' }) : '');
 const whenLong = (ts) => (tsDate(ts) ? tsDate(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -897,6 +898,10 @@ async function loadMembers() {
   const { F, db } = fb;
   const all = await F.getDocs(F.collection(db, 'users'));
   memberDocs = all.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Everyone who has a record somewhere (for "Tried but never registered"): members, staff requests, staff and committee.
+  const [sr, ad] = await Promise.all([F.getDocs(F.collection(db, 'staffRequests')).catch(() => ({ docs: [] })), F.getDocs(F.collection(db, 'admins')).catch(() => ({ docs: [] }))]);
+  knownEmails = new Set([...memberDocs, ...sr.docs.map((d) => d.data()), ...ad.docs.map((d) => d.data())].map((x) => String(x.email || '').trim().toLowerCase()).filter(Boolean));
+  knownUids = new Set([...memberDocs.map((m) => m.id), ...sr.docs.map((d) => d.id), ...ad.docs.map((d) => d.id)]);
   const pend = memberDocs.filter((m) => m.status === 'pending').sort((a, b) => (tsDate(a.createdAt) || 0) - (tsDate(b.createdAt) || 0));
   const appr = memberDocs.filter((m) => m.status === 'approved').sort((a, b) => memberUnitLabel(a.unit).localeCompare(memberUnitLabel(b.unit), 'en', { numeric: true }));
   const rej = memberDocs.filter((m) => m.status === 'rejected').sort((a, b) => (tsDate(b.decidedAt) || 0) - (tsDate(a.decidedAt) || 0));
@@ -1119,6 +1124,36 @@ async function loadSigninLog() {
     $('#si-foot').textContent = `The sign-in history couldn’t be loaded: ${errorText(err)}`;
   }
   renderSigninLog();
+  renderStrays();
+}
+
+/** People in the sign-in history who never sent a request (and have no member or staff record). */
+function renderStrays() {
+  const by = new Map();
+  signinLog.forEach((e) => {
+    const email = String(e.email || '').toLowerCase();
+    if (!email || knownEmails.has(email) || (e.uid && knownUids.has(e.uid))) return;
+    if (!by.has(email)) by.set(email, { email, tries: 0, last: null, events: [] });
+    const x = by.get(email);
+    x.tries++; x.events.push(e);
+    if (!x.last || (tsDate(e.at) || 0) > (tsDate(x.last.at) || 0)) x.last = e;
+  });
+  const what = (x) => {
+    const has = (m, r) => x.events.some((e) => e.method === m && (!r || e.result === r));
+    if (has('google', 'ok')) return 'Signed in with Google but didn’t fill in the registration';
+    if (has('password', 'failed')) return `Tried email and password without registering${has('reset') ? ', then asked for a password reset' : ''}`;
+    if (has('register', 'failed')) return 'Registration failed';
+    if (has('reset')) return 'Asked for a password reset without registering';
+    return 'Tried to sign in';
+  };
+  const link = SITE_LINK;
+  const rows = [...by.values()].sort((a, b) => (tsDate(b.last.at) || 0) - (tsDate(a.last.at) || 0));
+  $('#stray-rows').innerHTML = rows.map((x) => {
+    const body = `Dear member,\n\nWe noticed you tried to sign in to the Sunshree Suntec website. To get access, please register first:\n\n1. Open ${link}\n2. Choose “New here? Register”.\n3. Choose who you are (member of a unit, or Society staff), fill in your name, unit and mobile number.\n4. Press “Continue with Google and send request” and choose your Gmail (${x.email}).\n\nThe committee will check and approve your request. After that, open the same page, choose “Sign in” and use the same Gmail.\n\nRegards,\n${me?.name || 'Managing Committee'}\nSunshree Suntec Co-op. Housing Society Ltd.`;
+    const mail = `mailto:${encodeURIComponent(x.email)}?subject=${encodeURIComponent('Sunshree Suntec website: how to register')}&body=${encodeURIComponent(body)}`;
+    return `<tr><td>${esc(x.email)}</td><td class="num">${x.tries}</td><td>${whenLong(x.last.at)}<br><span class="muted">${esc(x.last.where === 'app' ? 'App' : 'Website')} · ${esc(x.last.device || '')}</span></td>
+      <td>${esc(what(x))}</td><td><a class="btn btn-small btn-primary" href="${esc(mail)}">Send the steps by email</a></td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty">Nobody: everyone who tried has a request or a login.</td></tr>';
 }
 
 function filteredSignins() {

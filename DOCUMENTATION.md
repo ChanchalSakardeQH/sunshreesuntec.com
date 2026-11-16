@@ -335,10 +335,13 @@ Documents are stored as links (e.g. Google Drive), because file uploads would ne
 
 ## 12. Member access
 
-1. Member opens Member login and either chooses **Continue with Google** or registers with email and password.
-2. Member enters full name, unit, 10-digit mobile number and confirms they own or represent the unit. (Google sign-in fills the name and the email is already confirmed; email-and-password members confirm the email link.)
-3. Committee (or staff with *approve members*) approves in Members after checking the member register. Requests made with Google are marked “Google”. A warning shows if someone is already approved for that unit.
+**Register first, with Gmail (3.9).** Member login first asks *New here? Register* or *Already registered? Sign in*.
+1. **Register:** (1) who you are (member of a unit, or staff / official), (2) name, unit and relation (or role and office), mobile, declaration, (3) **Continue with Google and send request**. The details are checked first and kept in the browser tab (`sessionStorage`, 30 minutes, so they survive Google's redirect); as soon as Google returns with the person's Gmail, the request (`users/{uid}` or `staffRequests/{uid}`) is saved and the page shows *Request sent*. If Google is closed, the details stay and the button can be pressed again. New email-and-password accounts are no longer created.
+2. **Sign in:** **Sign in with Google**. Someone who signs in with Google without having registered is asked to *Finish your registration* (no Google step left, button *Send request*). *Registered earlier with an email and password?* (folded) keeps password sign-in and *Forgot password?* for older accounts.
+3. Committee (or staff with *approve members*) approves in Members after checking the member register. A warning shows if someone is already approved for that unit.
 4. Member sees their balance, bills, receipts and ledger, and can download PDFs.
+
+**Tried but never registered (Members tab):** emails in the sign-in history with no member record, staff request or staff login, with the number of tries, the last try and what happened (e.g. *tried email and password without registering*, *signed in with Google but didn't fill in the registration*), and **Send the steps by email** (a ready email with the four registration steps).
 
 Rejected or removed members lose access immediately. Google sign-in requires **Authentication → Sign-in method → Google** to be enabled in Firebase.
 

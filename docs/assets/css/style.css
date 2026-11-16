@@ -321,3 +321,17 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 /* 3.6: registration kind */
 .reg-kind { border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .8rem .7rem; margin: 0 0 .5rem; display: grid; gap: .35rem; }
 .reg-kind legend { font-weight: 600; padding: 0 .3rem; }
+/* 3.9: Register first, then Sign in */
+.auth-start { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; margin: 1.25rem 0; }
+.choice-card { font: inherit; text-align: left; display: grid; gap: .3rem; padding: 1.1rem 1.2rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); cursor: pointer; }
+.choice-card:hover, .choice-card:focus-visible { border-color: var(--stamp); box-shadow: 0 0 0 2px var(--stamp-soft); }
+.choice-card strong { font-size: 1.35rem; color: var(--stamp); }
+.choice-card .choice-step { font-size: .85rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.choice-card span:last-child { color: var(--muted); font-size: .95rem; }
+.reg-step { display: flex; align-items: center; gap: .5rem; font-size: 1.05rem; margin: 1.1rem 0 .2rem; }
+.reg-step span { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--stamp); color: #fff; font-size: .85rem; }
+.pw-box { margin: 1rem 0; border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .9rem; background: var(--surface); }
+.pw-box summary { cursor: pointer; font-weight: 600; }
+.pw-box .form { margin-top: .75rem; }
+.auth-switch { margin-top: 1.25rem; color: var(--muted); }
+#register-form .btn-google { width: 100%; justify-content: center; }

@@ -1,10 +1,10 @@
 # Sunshree Suntec Society Website and App: User Guide
 
-Nov 16, 2026 · @Chanchal Sakarde for www.sunshreesuntec.com
+Nov 16, 2026 · @Chanchal
 
 ## 1. About this guide
 
-This guide explains, in plain words, how members, staff and the managing committee of Sunshree Suntec Co-op. Housing Society use the Society's website and Android app. It covers software version 3.8.0 (shown at the foot of the accounts page).
+This guide explains, in plain words, how members, staff and the managing committee of Sunshree Suntec Co-op. Housing Society use the Society's website and Android app. It covers software version 3.9.0 (shown at the foot of the accounts page).
 
 You don't need to read it all. Find yourself in the table and read those sections.
 
@@ -43,33 +43,38 @@ The page updates by itself whenever a bill, payment or correction is recorded.
 
 ## 3. Registering and signing in
 
-Everyone registers once on the website's **Member login** page, and the committee approves each request before any information is shown. Each person uses their own email: never share a login.
+Everyone registers once, with their own Gmail, and the committee approves each request before any information is shown. After approval you sign in with the same Gmail. Never share a login.
 
-### Two ways to sign in
+On the **Member login** page you first choose:
 
-- **Continue with Google** (easiest): uses your Gmail account, no new password. In the app it uses the Google account already on the phone.
-- **Email and password**: choose **Register**, enter your email and a password of at least 8 characters, then open the confirmation link sent to your email. Until the email is confirmed, amounts stay hidden.
+- **New here? Register**: for anyone who has never registered;
+- **Already registered? Sign in**: for people the committee has already approved, or who are waiting.
 
-After you tap a sign-in button, a message under it says what is happening (*Opening Google sign-in…*, *Signing you in…*). Please wait for it; tapping again does nothing until the first try finishes.
+If you're not sure, choose **Register**: if you're already registered, the page tells you.
 
-### Registering as a member of a unit
+### Registering (members, staff and officials)
 
-1. Open **Member login** and choose **Continue with Google**, or **Register** with email and password.
-2. Under **I am registering as**, choose **A member of a unit**.
-3. Fill in your **Full name**, your **Unit / flat / shop number**, **You are** (Owner, Joint owner, Family member of the owner, Tenant, or Caretaker / agent of the owner) and your **Mobile number**.
-4. Tick that the details are true and press **Send request**.
-5. The page now shows *Request sent*. The committee checks it against the Society's member register, usually within a few days.
+The form has three numbered steps.
 
-Several people can register for the same unit, each with their own email (for example husband, wife and a tenant). One login belongs to one unit only; someone with two units registers the second one with a different email.
+1. **Who you are**: *A member of a unit* (owner, joint owner, family, tenant, caretaker) or *Society staff or an official* (manager, accountant, housekeeping, watchman, auditor, DDR / Registrar office).
+2. **Your details**:
+   - members: **Full name**, **Unit / flat / shop number**, **You are** (Owner, Joint owner, Family member of the owner, Tenant, Caretaker / agent) and **Mobile number**;
+   - staff and officials: **Full name**, **Role**, **Organisation or office** (optional) and **Mobile number**; the form shows what that role usually gets.
 
-### Registering as staff or an official
+   Tick that the details are true.
+3. **Confirm with your Gmail**: press **Continue with Google and send request** and choose your Gmail. That Gmail becomes your login; there is no password to remember.
 
-Managers, accountants, housekeeping staff, watchmen, auditors and government officials (for example the Deputy Registrar's office) use the same page:
+The page then shows *Request sent*: your request is with the committee. If you close the Google window by mistake, your details stay on the page; press the button again.
 
-1. Under **I am registering as**, choose **Society staff or an official**.
-2. Fill in your **Full name**, **Role**, **Organisation or office** (optional, e.g. the audit firm) and **Mobile number**. The form shows what that role usually gets.
-3. Tick that you will use the access only for the Society's work and keep members' information confidential, then press **Send request**.
-4. Once the committee approves, open the Society accounts page and sign in with the same email. Most staff must first read and accept the staff agreement (section 5).
+Several people can register for the same unit, each with their own Gmail (for example husband, wife and a tenant). One login belongs to one unit; someone with two units registers the second with another Gmail. Staff and officials, once approved, sign in on the Society accounts page; most first accept the staff agreement (section 5).
+
+### Signing in
+
+Choose **Sign in** → **Sign in with Google** and pick the Gmail you registered with. A message under the button shows what is happening; please wait for it rather than tapping again.
+
+If you press **Sign in** without having registered, the page says so and shows the form with your Gmail already filled in: complete it and press **Send request**.
+
+**Registered earlier with an email and password?** Open that box under the Google button to sign in the old way. **Forgot password?** there sends a reset link. New accounts can't be made with a password any more.
 
 ### What happens after you send a request
 
@@ -80,10 +85,6 @@ Managers, accountants, housekeeping staff, watchmen, auditors and government off
 | Request not approved, with a reason | Rejected | Contact the Society office if it's a mistake |
 | Access removed, with a reason | The committee ended your access (e.g. flat sold) | Contact the Society office if needed |
 | Your access ended on (date) | Time-limited access (auditors, officials) has run out | Ask the committee to extend it |
-
-### Forgot your password
-
-On **Member login** choose **Forgot password?**, enter your email and press the button. A link to set a new password arrives by email. People who use **Continue with Google** have no Society password; they use their Google account.
 
 ### Signing out
 
@@ -371,6 +372,10 @@ Everyone ever rejected or removed stays here, with the decision date, who decide
 - **Export CSV** for the records;
 - **Delete permanently** (committee only, inside **Open**): only for test or mistaken records. It removes the record and its history and can't be undone. The person's Google or email login itself is removed separately by the person managing the database, if needed.
 
+### Tried but never registered
+
+This list shows people from the sign-in history who have no request and no login. Usually they pressed **Sign in** before registering, so nothing reached *Requests waiting*. For each it shows the email, the number of tries, the last try and what happened, for example *Tried email and password without registering, then asked for a password reset*. **Send the steps by email** opens a ready email explaining how to register; check it and send it. Once they register, they leave this list and appear under *Requests waiting*.
+
 ### Sign-in history
 
 Every attempt to sign in, register or reset a password, on the website and in the app, is listed, including failed and closed ones. Passwords are never recorded.
@@ -527,7 +532,7 @@ For a new version, install the new file the same way; your sign-in stays. If And
 
 ### Signing in
 
-Tap **Member login** → **Continue with Google** and choose your Google account; the message under the button shows the progress. Email and password also work. If Google sign-in closes by itself, use email and password for now and tell the committee (section 16).
+Tap **Member login** → **Sign in** → **Sign in with Google** and choose your Gmail; the message under the button shows the progress. New users register the same way: \*\*Register\*\*, fill in the form, then \*\*Continue with Google and send request\*\*. If Google sign-in closes by itself in the app, open sunshreesuntec.com in the phone's browser (Chrome) to register or sign in there, and tell the committee (section 16).
 
 ### Without internet
 
@@ -549,10 +554,11 @@ While online, the app saves your account, the Society's accounts and documents o
 
 | Problem | What to do |
 | --- | --- |
-| *Google sign-in closed by itself* in the app (the screen blinks) | Use email and password for now. Committee: **Members** → **Sign-in history** shows the app's fingerprint (SHA-1) in a red box; add it in the app's Firebase settings and it works a few minutes later, without a new app |
-| *The email or password is incorrect* | Check for spaces and capital letters, or use **Forgot password?** |
-| *No Google account was found on this phone* | Add a Google account in the phone's Settings → Accounts, or use email and password |
-| Signed in but amounts stay hidden | Confirm your email (open the link sent when you registered), or wait for approval |
+| Signed in but nothing to approve under *Requests waiting* | The person never registered. Look under **Members** → *Tried but never registered* and **Send the steps by email** |
+| *Google sign-in closed by itself* in the app (the screen blinks) | Use sunshreesuntec.com in the phone's browser for now. Committee: **Members** → **Sign-in history** shows the app's fingerprint (SHA-1) in a red box; add it in the app's Firebase settings and it works a few minutes later, without a new app |
+| *The email or password is incorrect* | Only for people who registered earlier with a password: check spaces and capital letters, or use **Forgot password?**. Everyone else: use **Register** or **Sign in with Google** |
+| *No Google account was found on this phone* | Add your Gmail in the phone's Settings → Accounts, then try again |
+| Signed in but amounts stay hidden | Wait for approval; older password accounts must also confirm their email (link sent when they registered) |
 | *Request sent* for many days | Phone the Society office or a committee member |
 | Staff: *Your request … is waiting for the committee's approval* on the accounts page | Wait for approval, then sign in again |
 | *Your access ended on (date)* | Ask the committee to extend it (**Staff** → **Edit** → *Access until*) |

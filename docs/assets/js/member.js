@@ -70,10 +70,23 @@ function setSignedInUI(user) {
   $$('[data-signout]').forEach((b) => (b.hidden = !user));
 }
 
-function switchAuthPanel(name) {
-  $$('.switch-btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.panel === name)));
-  $('#login-form').hidden = name !== 'login';
+/** Signed out: 'start' (Register / Sign in choice), 'signin' or 'register'. */
+function authView(name) {
+  $('#auth-start').hidden = name !== 'start';
+  $('#auth-signin').hidden = name !== 'signin';
   $('#register-form').hidden = name !== 'register';
+}
+
+/* Registration details are filled in BEFORE Google is opened, kept for 30 minutes in this tab (they survive
+   Google's redirect), and the request is sent as soon as Google returns with the person's Gmail. */
+const PENDING_KEY = 'ssPendingRegistration';
+const savePending = (d) => { try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ d, t: Date.now() })); } catch { /* private mode */ } };
+const clearPending = () => { try { sessionStorage.removeItem(PENDING_KEY); } catch { /* ignore */ } };
+function readPending() {
+  try {
+    const x = JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null');
+    return x && Date.now() - x.t < 30 * 60000 ? x.d : null;
+  } catch { return null; }
 }
 
 /** Member of a unit, or staff / official: shows the matching fields. */
@@ -86,10 +99,42 @@ function setRegisterKind() {
     : ' The details above are true. I understand the committee checks them before giving access.';
 }
 
-function setRegisterMode(completing) {
-  $$('#register-form .reg-only').forEach((l) => { l.hidden = completing; $('input', l).required = !completing; });
-  $('.switcher').hidden = completing;
-  $('#google-box').hidden = completing;
+/** completing = already signed in (e.g. signed in with Google before registering): no Google step left. */
+function setRegisterMode(completing, email = '') {
+  const btn = $('#register-submit');
+  $('#register-title').textContent = completing ? 'Finish your registration' : 'Register';
+  $('#register-intro').textContent = completing
+    ? `You’re signed in as ${email}, but haven’t sent a request yet. Fill in your details and press Send request.`
+    : 'Fill in the form, then confirm with your Gmail. Your request goes to the committee in one step.';
+  $('#reg-step3').hidden = completing; $('#reg-gmail-note').hidden = completing;
+  $('#register-switch').hidden = completing;
+  btn.className = completing ? 'btn btn-primary' : 'btn btn-google';
+  btn.innerHTML = completing ? 'Send request' : '<span aria-hidden="true" class="g-logo">G</span> Continue with Google and send request';
+}
+
+function fillRegisterForm(d) {
+  const f = $('#register-form');
+  if (!d) return;
+  $(`[name=kind][value=${d.staff ? 'staff' : 'member'}]`, f).checked = true;
+  setRegisterKind();
+  f.name.value = d.name || ''; f.mobile.value = d.mobile || '';
+  if (d.unit) f.unit.value = d.unit;
+  if (d.relation) f.relation.value = d.relation;
+  if (d.role) f.role.value = d.role;
+  f.org.value = d.org || '';
+}
+
+/** Saves the request: users/{uid} for a unit member, staffRequests/{uid} for staff and officials. */
+async function sendRequest(user, d) {
+  const { F, db } = fb;
+  const provider = user.providerData.some((p) => p.providerId === 'google.com') ? 'google' : 'password';
+  if (d.staff) {
+    await F.setDoc(F.doc(db, 'staffRequests', user.uid), { name: d.name, role: d.role, org: d.org, mobile: d.mobile, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
+    logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `staff request as ${d.role}${d.org ? ` (${d.org})` : ''} (${provider})` });
+  } else {
+    await F.setDoc(F.doc(db, 'users', user.uid), { name: d.name, unit: d.unit, mobile: d.mobile, relation: d.relation, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
+    logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `request for ${d.unit} as ${relationLabel(d.relation)} (${provider})` });
+  }
 }
 
 /* ---------- auth state ---------- */
@@ -103,7 +148,7 @@ async function onUser(user) {
     profile = null;
     $('.nav-admin').hidden = true;
     setRegisterMode(false);
-    switchAuthPanel('login');
+    authView(readPending() ? 'register' : 'start');
     showPanel('auth');
     return;
   }
@@ -116,7 +161,28 @@ async function onUser(user) {
   const isAdmin = Boolean(adminSnap?.exists());
   $('.nav-admin').hidden = !isAdmin;
   profile = profSnap.exists() ? profSnap.data() : null;
-  const staffReq = staffSnap?.exists() ? staffSnap.data() : null;
+  let staffReq = staffSnap?.exists() ? staffSnap.data() : null;
+
+  // Came back from Google while registering: send the request filled in before.
+  const pending = readPending();
+  if (pending && !profile && !staffReq && !isAdmin) {
+    registering = true;
+    try {
+      await sendRequest(user, pending);
+      clearPending();
+      return void (registering = false, await onUser(user));
+    } catch (err) {
+      registering = false;
+      clearPending();
+      setRegisterMode(true, user.email);
+      fillRegisterForm(pending);
+      authView('register'); showPanel('auth');
+      setMsg($('#register-form'), errorText(err));
+      logSignIn(fb, { method: 'register', page: 'member', result: 'failed', code: err?.code || 'unknown', email: user.email, detail: pending.staff ? `staff request as ${pending.role}` : `request for ${pending.unit}` });
+      return;
+    }
+  }
+  if (pending) clearPending();   // already registered, or a committee / staff account
 
   if (!profile) {
     if (isAdmin) {
@@ -128,13 +194,13 @@ async function onUser(user) {
       return;
     }
     if (staffReq) { renderStaffStatus(user, staffReq); return; }
-    setRegisterMode(true);
-    switchAuthPanel('register');
+    // Signed in (e.g. "Sign in with Google") but never registered: finish the registration here.
+    setRegisterMode(true, user.email);
+    authView('register');
     showPanel('auth');
     const rf = $('#register-form');
     if (!rf.name.value && user.displayName) rf.name.value = user.displayName;
-    const viaGoogle = user.providerData.some((p) => p.providerId === 'google.com');
-    setMsg(rf, `${viaGoogle ? `Signed in with Google as ${user.email}. ` : ''}Finish your request below.`, true);
+    setMsg(rf, '');
     return;
   }
 
@@ -186,7 +252,7 @@ function wireForms() {
   const sayGoogle = (text, kind, details) => showMsg($('#google-box'), text, kind, details);
   $('#member-google').addEventListener('click', (e) => signInWithGoogle(fb, { page: 'member', button: e.currentTarget, say: sayGoogle }));
   finishGoogleRedirect(fb, sayGoogle);
-  $$('.switch-btn').forEach((b) => b.addEventListener('click', () => switchAuthPanel(b.dataset.panel)));
+  $$('[data-go]').forEach((b) => b.addEventListener('click', () => { authView(b.dataset.go); $('#member-title').scrollIntoView({ behavior: 'smooth' }); }));
   const relNote = { owner: 'Owners and their family see the unit’s bills, receipts and balance once approved.',
     tenant: 'Tenants first see the Society’s notices, accounts and documents. The committee can also give you the unit’s bills and balance (for example if you pay the maintenance).',
     caretaker: 'Caretakers and agents first see the Society’s accounts and documents. The committee can give more access with the owner’s consent.' };
@@ -246,37 +312,27 @@ function wireForms() {
     if (!staff && !unit) return setMsg(form, 'Choose your unit.');
     if (!/^[6-9]\d{9}$/.test(mobile)) return setMsg(form, 'Enter a 10-digit Indian mobile number.');
     if (!fd.get('declare')) return setMsg(form, 'Tick the box to confirm the details are true.');
-    let email = '', password = '';
-    if (!completing) {
-      email = String(fd.get('email')).trim();
-      password = String(fd.get('password'));
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setMsg(form, 'Enter a valid email address.');
-      if (password.length < 8) return setMsg(form, 'Use a password of at least 8 characters.');
-      if (password !== fd.get('confirm')) return setMsg(form, 'The two passwords don’t match.');
-    }
+    const details = { staff, name, unit: staff ? '' : unit, relation, role, org, mobile };
     setMsg(form, '');
-    await busy($('button[type=submit]', form), async () => {
+    if (!completing) {
+      // Gmail is the login: open Google; the request is sent when it returns (onUser).
+      savePending(details);
+      const ok = await signInWithGoogle(fb, { page: 'member', button: $('#register-submit'), say: (t, k, d) => showMsg(form, t, k, d) });
+      if (!ok && !auth.currentUser) {
+        const msg = $('.form-msg', form).textContent;
+        if (!msg || /Opening Google/.test(msg)) setMsg(form, 'Google sign-in didn’t finish. Press the button again; your details are kept.');
+      }
+      return;
+    }
+    await busy($('#register-submit'), async () => {
       registering = true;
       try {
-        let user = auth.currentUser;
-        if (!user) {
-          user = (await A.createUserWithEmailAndPassword(auth, email, password)).user;
-          await A.sendEmailVerification(user);
-        }
-        const provider = user.providerData.some((p) => p.providerId === 'google.com') ? 'google' : 'password';
-        if (staff) {
-          await F.setDoc(F.doc(db, 'staffRequests', user.uid), { name, role, org, mobile, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
-          logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `staff request as ${role}${org ? ` (${org})` : ''} (${provider})` });
-        } else {
-          await F.setDoc(F.doc(db, 'users', user.uid), { name, unit, mobile, relation, email: user.email, status: 'pending', provider, createdAt: F.serverTimestamp() });
-          logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `request for ${unit} as ${relationLabel(relation)} (${provider})` });
-        }
+        await sendRequest(auth.currentUser, details);
         form.reset(); setRegisterKind();
       } catch (err) {
         setMsg(form, errorText(err));
-        logSignIn(fb, { method: 'register', page: 'member', result: 'failed', code: err?.code || 'unknown', email: email || auth.currentUser?.email || '', detail: staff ? `staff request as ${role}` : `request for ${unit}` });
-      }
-      finally {
+        logSignIn(fb, { method: 'register', page: 'member', result: 'failed', code: err?.code || 'unknown', email: auth.currentUser?.email || '', detail: staff ? `staff request as ${role}` : `request for ${unit}` });
+      } finally {
         registering = false;
         if (auth.currentUser) await onUser(auth.currentUser).catch(showFatal);
       }
