@@ -3,7 +3,7 @@ import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
 /** Shown at the foot of the accounts page and stored with each sign-in attempt. */
-export const SITE_VERSION = '3.6.0';
+export const SITE_VERSION = '3.7.0';
 let ready;
 
 /* ---------- Android app ----------

@@ -7,6 +7,8 @@ rules_version = '2';
 //   admins/{uid}                    committee members (no "kind") and staff (kind: 'staff', role, perms)
 //   staffInvites/{email}            staff invited by the committee; claimed on first sign-in
 //   staffRequests/{uid}             staff and officials asking for access from the registration form (3.6)
+//   expenses/{id} (+ /log)          daily expenses with bill files kept in the Society's Drive (3.7)
+//   staffSettlements/{id}           paybacks of expenses paid from own money, and advances to staff (3.7)
 //   staffAgreements/{id}            permanent log of staff accepting the agreement
 //   settings/staffAgreement         current agreement text and version
 //   users/{uid}                     member access requests: pending → approved / rejected
@@ -233,7 +235,61 @@ service cloud.firestore {
     }
 
     match /counters/{docId} {
-      allow read, write: if perm('recordPayments');
+      allow read, write: if perm('recordPayments')
+        || (docId.matches('expenses-.*') && perm('approveExpenses'))
+        || (docId.matches('(paybacks|advances)-.*') && perm('payExpenses'));
+    }
+
+    // ---------- expenses (3.7) ----------
+    function expenseTeam() { return perm('view') || perm('approveExpenses') || perm('payExpenses'); }
+    function expenseOk(d) {
+      return d.amount is number && d.amount > 0 && d.amount < 10000000
+        && d.date is string && d.date.matches('^20[0-9]{2}-[01][0-9]-[0-3][0-9]$')
+        && d.month == d.date[0:7]
+        && d.paidBy in ['society', 'person', 'unpaid']
+        && d.category is string && d.category.size() <= 80
+        && d.payee is string && d.payee.size() <= 120
+        && d.description is string && d.description.size() <= 500
+        && d.files is list && d.files.size() <= 10;
+    }
+    match /expenses/{id} {
+      allow read: if expenseTeam() || (signedIn() && resource.data.submittedBy == request.auth.uid);
+      allow create: if (perm('submitExpenses') || perm('approveExpenses') || perm('payExpenses'))
+        && request.resource.data.submittedBy == request.auth.uid
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.submittedAt == request.time
+        && expenseOk(request.resource.data)
+        && !request.resource.data.keys().hasAny(['voucherNo', 'decidedBy', 'decidedAt', 'settlementId', 'settledOn', 'paidOn']);
+      // The person who added it may correct it while it waits; approvers decide (never their own);
+      // payers record payments and paybacks (not the decision).
+      allow update: if expenseOk(request.resource.data) && (
+        (signedIn() && resource.data.submittedBy == request.auth.uid && resource.data.status == 'submitted'
+          && request.resource.data.status == 'submitted'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['date', 'month', 'fy', 'amount', 'category', 'payee', 'billNo', 'description',
+               'paidBy', 'paidByName', 'paidByUid', 'payMode', 'payRef', 'files', 'updatedAt']))
+        || (perm('approveExpenses') && resource.data.submittedBy != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reason', 'decidedBy', 'decidedByName', 'decidedAt', 'voucherNo']))
+        || (perm('payExpenses') && resource.data.status == 'approved'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paidBy', 'payMode', 'payRef', 'paidOn', 'paidRecordedBy', 'paidRecordedAt', 'settlementId', 'settledOn'])));
+      allow delete: if (signedIn() && resource.data.submittedBy == request.auth.uid && resource.data.status == 'submitted')
+        || (isCommittee() && resource.data.status != 'approved');
+      // Step-by-step history of the expense: added, corrected, approved, paid, paid back. Never changed.
+      match /log/{logId} {
+        allow read: if expenseTeam() || (signedIn() && get(/databases/$(database)/documents/expenses/$(id)).data.submittedBy == request.auth.uid);
+        allow create: if signedIn() && isTeam()
+          && request.resource.data.by == request.auth.uid
+          && request.resource.data.at == request.time;
+      }
+    }
+    match /staffSettlements/{id} {
+      allow read: if expenseTeam() || (signedIn() && resource.data.personUid == request.auth.uid);
+      allow create: if perm('payExpenses')
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.kind in ['payback', 'advance']
+        && request.resource.data.amount is number && request.resource.data.amount >= 0
+        && request.resource.data.expenseIds is list;
+      allow delete: if isCommittee();
     }
 
     match /liftExpenses/{expenseId} {
@@ -280,7 +336,7 @@ service cloud.firestore {
     }
 
     match /settings/{docId} {
-      allow read: if perm('view') || (docId == 'staffAgreement' && isTeam());
+      allow read: if perm('view') || ((docId == 'staffAgreement' || docId == 'files') && isTeam());
       allow write: if isCommittee()
         || (docId == 'billing' && perm('generateBills') && changes().hasOnly(['lastRun', 'lastBilledMonth']));
     }

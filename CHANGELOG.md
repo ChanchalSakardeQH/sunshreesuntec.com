@@ -6,6 +6,37 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.7.0] – 2026-11-16 – Daily expenses with bill photos, approvals, staff paybacks, monthly report
+
+### Added
+- **Expenses tab** (Accounts → Expenses) for the Manager, Accountant, Housekeeping, Watchman and the committee:
+  - **Add expense**: date, amount, head, paid to, bill no., what for, **who paid** (the Society with mode and reference; a person from their own money; not paid yet), and photos or PDFs of the bill (photos reduced before sending);
+  - **Expenses** list with month, status, paid-by and search filters, totals and CSV; each expense opens with its bill photos, details, payment / payback and step-by-step history;
+  - **Approve** (voucher number `EXP/FY/nnnn`) or **Reject** with a reason; nobody can approve their own expense; corrections and deletion by the person who added it while it waits;
+  - **Record payment** for vendor bills paid later;
+  - **Staff paybacks**: what is owed to each person who paid from their own money, advances they hold, **Pay back** (choosing the bills, optionally setting part against an advance; `PB/FY/nnnn`) and **Give advance** (`ADV/FY/nnnn`);
+  - **Payments made**: every payment of the month linked to its vouchers and bill photos;
+  - **Monthly report**: totals, by head, vouchers, payments, owed to staff at month end; print / PDF, CSV, save to the Society's records;
+  - **Set-up** (committee): connect the bill storage.
+- **Bill storage in the Society's Google Drive** (`tools/drive-upload`: Apps Script, manifest and step-by-step README): files are kept privately in the Society's account in `Expenses/FY/month/Submitted|Approved|Rejected` (approved ones renamed with the voucher number) and `Reports/FY/month`. Each request is checked with Firebase and the person's own access; bills are shown only to people the rules let read that expense.
+- New permissions: *Add expenses*, *Approve or reject expenses*, *Record expense payments, staff advances and paybacks*. Role defaults: Manager, Office Assistant, Housekeeping and Watchman get *Add expenses*; Accountant also gets *Record payments*. Existing staff: add them with Staff → Edit.
+
+### Security rules
+- `expenses`: create by people with an expense permission, as themselves, status *submitted*, valid amount / date / fields, no decision fields; update by the person who added it (details only, while waiting), by approvers (decision fields only, never their own), by payers (payment and payback fields only, after approval); delete by the person who added it while waiting, or the committee if not approved. `expenses/{id}/log`: create only.
+- `staffSettlements`: create by payers with server time; read by the expense team and the person concerned.
+- `counters`: expense vouchers (approvers), paybacks and advances (payers). `settings/files` readable by the team.
+- **Publish the new `firestore.rules`.**
+
+### Android app
+- The file picker offers **take a photo** with the camera as well as choosing files, for photographing bills.
+
+### Tested
+- 27 checks in the browser with a stand-in for Firebase and the storage script: storage connected by the committee; the watchman sees only Add, Expenses and Staff paybacks; bill photo required; expense saved with the stored file using the watchman's own sign-in; history written; watchman sees only his own; the bill photo shows for the approver; approval gives the next voucher number and moves the files; the Chairman can't approve his own, the Treasurer can; the Accountant can't approve but records the vendor's cheque; payback of the watchman's bill linked to it; advance held; payments made lists vendor, bank, payback and advance with references; the report totals, heads and month-end dues; report CSV and saving to the records.
+- 19 checks of the storage script in Node with stand-ins for Google Drive and Firebase: folders by FY and month, March in the previous FY, file types, refusals (no account, bad sign-in, agreement not accepted, no permission, someone else's expense, a file not on that expense, files outside the records folder), moving and renaming on approval and rejection.
+- The 3.6.0 (20), 3.5.0 (17) and 3.4.0 (31) checks still pass (the 3.6 test now expects watchmen to also have *Add expenses*).
+
+---
+
 ## [3.6.0] – 2026-11-16 – Staff and officials can ask for access; access by role; residents directory
 
 ### Added

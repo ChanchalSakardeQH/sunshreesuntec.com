@@ -1,6 +1,7 @@
 // Committee accounts: dashboard, monthly bills, payments + receipts, unit ledgers, member access, website content, settings.
 import { initFirebase, errorText, inApp, saveBlob, signOutUser, SITE_VERSION } from './firebase.js';
 import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, showMsg } from './signin.js';
+import { initExpenses, loadExpenses } from './expenses.js';
 import { initOfflineUi, requireOnline } from './offline.js';
 import { PERMS, PERM_LABEL, COMMITTEE_ONLY, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT, setRolePolicies, rolePolicy, roleNames, DEFAULT_ROLE_POLICIES, accessEnds, accessEnded } from './staff.js';
 import {
@@ -32,12 +33,13 @@ import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } 
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'members', 'directory', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
-const canDo = (p) => (!p ? true : p === 'committee' ? isCommitteeRecord(me) : can(me, p));
+const canDo = (p) => (!p ? true : p === 'committee' ? isCommitteeRecord(me)
+  : p === 'expenses' ? ['view', 'submitExpenses', 'approveExpenses', 'payExpenses'].some((k) => can(me, k)) : can(me, p));
 
 let fb, uid, units = [], billing, site, dues;
 
@@ -250,9 +252,9 @@ function route() {
   $$('.tab').forEach((t) => (t.hidden = t.dataset.tab !== id));
   $$('#admin-nav a').forEach((a) => (a.getAttribute('href') === '#' + id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   $('#admin-nav').classList.remove('open');
-  $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website', 'directory'].includes(id) || !canDo('view');
+  $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website', 'directory', 'expenses'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, lift: loadLift, members: loadMembers, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -269,6 +271,7 @@ function wireOnce() {
   wireReports();
   wireDocuments();
   wireMembers();
+  initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText });
   wireWebsite();
   wireSettings();
 }

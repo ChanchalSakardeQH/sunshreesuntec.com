@@ -124,6 +124,10 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
 | `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
 | `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, `agreementRequired` (false = no agreement needed, e.g. auditors), `validUntil` (access ends after this date), `org`, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation, or by the committee approving a request. Committee: Staff tab |
+| `expenses/{id}` | Daily expenses: date, month, FY, amount, head, paid to, bill no., description, who paid (`society` with mode and reference / `person` with name / `unpaid`), bill files (Drive file ids and names), status (submitted / approved / rejected), voucher number, reason, who added / decided and when, payment date (vendor paid later), payback link (`settlementId`, `settledOn`) | Staff with *Add expenses* (own), approvers, payers |
+| `expenses/{id}/log/{id}` | Step-by-step history of each expense (added, corrected, approved, rejected, paid, paid back). Never changed | The accounts pages |
+| `staffSettlements/{id}` | Paybacks (with the expenses they cover, any advance set against them) and advances to staff: number (PB/ADV/FY/nnnn), person, amount, date, mode, reference | Staff with *Record expense payments* |
+| `settings/files` | Address of the bill storage script | Committee |
 | `staffRequests/{uid}` | Staff and officials asking for access from the registration form: name, role, organisation, mobile, email, status (pending / approved / rejected), reason, who decided and when | The person (create, own only); committee (decide) |
 | `settings/rolePolicies` | Access by role: for each role its permissions, whether the agreement is required, and how many days access lasts | Committee |
 | `staffInvites/{email}` | Invitations: name, mobile, role, permissions, who invited, when | Committee |
@@ -412,6 +416,28 @@ The **Commitment, Confidentiality and Work Responsibilities Agreement** shows th
 
 ### Changing or ending access
 Staff → Edit: change role or permissions, untick **Access active** to suspend, or **Remove access** (removes the login's access and the invitation; their past entries and agreement record remain).
+
+## 12A-1. Daily expenses with bill photos (3.7)
+
+**Who:** permissions *Add expenses* (Manager, Accountant, Office Assistant, Housekeeping, Watchman by default; committee always), *Approve or reject expenses* (committee by default; never one's own), *Record expense payments, staff advances and paybacks* (Accountant and committee). People with *View accounts* (auditors, DDR) see everything read-only. Staff given access before 3.7 don't get the new permissions automatically: Staff → Edit.
+
+**Where the bills are kept:** in the Society's own Google account (sunshreesuntec@gmail.com), folder `Sunshree Suntec Society Records/Expenses/FY 2026-27/2026-11 November/Submitted | Approved | Rejected`, approved bills named with their voucher number; monthly reports in `…/Reports/FY/month`. A small Google Apps Script in that account (`tools/drive-upload`, installed once: see its README) receives the files. It checks every request with Firebase and reads the person's access record and the expense with the person's own sign-in, so the security rules decide. Nothing is shared or public; bills are shown on the accounts page only to people who may read that expense. Connect it once in Expenses → **Set-up**.
+
+**Adding (Expenses → Add expense):** date spent, amount, head, paid to, bill no., what for, **who paid**:
+- *The Society* (cash box, bank, UPI): mode and reference (required except cash);
+- *A person from their own money*, e.g. a watchman paying an emergency plumber at night: their name; the Society pays them back later;
+- *Not paid yet*: a vendor bill paid later.
+Then at least one photo or PDF of the bill (phone camera is fine; in the app, *Choose a file or take a photo*). Photos are reduced to about 2000 px before sending. Up to 10 files, 12 MB each. The person who added it can correct or delete it while it waits.
+
+**Approving:** an approver opens the expense, sees the bill photos and **Approve** (gets the next voucher number `EXP/2026-27/0001`, files move to *Approved*) or **Reject** with a reason (files move to *Rejected*). Nobody can approve their own expense (rules), so e.g. the Chairman's expense is approved by the Secretary or Treasurer.
+
+**Paying:**
+- *Not paid yet* → once approved, a payer opens it → **Record payment** (date, mode, reference).
+- *Own money* → Expenses → **Staff paybacks** shows each person's approved bills not yet paid back, advances they hold and the net due. **Pay back** ticks the bills, can set part against an advance they hold, records mode and reference (`PB/2026-27/0001`); the bills are marked paid back. **Give advance** records petty cash given to staff (`ADV/2026-27/0001`), set against later bills.
+
+**Linking payments and bills:** Expenses → **Payments made** lists every rupee paid out in a month (vendors, paybacks, advances) with mode and reference, each linked to its vouchers; a 📎 marks vouchers with bills, opening the bill photos. Each expense shows its payment or payback, and each payback lists its vouchers.
+
+**Monthly report:** approved total, paid by the Society / by staff / not paid yet, waiting and rejected; by head; all vouchers; payments made; owed to staff at month end. **Print / save PDF**, **Export CSV**, **Save to Society records** (CSV into the Drive `Reports` folder).
 
 ## 12A-2. Tally ledger history (2018–2026)
 

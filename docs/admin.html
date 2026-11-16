@@ -30,6 +30,7 @@
         <a href="#documents" data-need="view">Documents</a>
         <a href="#members" data-need="members">Members</a>
         <a href="#website" data-need="website">Website</a>
+        <a href="#expenses" data-need="expenses">Expenses</a>
         <a href="#directory" data-need="directory">Directory</a>
         <a href="#staff" data-need="committee">Staff</a>
         <a href="#settings" data-need="committee">Settings</a>
@@ -648,6 +649,164 @@
       </dialog>
     </section>
 
+    <!-- EXPENSES (3.7) -->
+    <section class="tab" data-tab="expenses" hidden>
+      <h1>Expenses</h1>
+      <p class="callout" id="exp-not-connected" hidden>Bill storage isn’t connected yet, so bills can’t be added. A committee member connects it once in <strong>Set-up</strong>.</p>
+      <div class="exp-tabs" role="tablist">
+        <button type="button" role="tab" data-pane="add" aria-selected="true">Add expense</button>
+        <button type="button" role="tab" data-pane="list" aria-selected="false">Expenses</button>
+        <button type="button" role="tab" data-pane="staff" aria-selected="false">Staff paybacks</button>
+        <button type="button" role="tab" data-pane="payments" aria-selected="false">Payments made</button>
+        <button type="button" role="tab" data-pane="report" aria-selected="false">Monthly report</button>
+        <button type="button" role="tab" data-pane="setup" aria-selected="false">Set-up</button>
+      </div>
+
+      <div class="exp-pane" data-pane="add">
+        <h2 id="exp-form-title">Add an expense</h2>
+        <form id="exp-form" class="form entry-form" novalidate>
+          <label>Date spent<input type="date" name="date" required></label>
+          <label>Amount (₹)<input type="number" name="amount" min="1" step="0.01" inputmode="decimal" required></label>
+          <label>Head<select name="category"></select></label>
+          <label>Paid to<input type="text" name="payee" maxlength="120" placeholder="Shop, vendor or person" required></label>
+          <label>Bill / invoice no.<input type="text" name="billNo" maxlength="40" placeholder="If any"></label>
+          <label class="wide-all">What for<textarea name="description" rows="2" maxlength="500" placeholder="e.g. Emergency plumber for B wing overhead tank leak"></textarea></label>
+          <fieldset class="wide-all paid-by"><legend>Who paid?</legend>
+            <label class="check"><input type="radio" name="paidBy" value="society" checked> The Society (cash box, bank, UPI)</label>
+            <label class="check"><input type="radio" name="paidBy" value="person"> A person from their own money: the Society pays them back</label>
+            <label class="check"><input type="radio" name="paidBy" value="unpaid"> Not paid yet (the vendor will be paid later)</label>
+          </fieldset>
+          <div class="wide-all form-row" id="exp-pay-row">
+            <label>How the Society paid<select name="payMode"></select></label>
+            <label>Reference<input type="text" name="payRef" maxlength="60" placeholder="UPI / transaction / cheque no."></label>
+          </div>
+          <div class="wide-all form-row" id="exp-person-row" hidden>
+            <label>Who paid<input type="text" name="paidByName" maxlength="80" list="exp-people"></label>
+            <label>How they paid<select name="personMode"><option value="cash">Cash</option><option value="upi">UPI</option><option value="card">Card</option><option value="bank">Bank transfer</option></select></label>
+            <datalist id="exp-people"></datalist>
+          </div>
+          <div class="wide-all">
+            <label class="btn btn-primary file-btn">Add bill photo or scan<input type="file" id="exp-pick" accept="image/*,application/pdf" multiple hidden></label>
+            <span class="muted small-note">Photo of the bill (the phone camera is fine) or a PDF. Up to 10 files.</span>
+            <ul class="exp-files" id="exp-files"></ul>
+            <p class="muted small-note" id="exp-files-note"></p>
+          </div>
+          <p class="form-msg wide-all" role="alert"></p>
+          <div class="form-actions wide-all">
+            <button class="btn btn-primary" type="submit">Save expense</button>
+            <button class="btn" type="button" id="exp-cancel-edit" hidden>Cancel correction</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="exp-pane" data-pane="list" hidden>
+        <div class="filter-row">
+          <label>Month<input type="month" id="exp-month"></label>
+          <label>Status<select id="exp-status"><option value="">All</option><option value="submitted">Waiting for approval</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="unpaid">Not paid yet</option></select></label>
+          <label>Paid by<select id="exp-paidby"><option value="">All</option><option value="society">Society</option><option value="person">Own money</option><option value="unpaid">Not paid yet</option></select></label>
+          <label>Search<input type="search" id="exp-search" placeholder="Vendor, head, voucher, reference"></label>
+          <button class="btn btn-small" type="button" id="exp-all-months">All months</button>
+          <button class="btn btn-small" type="button" id="exp-csv">Export CSV</button>
+        </div>
+        <p class="muted small-note" id="exp-total"></p>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Date</th><th>Head · paid to</th><th class="num">Amount</th><th>Payment</th><th>Status</th><th>Added by</th><th></th></tr></thead>
+          <tbody id="exp-rows"></tbody>
+        </table></div>
+      </div>
+
+      <div class="exp-pane" data-pane="staff" hidden>
+        <p class="muted">When staff or a committee member pays from their own money (for example an emergency plumber at night), the bill shows here once approved, until the Society pays them back. Advances given to staff are set against later bills.</p>
+        <div class="form-actions" id="exp-staff-actions"><button class="btn btn-small" type="button" id="exs-new-advance">Give an advance to someone</button></div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Person</th><th class="num">Bills to pay back</th><th class="num">Advance they hold</th><th class="num">Net due to them</th><th></th></tr></thead>
+          <tbody id="exs-rows"></tbody>
+        </table></div>
+        <h3 class="mt-sm">Paybacks and advances</h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Date</th><th>Person</th><th>What</th><th class="num">Amount</th><th>Mode</th><th>Bills</th></tr></thead>
+          <tbody id="exs-history"></tbody>
+        </table></div>
+      </div>
+
+      <div class="exp-pane" data-pane="payments" hidden>
+        <p class="muted">All money paid out for expenses in the month (vendors, paybacks, advances), each linked to its vouchers and bill photos.</p>
+        <label class="inline-label">Month<input type="month" id="exp-pay-month"></label>
+        <p class="muted small-note" id="exp-pay-total"></p>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Date</th><th>Type</th><th>Payment</th><th>Mode</th><th class="num">Amount</th><th>Vouchers</th></tr></thead>
+          <tbody id="exp-pay-rows"></tbody>
+        </table></div>
+      </div>
+
+      <div class="exp-pane" data-pane="report" hidden>
+        <form class="filter-row" id="exr-actions" onsubmit="return false">
+          <label>Month<input type="month" id="exr-month"></label>
+          <button class="btn btn-small" type="button" id="exr-print">Print / save PDF</button>
+          <button class="btn btn-small" type="button" id="exr-csv">Export CSV</button>
+          <button class="btn btn-small" type="button" id="exr-drive">Save to Society records</button>
+          <p class="form-msg" role="alert"></p>
+        </form>
+        <div id="exr-body" class="exp-report"></div>
+      </div>
+
+      <div class="exp-pane" data-pane="setup" hidden>
+        <h2>Bill storage</h2>
+        <p class="muted">Bills are kept in the Society’s own Google account, in folders by financial year and month. Install the storage script once in that account (instructions: <code>tools/drive-upload/README.md</code>), then paste its web app address here.</p>
+        <form id="exp-setup" class="form" novalidate>
+          <label>Web app address<input type="url" name="scriptUrl" placeholder="https://script.google.com/macros/s/…/exec"></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Test and connect</button></div>
+        </form>
+      </div>
+
+      <dialog id="exp-dialog" class="wide-dialog">
+        <form id="exd-form" class="form" method="dialog" novalidate>
+          <h2 id="exd-title">Expense</h2>
+          <dl class="facts exd-facts" id="exd-facts"></dl>
+          <h3>Bill</h3>
+          <div class="exd-files" id="exd-files"></div>
+          <p class="muted small-note" id="exd-own-note" hidden>You added this expense, so another approver must approve it.</p>
+          <label id="exd-reason-row" hidden>Reason for rejecting <span class="muted">(the person who added it sees this)</span><textarea id="exd-reason" rows="2" maxlength="300"></textarea></label>
+          <div class="form-row" id="exd-pay-row" hidden>
+            <label>Paid on<input type="date" id="exd-pay-date"></label>
+            <label>How<select id="exd-pay-mode"></select></label>
+            <label>Reference<input type="text" id="exd-pay-ref" maxlength="60"></label>
+          </div>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="button" id="exd-approve">Approve</button>
+            <button class="btn btn-danger" type="button" id="exd-reject">Reject</button>
+            <button class="btn btn-primary" type="button" id="exd-pay">Record payment</button>
+            <button class="btn" type="button" id="exd-edit">Correct</button>
+            <button class="btn btn-danger" type="button" id="exd-delete">Delete</button>
+            <button class="btn" type="button" id="exd-close">Close</button>
+          </div>
+          <h3 class="mt-sm">History</h3>
+          <ul class="history-list" id="exd-history"></ul>
+        </form>
+      </dialog>
+
+      <dialog id="exs-dialog">
+        <form id="exs-form" class="form" novalidate>
+          <h2 id="exs-title">Pay back</h2>
+          <label>Person<input type="text" name="personName" maxlength="80"></label>
+          <div id="exs-items-row"><p class="muted small-note">Bills being paid back:</p><div id="exs-items" class="exs-items"></div></div>
+          <label id="exs-adjust-row">Set against the advance they hold (₹)<input type="number" name="adjust" min="0" step="0.01"></label>
+          <label>Amount paid now (₹)<input type="number" name="amount" min="0" step="0.01"></label>
+          <p class="muted small-note" id="exs-sum"></p>
+          <div class="form-row">
+            <label>Date<input type="date" name="date"></label>
+            <label>How<select name="mode"></select></label>
+            <label>Reference<input type="text" name="ref" maxlength="60"></label>
+          </div>
+          <label>Note<input type="text" name="note" maxlength="300"></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button><button class="btn" type="button" id="exs-cancel">Cancel</button></div>
+        </form>
+      </dialog>
+    </section>
+
     <!-- DIRECTORY (watchman, housekeeping, manager) -->
     <section class="tab" data-tab="directory" hidden>
       <h1>Residents directory</h1>
@@ -798,7 +957,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.6.0</p>
+    <p class="muted mt" id="version-note">Software version 3.7.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

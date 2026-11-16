@@ -212,3 +212,40 @@ table.pr-table td:last-child .btn { white-space: nowrap; }
 .dir-table td { vertical-align: top; }
 .dir-table ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
 .group-pill { display: inline-block; font-size: .75rem; padding: .05rem .4rem; border-radius: 4px; background: #FFF4D6; color: #6B4E00; margin-left: .3rem; }
+
+/* ---------- Expenses (3.7) ---------- */
+.exp-tabs { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 1px solid var(--line); margin: .5rem 0 1rem; }
+.exp-tabs button { font: inherit; background: none; border: 0; border-bottom: 3px solid transparent; padding: .55rem .8rem; cursor: pointer; color: var(--muted); }
+.exp-tabs button[aria-selected="true"] { color: var(--stamp); border-bottom-color: var(--stamp); font-weight: 600; }
+.form-row { display: flex; flex-wrap: wrap; gap: .75rem 1rem; }
+.form-row > label { flex: 1 1 12rem; }
+.paid-by { border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem .8rem .7rem; display: grid; gap: .35rem; }
+.paid-by legend { font-weight: 600; padding: 0 .3rem; }
+.paid-by label.check { display: flex; align-items: flex-start; gap: .5rem; text-align: left; justify-content: flex-start; }
+.entry-form .paid-by input[type=radio] { width: 1.05rem; height: 1.05rem; min-width: 1.05rem; flex: none; margin-top: .2rem; }
+.exd-facts { display: block; margin: .5rem 0 1rem; }
+.file-btn { display: inline-flex; cursor: pointer; }
+.exp-files { list-style: none; padding: 0; margin: .6rem 0 0; display: grid; gap: .5rem; }
+.exp-files li { display: flex; align-items: center; gap: .75rem; border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem .6rem; background: var(--surface); }
+.exp-files img, .exp-files .file-ico { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; flex: none; }
+.exp-files .file-ico { display: grid; place-items: center; background: #FBE4E4; color: #9A2B2B; font-weight: 700; font-size: .8rem; }
+.exp-files span { flex: 1; min-width: 0; word-break: break-word; font-size: .9rem; }
+.wide-dialog { width: min(52rem, 96vw); }
+.exd-facts > div { display: grid; grid-template-columns: 9rem 1fr; gap: .5rem; padding: .3rem 0; border-bottom: 1px solid var(--line); }
+.exd-facts dt { color: var(--muted); }
+.exd-facts dd { margin: 0; }
+.exd-files { display: flex; flex-wrap: wrap; gap: .75rem; }
+.exd-files figure { margin: 0; width: 12rem; }
+.exd-thumb { min-height: 6rem; border: 1px solid var(--line); border-radius: var(--radius); display: grid; place-items: center; font-size: .85rem; color: var(--muted); overflow: hidden; background: var(--paper); }
+.exd-thumb img { display: block; width: 100%; height: auto; }
+.exd-files figcaption { font-size: .75rem; color: var(--muted); word-break: break-word; margin-top: .25rem; }
+.exs-items { display: grid; gap: .3rem; max-height: 14rem; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem; font-size: .9rem; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--stamp); text-decoration: underline; cursor: pointer; font: inherit; }
+.exp-report table { width: 100%; margin-bottom: 1rem; }
+.exp-report tr.total td { font-weight: 700; border-top: 2px solid var(--ink); }
+@media print {
+  body.printing-report > *:not(main), body.printing-report main > *:not([data-tab=expenses]),
+  body.printing-report [data-tab=expenses] > *:not(.exp-pane[data-pane=report]),
+  body.printing-report #exr-actions { display: none !important; }
+  body.printing-report .exp-pane[data-pane=report] { display: block !important; }
+}
