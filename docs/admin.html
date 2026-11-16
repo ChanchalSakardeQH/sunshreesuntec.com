@@ -665,12 +665,24 @@
       <div class="exp-pane" data-pane="add">
         <h2 id="exp-form-title">Add an expense</h2>
         <form id="exp-form" class="form entry-form" novalidate>
-          <label>Date spent<input type="date" name="date" required></label>
-          <label>Amount (₹)<input type="number" name="amount" min="1" step="0.01" inputmode="decimal" required></label>
-          <label>Head<select name="category"></select></label>
-          <label>Paid to<input type="text" name="payee" maxlength="120" placeholder="Shop, vendor or person" required></label>
+          <fieldset class="wide-all paid-by" id="exp-mode-row"><legend>The bill is for</legend>
+            <label class="check"><input type="radio" name="itemsMode" value="one" checked> One expense</label>
+            <label class="check"><input type="radio" name="itemsMode" value="many"> Several items on one sheet (e.g. the watchman’s list of expenses)</label>
+          </fieldset>
+          <label class="exp-single">Date spent<input type="date" name="date" required></label>
+          <label class="exp-single">Amount (₹)<input type="number" name="amount" min="1" step="0.01" inputmode="decimal" required></label>
+          <label class="exp-single">Head<select name="category"></select></label>
+          <label id="exp-payee-label">Paid to<input type="text" name="payee" maxlength="120" placeholder="Shop, vendor or person"></label>
           <label>Bill / invoice no.<input type="text" name="billNo" maxlength="40" placeholder="If any"></label>
-          <label class="wide-all">What for<textarea name="description" rows="2" maxlength="500" placeholder="e.g. Emergency plumber for B wing overhead tank leak"></textarea></label>
+          <label class="wide-all exp-single">What for<textarea name="description" rows="2" maxlength="500" placeholder="e.g. Emergency plumber for B wing overhead tank leak"></textarea></label>
+          <div class="wide-all exp-multi" id="exp-multi" hidden>
+            <p class="muted small-note">One line for each item on the sheet. Each line becomes its own expense with its own voucher; the sheet’s photo is attached to all of them.</p>
+            <div class="table-scroll"><table class="items-table">
+              <thead><tr><th>Date</th><th>Head</th><th>What for</th><th>Paid to</th><th class="num">Amount (₹)</th><th></th></tr></thead>
+              <tbody id="exp-item-rows"></tbody>
+            </table></div>
+            <div class="form-actions"><button class="btn btn-small" type="button" id="exp-add-item">+ Add a line</button><strong id="exp-items-total"></strong></div>
+          </div>
           <fieldset class="wide-all paid-by"><legend>Who paid?</legend>
             <label class="check"><input type="radio" name="paidBy" value="society" checked> The Society (cash box, bank, UPI)</label>
             <label class="check"><input type="radio" name="paidBy" value="person"> A person from their own money: the Society pays them back</label>
@@ -764,14 +776,33 @@
         <form id="exd-form" class="form" method="dialog" novalidate>
           <h2 id="exd-title">Expense</h2>
           <dl class="facts exd-facts" id="exd-facts"></dl>
+          <div id="exd-sheet" class="exd-sheet" hidden>
+            <h3 id="exd-sheet-total"></h3>
+            <ul id="exd-sheet-list"></ul>
+            <button class="btn btn-primary" type="button" id="exd-approve-all" hidden>Approve all on this sheet</button>
+          </div>
           <h3>Bill</h3>
           <div class="exd-files" id="exd-files"></div>
+          <div id="exd-proof-wrap" hidden><h3>Proof of payment</h3><div class="exd-files" id="exd-proofs"></div></div>
+          <div id="exd-lift" class="exd-lift" hidden>
+            <h3>Recover from members’ bills</h3>
+            <p class="muted small-note">Shares this lift expense equally among the units the lift serves and adds it to their maintenance bills (as in Lift → Lift expenses), linked to this voucher.</p>
+            <div class="form-row">
+              <label>Lift<select name="lr_lift"><option value="C">C wing lift</option><option value="D">D wing lift</option><option value="CD">Both lifts</option></select></label>
+              <label>Type<select name="lr_kind"></select></label>
+              <label>From bill month<input type="month" name="lr_start"></label>
+              <label>Monthly instalments<input type="number" name="lr_inst" min="1" max="24" value="1"></label>
+            </div>
+            <p class="muted" id="exd-lift-preview"></p>
+            <button class="btn btn-primary" type="button" id="exd-lift-go">Add to members’ bills</button>
+          </div>
           <p class="muted small-note" id="exd-own-note" hidden>You added this expense, so another approver must approve it.</p>
           <label id="exd-reason-row" hidden>Reason for rejecting <span class="muted">(the person who added it sees this)</span><textarea id="exd-reason" rows="2" maxlength="300"></textarea></label>
           <div class="form-row" id="exd-pay-row" hidden>
             <label>Paid on<input type="date" id="exd-pay-date"></label>
             <label>How<select id="exd-pay-mode"></select></label>
             <label>Reference<input type="text" id="exd-pay-ref" maxlength="60"></label>
+            <label>Proof <span class="muted">(cheque / transfer photo, optional)</span><input type="file" id="exd-pay-proof" accept="image/*,application/pdf"></label>
           </div>
           <p class="form-msg" role="alert"></p>
           <div class="form-actions">
@@ -801,6 +832,7 @@
             <label>Reference<input type="text" name="ref" maxlength="60"></label>
           </div>
           <label>Note<input type="text" name="note" maxlength="300"></label>
+          <label>Proof of payment <span class="muted">(photo of the cheque / transfer screenshot, optional)</span><input type="file" name="proof" accept="image/*,application/pdf"></label>
           <p class="form-msg" role="alert"></p>
           <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button><button class="btn" type="button" id="exs-cancel">Cancel</button></div>
         </form>
@@ -957,7 +989,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.7.0</p>
+    <p class="muted mt" id="version-note">Software version 3.8.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

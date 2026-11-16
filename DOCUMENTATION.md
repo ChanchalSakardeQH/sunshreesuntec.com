@@ -437,6 +437,12 @@ Then at least one photo or PDF of the bill (phone camera is fine; in the app, *C
 
 **Linking payments and bills:** Expenses → **Payments made** lists every rupee paid out in a month (vendors, paybacks, advances) with mode and reference, each linked to its vouchers; a 📎 marks vouchers with bills, opening the bill photos. Each expense shows its payment or payback, and each payback lists its vouchers.
 
+**Several items on one sheet (3.8):** *The bill is for → Several items on one sheet*: one line per item (date, head, what for, paid to, amount) with a running total; one photo of the sheet. Each line becomes its own expense (own date, head, month and voucher) sharing the photo (`groupId`, `groupLine`, `fileMonth` = month of the latest line, where the photo is stored). The approver sees all lines of the sheet and **Approve all … on this sheet** gives consecutive vouchers in date order; the photo moves to *Approved* once every line is approved.
+
+**Proof of payment (3.8):** Pay back / Give advance and Record payment take an optional photo of the cheque or a transfer screenshot. It is kept in `Expenses/FY/month/Payments` and shown on the expense (*Proof of payment*) and as **📎 Proof** in the paybacks list. Only payers can add proofs; anyone who may read the expense or payback can see them.
+
+**Lift costs recovered from members (3.8):** an approved expense whose head or description mentions lift (e.g. an AMC) shows **Recover from members’ bills**: lift (C, D or both), type, first bill month (default: the first month not yet billed), monthly instalments, with a preview of the share per unit. It creates the same entry as Lift → Lift expenses (shared equally by the units served by that lift, added to their bills as “Lift AMC / Repairs (shared)”), linked both ways: the expense shows *Recovered from*, the Lift register shows the voucher, which opens the expense with its bill. Paying the vendor is separate (Record payment). Don't also charge it through the yearly lift charge.
+
 **Monthly report:** approved total, paid by the Society / by staff / not paid yet, waiting and rejected; by head; all vouchers; payments made; owed to staff at month end. **Print / save PDF**, **Export CSV**, **Save to Society records** (CSV into the Drive `Reports` folder).
 
 ## 12A-2. Tally ledger history (2018–2026)

@@ -8,7 +8,7 @@
  * then reads that person's access record WITH THEIR OWN TOKEN, so the database's security rules decide what
  * they may do. Files are never public: they are read back only through this script, for people the rules allow.
  *
- * Folders:  <ROOT_FOLDER>/Expenses/FY 2026-27/2026-11 November/Submitted | Approved | Rejected
+ * Folders:  <ROOT_FOLDER>/Expenses/FY 2026-27/2026-11 November/Submitted | Approved | Rejected | Payments
  *           <ROOT_FOLDER>/Reports/FY 2026-27/2026-11 November
  */
 var MAX_BYTES = 15 * 1024 * 1024;
@@ -164,27 +164,37 @@ function ping_(cfg, req, who, team) {
 }
 
 function upload_(cfg, req, who, team) {
-  var report = req.kind === 'report';
-  if (report ? !any_(team, ['view', 'approveExpenses', 'payExpenses']) : !any_(team, ['submitExpenses', 'approveExpenses', 'payExpenses'])) {
-    throw new Error('You don’t have permission to add ' + (report ? 'reports.' : 'expenses.'));
-  }
+  var report = req.kind === 'report', payment = req.kind === 'payment';
+  var need = report ? ['view', 'approveExpenses', 'payExpenses'] : payment ? ['payExpenses'] : ['submitExpenses', 'approveExpenses', 'payExpenses'];
+  if (!any_(team, need)) throw new Error('You don’t have permission to add ' + (report ? 'reports.' : payment ? 'payment proofs.' : 'expenses.'));
   if (MIME_OK.indexOf(req.mimeType) < 0) throw new Error('Only photos (JPEG, PNG, WebP), PDF and CSV files can be kept.');
   var bytes = Utilities.base64Decode(String(req.data || ''));
   if (!bytes.length) throw new Error('The file is empty.');
   if (bytes.length > MAX_BYTES) throw new Error('The file is larger than 15 MB.');
   var month = validMonth_(req.month) ? req.month : Utilities.formatDate(new Date(), 'Asia/Kolkata', 'yyyy-MM');
-  var folder = report ? folderFor_(cfg, 'Reports', month, null) : folderFor_(cfg, 'Expenses', month, STATUS_FOLDER.submitted);
+  var folder = report ? folderFor_(cfg, 'Reports', month, null) : folderFor_(cfg, 'Expenses', month, payment ? 'Payments' : STATUS_FOLDER.submitted);
   var file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, cleanName_(req.name)));
   file.setDescription(('Added by ' + team.name + ' <' + who.email + '> (' + team.role + ') on ' +
     Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm') + (req.note ? '\n' + String(req.note) : '')).slice(0, 1500));
   return { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: req.mimeType } };
 }
 
-/** Gives back a bill file, only if the person may read the expense it belongs to (the rules decide). */
+/**
+ * Gives back a bill or a payment proof, only if the person may read the expense (or the payback / advance)
+ * it belongs to: the record is read with their own sign-in, so the rules decide.
+ */
 function fetchFile_(cfg, req, who, team) {
-  var exp = readDoc_(cfg, req.idToken, 'expenses/' + encodeURIComponent(String(req.expenseId || '')));
-  if (!exp) throw new Error('You can’t see this expense.');
-  var ok = (exp.files || []).some(function (f) { return f && f.id === req.fileId; });
+  var rec, list;
+  if (req.settlementId) {
+    rec = readDoc_(cfg, req.idToken, 'staffSettlements/' + encodeURIComponent(String(req.settlementId)));
+    if (!rec) throw new Error('You can’t see this payment.');
+    list = rec.files || [];
+  } else {
+    rec = readDoc_(cfg, req.idToken, 'expenses/' + encodeURIComponent(String(req.expenseId || '')));
+    if (!rec) throw new Error('You can’t see this expense.');
+    list = (rec.files || []).concat(rec.payFiles || []);
+  }
+  var ok = list.some(function (f) { return f && f.id === req.fileId; });
   if (!ok) throw new Error('This file doesn’t belong to that expense.');
   var file = DriveApp.getFileById(req.fileId);
   if (!insideRoot_(cfg, file)) throw new Error('This file isn’t in the Society’s records folder.');
@@ -200,8 +210,10 @@ function move_(cfg, req, who, team) {
   if (!exp) throw new Error('Expense not found.');
   var status = STATUS_FOLDER[exp.status];
   if (!status || !validMonth_(String(exp.date || '').slice(0, 7))) throw new Error('The expense has no valid status or date.');
-  var target = folderFor_(cfg, 'Expenses', exp.date.slice(0, 7), status);
-  var voucher = exp.status === 'approved' && exp.voucherNo ? String(exp.voucherNo).replace(/\//g, '-') + ' ' : '';
+  // A sheet shared by several expenses stays in the month it was stored in and keeps its name.
+  var month = validMonth_(exp.fileMonth) ? exp.fileMonth : exp.date.slice(0, 7);
+  var target = folderFor_(cfg, 'Expenses', month, status);
+  var voucher = exp.status === 'approved' && exp.voucherNo && !exp.groupId ? String(exp.voucherNo).replace(/\//g, '-') + ' ' : '';
   var moved = 0;
   (exp.files || []).forEach(function (f) {
     try {

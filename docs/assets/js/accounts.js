@@ -206,6 +206,8 @@ export async function addLiftExpense(fb, e, units, lastBilledMonth) {
     invoiceNo: e.invoiceNo || '', paidRef: e.paidRef || '', amount,
     startMonth: e.startMonth, instalments: Math.min(24, Math.max(1, round(e.instalments) || 1)),
     unitIds: served.map((u) => u.id), status: 'active',
+    // When it comes from Accounts → Expenses: the approved expense (voucher, bill photos) it recovers.
+    ...(e.expenseId ? { expenseId: e.expenseId, voucherNo: e.voucherNo || '' } : {}),
     createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
   });
   return { id: ref.id, units: served.length };

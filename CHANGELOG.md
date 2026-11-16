@@ -6,6 +6,28 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.8.0] – 2026-11-16 – Bill sheets with several items, payment proofs, lift costs recovered from members
+
+### Added
+- **Several items on one sheet** (Expenses → Add expense → *The bill is for: several items on one sheet*): a line per item (date, head, what for, paid to, amount) with a running total and one photo of the sheet; each line is saved as its own expense, all sharing the photo. Example: the watchman's list of 5 expenses (₹9,550) paid from his pocket.
+- **Approve all on this sheet**: the expense window lists every line of the sheet with its status, and approves all waiting lines at once with consecutive voucher numbers in date order.
+- **Proof of payment**: a photo of the cheque or transfer can be attached when paying someone back, giving an advance, or recording a vendor payment; shown in the expense window and the paybacks list, kept in the month's `Payments` folder.
+- **Recover from members' bills**: an approved lift expense (e.g. the C wing lift AMC) can be shared among the units served by that lift and added to their maintenance bills, in one month or monthly instalments, from the expense window. The Lift register shows the voucher and opens the expense with its contract / bill.
+
+### Changed
+- A payback's vouchers are listed in order; switching tabs closes any open window.
+- Bill storage script: payment proofs (payers only) in `Payments`; proofs readable through their expense or payback; a sheet shared by several lines stays in the month it was stored in and keeps its name. **Deploy the new `Code.gs` as a new version** (Deploy → Manage deployments → edit → New version).
+
+### Security rules
+- Payers may also set `payFiles` on an approved expense; people with *Lift expenses* may link an approved expense to its lift recovery (`liftExpenseId`, `recovery`).
+- **Publish the new `firestore.rules`.**
+
+### Tested
+- 24 checks walking through the three real cases with the actual photos: the watchman enters 5 lines from his sheet (₹9,550, own money) with one photo; five expenses with their own dates and heads share it; the chairman approves all five (vouchers 0002–0006 in date order); the accountant pays Ramesh back by one cheque with its photo, all five marked paid back, *Payments made* shows one cheque linked to the five vouchers, each expense shows the payback and the cheque; the ₹14,000 C wing lift AMC is added as *not paid yet* with the contract photo, approved by the Treasurer, recovered from the C wing units only (12 monthly instalments from December), linked in the Lift register, then paid by cheque with proof.
+- 25 checks of the storage script (6 new); the 3.7.0 (27), 3.6.0 (20) and 3.5.0 (17) suites still pass.
+
+---
+
 ## [3.7.0] – 2026-11-16 – Daily expenses with bill photos, approvals, staff paybacks, monthly report
 
 ### Added

@@ -1,7 +1,7 @@
 // Committee accounts: dashboard, monthly bills, payments + receipts, unit ledgers, member access, website content, settings.
 import { initFirebase, errorText, inApp, saveBlob, signOutUser, SITE_VERSION } from './firebase.js';
 import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, showMsg } from './signin.js';
-import { initExpenses, loadExpenses } from './expenses.js';
+import { initExpenses, loadExpenses, openExpenseById } from './expenses.js';
 import { initOfflineUi, requireOnline } from './offline.js';
 import { PERMS, PERM_LABEL, COMMITTEE_ONLY, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT, setRolePolicies, rolePolicy, roleNames, DEFAULT_ROLE_POLICIES, accessEnds, accessEnded } from './staff.js';
 import {
@@ -249,6 +249,7 @@ function route() {
   let id = location.hash.slice(1);
   if (!TABS.includes(id)) id = 'dashboard';
   if (!canDo(TAB_NEED[id])) id = TABS.find((t) => canDo(TAB_NEED[t]) && t !== 'profile') || 'profile';
+  document.querySelectorAll('dialog[open]').forEach((d) => d.close());   // a window left open on another tab
   $$('.tab').forEach((t) => (t.hidden = t.dataset.tab !== id));
   $$('#admin-nav a').forEach((a) => (a.getAttribute('href') === '#' + id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   $('#admin-nav').classList.remove('open');
@@ -271,7 +272,8 @@ function wireOnce() {
   wireReports();
   wireDocuments();
   wireMembers();
-  initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText });
+  initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
+    reloadBilling: async () => { billing = await loadBilling(fb); return lastBilled(); } });
   wireWebsite();
   wireSettings();
 }
@@ -825,7 +827,7 @@ async function loadLift() {
     const end = liftExpenseEndMonth(e);
     const billed = e.startMonth > lb ? `From ${monthLabel(e.startMonth)}` : end <= lb ? 'Fully billed' : `Billing till ${monthLabel(end)}`;
     return `<tr>
-      <td>${ddmmyyyy(e.date)}</td><td>${esc(liftName(e.lift))}</td><td>${esc(e.kind)}</td>
+      <td>${ddmmyyyy(e.date)}${e.expenseId ? `<br><button class="link-btn" type="button" data-open-exp="${esc(e.expenseId)}" title="Open the expense with its bill">${esc(e.voucherNo || 'Voucher')}</button>` : ''}</td><td>${esc(liftName(e.lift))}</td><td>${esc(e.kind)}</td>
       <td>${esc(e.description)}${e.vendor ? `<br><span class="muted">${esc(e.vendor)}${e.invoiceNo ? ', inv. ' + esc(e.invoiceNo) : ''}</span>` : ''}</td>
       <td class="num">${fmt(e.amount)}</td><td class="num">${e.unitIds.length}</td><td class="num">${fmt(Math.round(e.amount / e.unitIds.length))}</td>
       <td>${billed}${e.instalments > 1 ? ` <span class="muted">(${e.instalments} instalments)</span>` : ''}</td>
@@ -866,6 +868,8 @@ function wireLift() {
     });
   });
   $('#lift-rows').addEventListener('click', async (e) => {
+    const o = e.target.closest('[data-open-exp]');
+    if (o) { openExpenseById(o.dataset.openExp); return; }
     const b = e.target.closest('[data-del-lift]');
     if (!b || !confirm('Delete this lift expense? It hasn’t been billed yet.')) return;
     await busy(b, async () => {

@@ -10,6 +10,8 @@
 // until paid back), or not paid yet (the payment is recorded later). Paybacks and advances to staff are
 // staffSettlements/{id}; a payback lists the expenses it covers, so every payment links back to its bills.
 import { fmt, esc } from './data.js';
+import { unitsServedBy, addLiftExpense } from './accounts.js';
+import { LIFT_KINDS } from './billing-core.js';
 
 export const EXPENSE_HEADS = [
   'Housekeeping and cleaning', 'Security', 'Electricity', 'Water and tanker', 'Lift maintenance and repair',
@@ -91,16 +93,17 @@ async function uploadFiles(files, rec, onStep) {
     const f = await prepareFile(files[i]);
     const ext = (f.name.match(/\.(\w+)$/)?.[1] || (f.type === 'application/pdf' ? 'pdf' : 'jpg')).toLowerCase();
     const name = `${rec.date} Rs ${rs.format(rec.amount)} ${safe(rec.category)} - ${safe(rec.payee)}${files.length > 1 ? ` (${i + 1})` : ''}.${ext}`;
-    const r = await driveCall('upload', { kind: 'bill', month: rec.date.slice(0, 7), name, mimeType: f.type || 'application/octet-stream', data: await toBase64(f),
+    const r = await driveCall('upload', { kind: rec.kind || 'bill', month: rec.fileMonth || rec.date.slice(0, 7), name, mimeType: f.type || 'application/octet-stream', data: await toBase64(f),
       note: `${rec.category}; ${rec.payee}; ${money(rec.amount)}; ${rec.description || ''}` });
     out.push({ id: r.file.id, name: r.file.name, mime: r.file.mime, size: r.file.size });
   }
   return out;
 }
 
-async function fileUrl(exp, f) {
+/** A stored file as a local address. owner: an expense, or { settlementId } for a payback / advance proof. */
+async function fileUrl(owner, f) {
   if (blobs.has(f.id)) return blobs.get(f.id);
-  const r = await driveCall('fetch', { expenseId: exp.id, fileId: f.id });
+  const r = await driveCall('fetch', owner.settlementId ? { settlementId: owner.settlementId, fileId: f.id } : { expenseId: owner.id, fileId: f.id });
   const bin = atob(r.data), u8 = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
   const url = URL.createObjectURL(new Blob([u8], { type: r.mime }));
@@ -203,6 +206,7 @@ export async function loadExpenses() {
   fillPersonList();
   const current = $('.exp-tabs button[aria-selected=true]:not([hidden])')?.dataset.pane;
   showPane(current || (add ? 'add' : 'list'));
+  if (pendingOpen) { const id = pendingOpen; pendingOpen = null; showPane('list'); openExpense(list.find((x) => x.id === id)); }
 }
 
 /* ----- add / edit ----- */
@@ -223,6 +227,36 @@ function renderPicked() {
   $('#exp-files-note').textContent = editing ? `${kept} file${kept === 1 ? '' : 's'} already saved; files added here are added to them.` : '';
 }
 
+const multi = () => $('#exp-form [name=itemsMode]:checked')?.value === 'many';
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+function itemRow(r = {}) {
+  return `<tr><td><input type="date" name="i_date" value="${esc(r.date || '')}" aria-label="Date"></td>
+    <td><select name="i_head" aria-label="Head">${EXPENSE_HEADS.map((h) => `<option ${h === r.category ? 'selected' : ''}>${esc(h)}</option>`).join('')}</select></td>
+    <td><input type="text" name="i_what" maxlength="200" value="${esc(r.description || '')}" placeholder="e.g. Garbage truck" aria-label="What for"></td>
+    <td><input type="text" name="i_payee" maxlength="120" value="${esc(r.payee || '')}" placeholder="Paid to (optional)" aria-label="Paid to"></td>
+    <td><input type="number" name="i_amount" min="1" step="0.01" inputmode="decimal" value="${r.amount || ''}" aria-label="Amount"></td>
+    <td><button class="btn btn-small" type="button" data-del-item aria-label="Remove line">✕</button></td></tr>`;
+}
+function readItems() {
+  return $$('#exp-item-rows tr').map((tr) => ({
+    date: $('[name=i_date]', tr).value, category: $('[name=i_head]', tr).value, description: $('[name=i_what]', tr).value.trim().slice(0, 200),
+    payee: $('[name=i_payee]', tr).value.trim().replace(/\s+/g, ' ').slice(0, 120), amount: round2($('[name=i_amount]', tr).value)
+  })).filter((r) => r.amount || r.description);
+}
+function itemsTotal() {
+  const items = readItems();
+  $('#exp-items-total').textContent = items.length ? `${items.length} item${items.length === 1 ? '' : 's'} · total ${money(items.reduce((s, r) => s + r.amount, 0))}` : '';
+}
+function modeChanged() {
+  const many = multi();
+  $$('#exp-form .exp-single').forEach((el) => { el.hidden = many; });
+  $('#exp-multi').hidden = !many;
+  $('#exp-payee-label').firstChild.textContent = many ? 'Paid to (if the same for every line)' : 'Paid to';
+  if (many && !$('#exp-item-rows tr')) $('#exp-item-rows').innerHTML = itemRow({ date: todayIST() }) + itemRow() + itemRow();
+  itemsTotal();
+}
+
 function paidByChanged() {
   const f = $('#exp-form'), v = f.paidBy.value;
   $('#exp-person-row').hidden = v !== 'person';
@@ -237,6 +271,10 @@ function wireForm() {
   f.date.value = todayIST();
   $$('input[name=paidBy]', f).forEach((r) => r.addEventListener('change', paidByChanged));
   paidByChanged();
+  $$('input[name=itemsMode]', f).forEach((r) => r.addEventListener('change', modeChanged));
+  $('#exp-add-item').addEventListener('click', () => { $('#exp-item-rows').insertAdjacentHTML('beforeend', itemRow()); itemsTotal(); });
+  $('#exp-item-rows').addEventListener('click', (e) => { const b = e.target.closest('[data-del-item]'); if (b) { b.closest('tr').remove(); itemsTotal(); } });
+  $('#exp-item-rows').addEventListener('input', itemsTotal);
   $('#exp-pick').addEventListener('change', (e) => {
     const add = [...e.target.files];
     e.target.value = '';
@@ -258,9 +296,23 @@ function wireForm() {
       payee: String(fd.get('payee')).trim().replace(/\s+/g, ' ').slice(0, 120), billNo: String(fd.get('billNo')).trim().slice(0, 40),
       description: String(fd.get('description')).trim().slice(0, 500), paidBy: String(fd.get('paidBy'))
     };
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(rec.date) || rec.date > todayIST()) return ctx.setMsg(f, 'Enter the date the money was spent (not in the future).');
-    if (!(rec.amount > 0)) return ctx.setMsg(f, 'Enter the amount.');
-    if (rec.payee.length < 2) return ctx.setMsg(f, 'Enter who was paid (shop, vendor or person).');
+    const many = multi() && !editing;
+    let items = [];
+    if (many) {
+      items = readItems();
+      if (items.length < 2) return ctx.setMsg(f, 'Enter at least two lines (for one item choose “One expense”).');
+      const bad = items.findIndex((r) => !/^\d{4}-\d{2}-\d{2}$/.test(r.date) || r.date > todayIST() || !(r.amount > 0) || r.description.length < 2);
+      if (bad >= 0) return ctx.setMsg(f, `Line ${bad + 1}: enter the date (not in the future), what it was for and the amount.`);
+      if (items.length > 50) return ctx.setMsg(f, 'At most 50 lines at a time.');
+      rec.date = items.map((r) => r.date).sort().pop();
+      rec.amount = round2(items.reduce((s, r) => s + r.amount, 0));
+      rec.category = `Sheet of ${items.length} items`;
+      if (rec.payee.length < 2 && items.some((r) => r.payee.length < 2)) return ctx.setMsg(f, 'Enter who was paid: on each line, or once in “Paid to” if the same for all.');
+    } else {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(rec.date) || rec.date > todayIST()) return ctx.setMsg(f, 'Enter the date the money was spent (not in the future).');
+      if (!(rec.amount > 0)) return ctx.setMsg(f, 'Enter the amount.');
+      if (rec.payee.length < 2) return ctx.setMsg(f, 'Enter who was paid (shop, vendor or person).');
+    }
     if (!picked.length && !editing?.files?.length) return ctx.setMsg(f, 'Add a photo or scan of the bill. If there is no bill, take a photo of a handwritten note signed by the person paid.');
     if (rec.paidBy === 'person') {
       rec.paidByName = String(fd.get('paidByName')).trim().slice(0, 80);
@@ -273,11 +325,30 @@ function wireForm() {
       rec.paidByName = ''; rec.paidByUid = '';
     } else { rec.payMode = ''; rec.payRef = ''; rec.paidByName = ''; rec.paidByUid = ''; }
     rec.month = rec.date.slice(0, 7); rec.fy = fyOf(rec.date);
+    rec.fileMonth = editing?.fileMonth || rec.month;
     const btn = $('button[type=submit]', f);
     await ctx.busy(btn, async () => {
       try {
         const { F, db } = ctx.fb;
-        const files = picked.length ? await uploadFiles(picked, rec, (i, n) => ctx.setMsg(f, `Saving bill ${i} of ${n} to the Society’s records…`, true)) : [];
+        const files = picked.length ? await uploadFiles(picked, { ...rec, payee: rec.payee || rec.paidByName || 'various' }, (i, n) => ctx.setMsg(f, `Saving bill ${i} of ${n} to the Society’s records…`, true)) : [];
+        if (many) {
+          // One sheet, several expenses: each line is its own expense (own date, head, voucher), all sharing the sheet's photos.
+          const by = { submittedBy: myUid(), submittedByName: myName(), submittedByRole: ctx.me()?.kind === 'staff' ? (ctx.me().role || 'Staff') : 'Committee' };
+          const groupId = F.doc(F.collection(db, 'expenses')).id;
+          const batch = F.writeBatch(db);
+          items.forEach((r, i) => {
+            const ref = F.doc(F.collection(db, 'expenses'));
+            batch.set(ref, { ...rec, date: r.date, month: r.date.slice(0, 7), fy: fyOf(r.date), amount: r.amount, category: r.category, description: r.description,
+              payee: r.payee || rec.payee, files, groupId, groupLine: i + 1, groupSize: items.length, groupTotal: rec.amount, status: 'submitted', ...by, submittedAt: F.serverTimestamp() });
+            batch.set(F.doc(F.collection(db, 'expenses', ref.id, 'log')), { action: 'submitted', text: `${money(r.amount)} · line ${i + 1} of ${items.length} on one sheet (${money(rec.amount)}) · ${PAID_BY[rec.paidBy]}`,
+              by: myUid(), byName: myName(), at: F.serverTimestamp() });
+          });
+          await batch.commit();
+          resetForm();
+          ctx.setMsg(f, `Saved ${items.length} expenses, total ${money(rec.amount)}, with the sheet attached to each. They now wait for approval.`, true);
+          await loadList(); fillPersonList();
+          return;
+        }
         if (editing) {
           await F.updateDoc(F.doc(db, 'expenses', editing.id), { ...rec, files: [...(editing.files || []), ...files], updatedAt: F.serverTimestamp() });
           await logStep(editing.id, 'edited', 'details corrected before approval');
@@ -301,7 +372,9 @@ function resetForm() {
   f.reset(); f.date.value = todayIST(); picked = []; editing = null;
   $('#exp-form-title').textContent = 'Add an expense';
   $('#exp-cancel-edit').hidden = true;
-  paidByChanged(); renderPicked();
+  $('#exp-item-rows').innerHTML = '';
+  $('#exp-mode-row').hidden = false;
+  paidByChanged(); modeChanged(); renderPicked();
 }
 
 function startEdit(e) {
@@ -310,6 +383,8 @@ function startEdit(e) {
   showPane('add');
   $('#exp-form-title').textContent = 'Correct the expense';
   $('#exp-cancel-edit').hidden = false;
+  $('input[name=itemsMode][value=one]', f).checked = true; modeChanged();
+  $('#exp-mode-row').hidden = true;
   f.date.value = e.date; f.amount.value = e.amount; f.category.value = e.category; f.payee.value = e.payee || '';
   f.billNo.value = e.billNo || ''; f.description.value = e.description || '';
   $(`input[name=paidBy][value=${e.paidBy}]`, f).checked = true;
@@ -389,8 +464,21 @@ async function openExpense(e) {
     ['Description', esc(e.description || '—')], ['Paid by', payText(e)],
     ...(s ? [['Paid back', `${esc(s.no)} on ${ddmmyyyy(s.date)} · ${PAY_MODES[s.mode] || s.mode}${s.ref ? ` · ${esc(s.ref)}` : ''} · ${money(s.amount)} for ${s.expenseIds.length} bill${s.expenseIds.length === 1 ? '' : 's'}`]] : []),
     ['Added by', `${esc(e.submittedByName || '')}${e.submittedByRole ? ` (${esc(e.submittedByRole)})` : ''} · ${whenLong(e.submittedAt)}`],
-    ...(e.decidedAt ? [['Decided by', `${esc(e.decidedByName || '')} · ${whenLong(e.decidedAt)}`]] : [])
+    ...(e.decidedAt ? [['Decided by', `${esc(e.decidedByName || '')} · ${whenLong(e.decidedAt)}`]] : []),
+    ...(e.recovery ? [['Recovered from', `${esc(e.recovery.liftName || e.recovery.lift)}: ${e.recovery.units} units × ${money(e.recovery.perUnit)}, from the ${esc(monthName(e.recovery.startMonth))} bill${e.recovery.instalments > 1 ? ` over ${e.recovery.instalments} months` : ''}`]] : [])
   ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  // Lines of the same bill sheet
+  const sheet = e.groupId ? list.filter((x) => x.groupId === e.groupId).sort((a, b) => (a.groupLine || 0) - (b.groupLine || 0)) : [];
+  $('#exd-sheet').hidden = !sheet.length;
+  if (sheet.length) {
+    const waiting = sheet.filter((x) => x.status === 'submitted');
+    $('#exd-sheet-list').innerHTML = sheet.map((x) => `<li${x.id === e.id ? ' class="current"' : ''}>${ddmmyyyy(x.date)} · ${esc(x.description || x.category)} · <strong>${money(x.amount)}</strong> · ${statusPill(x)}${x.voucherNo ? ` ${esc(x.voucherNo)}` : ''}
+      ${x.id === e.id ? '' : `<button class="link-btn" type="button" data-exp="${esc(x.id)}">open</button>`}</li>`).join('');
+    $('#exd-sheet-total').textContent = `${sheet.length} lines on one sheet, total ${money(sheet.reduce((t, x) => t + x.amount, 0))}`;
+    const canAll = can('approveExpenses') && waiting.length > 1 && sheet.every((x) => x.submittedBy !== myUid());
+    $('#exd-approve-all').hidden = !canAll;
+    $('#exd-approve-all').textContent = `Approve all ${waiting.length} waiting on this sheet`;
+  }
   const mine = e.submittedBy === myUid();
   const canDecide = can('approveExpenses') && !mine;
   $('#exd-approve').hidden = !(canDecide && e.status !== 'approved');
@@ -401,6 +489,11 @@ async function openExpense(e) {
   $('#exd-own-note').hidden = !(can('approveExpenses') && mine && e.status === 'submitted');
   $('#exd-reason').value = ''; $('#exd-reason-row').hidden = true;
   $('#exd-pay-row').hidden = true;
+  $('#exd-pay-proof').value = '';
+  // Recover a lift expense from the members' bills (Lift tab sharing), once it is approved
+  const liftable = e.status === 'approved' && /lift/i.test(`${e.category} ${e.description}`) && !e.liftExpenseId && can('liftExpenses');
+  $('#exd-lift').hidden = !liftable;
+  if (liftable) prepareLift(e);
   ctx.setMsg($('#exd-form'), '');
   // bills
   $('#exd-files').innerHTML = (e.files || []).map((f) => `<figure data-file="${esc(f.id)}"><div class="exd-thumb">Loading…</div><figcaption>${esc(f.name)}</figcaption></figure>`).join('')
@@ -412,6 +505,17 @@ async function openExpense(e) {
       const url = await fileUrl(e, f);
       fig.innerHTML = f.mime?.startsWith('image/') ? `<a href="${url}" target="_blank" rel="noopener"><img alt="Bill" src="${url}"></a>`
         : `<button class="btn btn-small" type="button" data-openfile="${esc(f.id)}">Open ${f.mime === 'application/pdf' ? 'PDF' : 'file'}</button>`;
+    } catch (err) { fig.textContent = err.message || 'Couldn’t load this file.'; }
+  });
+  // proof of payment: of the vendor payment, or of the payback
+  const proofs = [...(e.payFiles || []).map((f) => ({ f, owner: e })), ...((s?.files) || []).map((f) => ({ f, owner: { settlementId: s.id } }))];
+  $('#exd-proof-wrap').hidden = !proofs.length;
+  $('#exd-proofs').innerHTML = proofs.map(({ f }) => `<figure data-file="${esc(f.id)}"><div class="exd-thumb">Loading…</div><figcaption>${esc(f.name)}</figcaption></figure>`).join('');
+  proofs.forEach(async ({ f, owner }) => {
+    const fig = $(`#exd-proofs [data-file="${CSS.escape(f.id)}"] .exd-thumb`);
+    try {
+      const url = await fileUrl(owner, f);
+      fig.innerHTML = f.mime?.startsWith('image/') ? `<a href="${url}" target="_blank" rel="noopener"><img alt="Proof of payment" src="${url}"></a>` : `<a class="btn btn-small" href="${url}" download="${esc(f.name)}">Open</a>`;
     } catch (err) { fig.textContent = err.message || 'Couldn’t load this file.'; }
   });
   // history
@@ -449,6 +553,9 @@ function wireDialog() {
     await decide(ev.currentTarget, 'rejected', reason);
   });
   $('#exd-approve').addEventListener('click', (ev) => decide(ev.currentTarget, 'approved', ''));
+  $('#exd-approve-all').addEventListener('click', (ev) => approveSheet(ev.currentTarget));
+  $('#exd-lift-go').addEventListener('click', (ev) => recoverLift(ev.currentTarget));
+  ['change', 'input'].forEach((t) => $('#exd-lift').addEventListener(t, liftPreview));
   $('#exd-pay').addEventListener('click', async (ev) => {
     const row = $('#exd-pay-row');
     if (row.hidden) {
@@ -461,10 +568,14 @@ function wireDialog() {
     const mode = $('#exd-pay-mode').value, ref = $('#exd-pay-ref').value.trim(), date = $('#exd-pay-date').value;
     if (mode !== 'cash' && !ref) return ctx.setMsg(form, 'Enter the payment reference.');
     if (!date) return ctx.setMsg(form, 'Enter the payment date.');
+    const proof = $('#exd-pay-proof').files[0];
+    if (proof && proof.size > MAX_FILE_MB * 1048576) return ctx.setMsg(form, `The proof is larger than ${MAX_FILE_MB} MB.`);
     await ctx.busy(ev.currentTarget, async () => {
       try {
         const { F, db } = ctx.fb;
-        await F.updateDoc(F.doc(db, 'expenses', open.id), { paidBy: 'society', payMode: mode, payRef: ref.slice(0, 60), paidOn: date, paidRecordedBy: myUid(), paidRecordedAt: F.serverTimestamp() });
+        const payFiles = proof ? await uploadFiles([proof], { kind: 'payment', date, fileMonth: date.slice(0, 7), amount: open.amount, category: `Payment ${PAY_MODES[mode]} ${ref}`, payee: open.payee }) : [];
+        await F.updateDoc(F.doc(db, 'expenses', open.id), { paidBy: 'society', payMode: mode, payRef: ref.slice(0, 60), paidOn: date, paidRecordedBy: myUid(), paidRecordedAt: F.serverTimestamp(),
+          ...(payFiles.length ? { payFiles } : {}) });
         await logStep(open.id, 'paid', `${PAY_MODES[mode]}${ref ? ` ${ref}` : ''} on ${ddmmyyyy(date)}`);
         await loadList(); d.close(); renderList();
       } catch (err) { ctx.setMsg(form, esc(ctx.errorText(err))); }
@@ -488,14 +599,98 @@ async function decide(btn, status, reason) {
         tx.update(F.doc(db, 'expenses', e.id), patch);
       });
       await logStep(e.id, status, status === 'approved' ? `voucher ${voucherNo}` : reason);
-      // Move the bill files to the Approved / Rejected folder of the month (named with the voucher number).
-      if (e.files?.length) await driveCall('move', { expenseId: e.id, status, voucherNo }).catch((err) => console.warn('Files not moved', err));
       await loadList();
+      // Move the bill files to the Approved / Rejected folder of the month (named with the voucher number).
+      // A sheet shared by several lines moves when every line has the same decision.
+      const same = e.groupId ? list.filter((x) => x.groupId === e.groupId).every((x) => x.status === status) : true;
+      if (e.files?.length && same) await driveCall('move', { expenseId: e.id }).catch((err) => console.warn('Files not moved', err));
       $('#exp-dialog').close();
       renderList();
     } catch (err) { ctx.setMsg(form, esc(err.message || ctx.errorText(err))); }
   });
 }
+
+/** Approves every waiting line of a bill sheet, with consecutive voucher numbers, in one step. */
+async function approveSheet(btn) {
+  const form = $('#exd-form'), e = open;
+  const lines = list.filter((x) => x.groupId === e.groupId && x.status === 'submitted').sort((a, b) => a.date.localeCompare(b.date) || (a.groupLine || 0) - (b.groupLine || 0));
+  if (!lines.length || !confirm(`Approve ${lines.length} expenses (total ${money(lines.reduce((t, x) => t + x.amount, 0))}) from this sheet?`)) return;
+  await ctx.busy(btn, async () => {
+    try {
+      const { F, db } = ctx.fb;
+      const given = {};
+      await F.runTransaction(db, async (tx) => {
+        // all reads first (one counter per financial year), then the writes
+        const fys = [...new Set(lines.map((x) => x.fy || fyOf(x.date)))];
+        const next = {};
+        for (const fy of fys) { const snap = await tx.get(F.doc(db, 'counters', `expenses-${fy}`)); next[fy] = snap.exists() ? Number(snap.data().next) || 1 : 1; }
+        lines.forEach((x) => {
+          const fy = x.fy || fyOf(x.date);
+          given[x.id] = `EXP/${fy}/${String(next[fy]++).padStart(4, '0')}`;
+          tx.update(F.doc(db, 'expenses', x.id), { status: 'approved', reason: '', voucherNo: given[x.id], decidedBy: myUid(), decidedByName: myName(), decidedAt: F.serverTimestamp() });
+        });
+        fys.forEach((fy) => tx.set(F.doc(db, 'counters', `expenses-${fy}`), { next: next[fy] }));
+      });
+      for (const x of lines) await logStep(x.id, 'approved', `voucher ${given[x.id]} (whole sheet approved together)`);
+      await loadList();
+      if (list.filter((x) => x.groupId === e.groupId).every((x) => x.status === 'approved') && e.files?.length) {
+        await driveCall('move', { expenseId: e.id }).catch((err) => console.warn('Files not moved', err));
+      }
+      $('#exp-dialog').close();
+      renderList();
+    } catch (err) { ctx.setMsg(form, esc(err.message || ctx.errorText(err))); }
+  });
+}
+
+/* ----- recovering a lift expense from the members' bills ----- */
+
+const LIFT_NAMES = { C: 'C wing lift', D: 'D wing lift', CD: 'C & D wing lifts' };
+function prepareLift(e) {
+  const f = $('#exd-lift');
+  f.querySelector('[name=lr_kind]').innerHTML = LIFT_KINDS.map((k) => `<option ${/amc/i.test(e.description + e.category) && k === 'AMC' ? 'selected' : ''}>${esc(k)}</option>`).join('');
+  const guess = /\bD[\s-]*wing/i.test(e.description) ? 'D' : /\bC[\s-]*wing/i.test(e.description) ? 'C' : 'C';
+  f.querySelector('[name=lr_lift]').value = guess;
+  const last = ctx.lastBilled?.() || '';
+  const nextMonth = (ym) => { const [y, m] = ym.split('-').map(Number); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; };
+  f.querySelector('[name=lr_start]').value = last ? nextMonth(last) : todayIST().slice(0, 7);
+  f.querySelector('[name=lr_inst]').value = 1;
+  liftPreview();
+}
+function liftPreview() {
+  const f = $('#exd-lift'), e = open;
+  if (!e || f.hidden) return;
+  const l = f.querySelector('[name=lr_lift]').value, inst = Math.max(1, Math.min(24, Number(f.querySelector('[name=lr_inst]').value) || 1));
+  const n = unitsServedBy(ctx.units(), l === 'CD' ? ['C', 'D'] : [l]).length;
+  const share = n ? e.amount / n : 0;
+  $('#exd-lift-preview').innerHTML = n ? `Shared equally by <strong>${n} units</strong> served by the ${esc(LIFT_NAMES[l])}: about ${money(share)} each${inst > 1 ? `, ${money(share / inst)} a month for ${inst} months` : ''}, on their bills from ${esc(monthName(f.querySelector('[name=lr_start]').value || todayIST().slice(0, 7)))}.`
+    : 'No units are set as served by this lift (Units → Open → Served by lift).';
+}
+async function recoverLift(btn) {
+  const f = $('#exd-lift'), form = $('#exd-form'), e = open;
+  const lift = f.querySelector('[name=lr_lift]').value, kind = f.querySelector('[name=lr_kind]').value;
+  const startMonth = f.querySelector('[name=lr_start]').value, instalments = Math.max(1, Math.min(24, Number(f.querySelector('[name=lr_inst]').value) || 1));
+  if (!startMonth) return ctx.setMsg(form, 'Choose the bill month to start from.');
+  const n = unitsServedBy(ctx.units(), lift === 'CD' ? ['C', 'D'] : [lift]).length;
+  if (!confirm(`Add ${money(e.amount)} (${kind}) to the bills of the ${n} units served by the ${LIFT_NAMES[lift]}, from the ${monthName(startMonth)} bill${instalments > 1 ? ` over ${instalments} months` : ''}?`)) return;
+  await ctx.busy(btn, async () => {
+    try {
+      const last = await ctx.reloadBilling();
+      const r = await addLiftExpense(ctx.fb, { date: e.date, lift, kind, description: `${e.description || e.category} (voucher ${e.voucherNo})`, vendor: e.payee,
+        invoiceNo: e.billNo || '', paidRef: e.payRef || '', amount: e.amount, startMonth, instalments, expenseId: e.id, voucherNo: e.voucherNo }, ctx.units(), last);
+      const { F, db } = ctx.fb;
+      const recovery = { lift, liftName: LIFT_NAMES[lift], kind, startMonth, instalments, units: r.units, perUnit: Math.round((e.amount / r.units) * 100) / 100 };
+      await F.updateDoc(F.doc(db, 'expenses', e.id), { liftExpenseId: r.id, recovery });
+      await logStep(e.id, 'to members’ bills', `${LIFT_NAMES[lift]}: ${r.units} units × ${money(recovery.perUnit)} from ${monthName(startMonth)}${instalments > 1 ? ` over ${instalments} months` : ''}`);
+      await loadList();
+      openExpense(list.find((x) => x.id === e.id));
+      ctx.setMsg(form, `Added to the members’ bills from ${esc(monthName(startMonth))}. See Lift → Lift expense register.`, true);
+    } catch (err) { ctx.setMsg(form, esc(err.message || ctx.errorText(err))); }
+  });
+}
+
+/** Opens an expense from elsewhere (e.g. the Lift register): goes to this tab and shows it. */
+let pendingOpen = null;
+export function openExpenseById(id) { pendingOpen = id; if (location.hash !== '#expenses') location.hash = '#expenses'; else loadExpenses(); }
 
 /* ----- staff paybacks and advances ----- */
 
@@ -513,7 +708,8 @@ function renderStaff() {
     <td>${esc(s.personName)}</td><td>${s.kind === 'advance' ? 'Advance given' : `Payback for ${s.expenseIds.length} bill${s.expenseIds.length === 1 ? '' : 's'}`}</td>
     <td class="num">${money(s.amount)}${s.adjusted ? `<br><small class="muted">+ ${money(s.adjusted)} from advance</small>` : ''}</td>
     <td>${PAY_MODES[s.mode] || s.mode}${s.ref ? ` · ${esc(s.ref)}` : ''}</td>
-    <td>${(s.expenseIds || []).map((id) => { const x = list.find((y) => y.id === id); return x ? `<button class="link-btn" type="button" data-exp="${esc(id)}">${esc(x.voucherNo || ddmmyyyy(x.date))}</button>` : ''; }).join(' ')}</td></tr>`).join('')
+    <td>${(s.expenseIds || []).map((id) => { const x = list.find((y) => y.id === id); return x ? `<button class="link-btn" type="button" data-exp="${esc(id)}">${esc(x.voucherNo || ddmmyyyy(x.date))}</button>` : ''; }).join(' ')}
+      ${(s.files || []).map((f) => `<button class="btn btn-small" type="button" data-proof="${esc(s.id)}" data-file="${esc(f.id)}">📎 Proof</button>`).join(' ')}</td></tr>`).join('')
     || '<tr><td colspan="6" class="empty">No paybacks or advances yet.</td></tr>';
 }
 
@@ -529,7 +725,7 @@ function wireStaff() {
     $('#exs-title').textContent = pb ? `Pay back ${p.name}` : `Give an advance${p.name ? ` to ${p.name}` : ''}`;
     box.personName.value = p.name; box.personName.readOnly = Boolean(p.key);
     box.mode.innerHTML = Object.entries(PAY_MODES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
-    box.date.value = todayIST(); box.ref.value = ''; box.note.value = '';
+    box.date.value = todayIST(); box.ref.value = ''; box.note.value = ''; box.proof.value = '';
     $('#exs-items').innerHTML = pb ? p.dueItems.map((e) => `<label class="check"><input type="checkbox" name="item" value="${esc(e.id)}" data-amt="${e.amount}" checked>
       ${ddmmyyyy(e.date)} · ${esc(e.voucherNo || '')} · ${esc(e.category)} · ${esc(e.payee)} · <strong>${money(e.amount)}</strong></label>`).join('') : '';
     $('#exs-items-row').hidden = !pb;
@@ -548,6 +744,17 @@ function wireStaff() {
     $('#exs-sum').textContent = `Bills ${money(sum)}${adj ? ` − advance they hold ${money(adj)}` : ''} = to pay ${money(sum - adj)}`;
   };
   $('#exs-items').addEventListener('change', recalc);
+  // proof of a payback / advance: open it
+  $('#exs-history').addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-proof]');
+    if (!b) return;
+    const st = settlements.find((x) => x.id === b.dataset.proof), f = st?.files?.find((x) => x.id === b.dataset.file);
+    if (!f) return;
+    await ctx.busy(b, async () => {
+      try { const url = await fileUrl({ settlementId: st.id }, f); ctx.saveBlob(await (await fetch(url)).blob(), f.name).catch((err) => alert(ctx.errorText(err))); }
+      catch (err) { alert(err.message || ctx.errorText(err)); }
+    });
+  });
   box.adjust.addEventListener('input', recalc);
   $('#exs-cancel').addEventListener('click', () => $('#exs-dialog').close());
   box.addEventListener('submit', async (ev) => {
@@ -560,10 +767,13 @@ function wireStaff() {
     if (s.kind === 'advance' && !(amount > 0)) return ctx.setMsg(box, 'Enter the amount.');
     if (amount < 0) return ctx.setMsg(box, 'The advance used is more than the bills.');
     if (box.mode.value !== 'cash' && amount > 0 && !box.ref.value.trim()) return ctx.setMsg(box, 'Enter the payment reference.');
+    const proof = box.proof.files[0];
+    if (proof && proof.size > MAX_FILE_MB * 1048576) return ctx.setMsg(box, `The proof is larger than ${MAX_FILE_MB} MB.`);
     await ctx.busy($('button[type=submit]', box), async () => {
       try {
         const { F, db } = ctx.fb;
         const date = box.date.value || todayIST(), fy = fyOf(date);
+        const files = proof ? await uploadFiles([proof], { kind: 'payment', date, fileMonth: date.slice(0, 7), amount, category: `${s.kind === 'payback' ? 'Payback' : 'Advance'} ${PAY_MODES[box.mode.value]} ${box.ref.value.trim()}`, payee: name }) : [];
         // A name typed for a new advance joins the person already on record with that name.
         const known = s.person.key ? s.person : balances().find((x) => x.name.trim().toLowerCase() === name.toLowerCase());
         if (known && !s.person.key) s.person = known;
@@ -573,7 +783,7 @@ function wireStaff() {
           const no = `${s.kind === 'payback' ? 'PB' : 'ADV'}/${fy}/${String(n).padStart(4, '0')}`;
           const ref = F.doc(F.collection(db, 'staffSettlements'));
           tx.set(ref, { no, kind: s.kind, personKey: key, personName: name, personUid: s.person.uid || '', amount, adjusted, date, mode: box.mode.value,
-            ref: box.ref.value.trim().slice(0, 60), note: box.note.value.trim().slice(0, 300), expenseIds: ids, by: myUid(), byName: myName(), at: F.serverTimestamp() });
+            ref: box.ref.value.trim().slice(0, 60), note: box.note.value.trim().slice(0, 300), expenseIds: ids, files, by: myUid(), byName: myName(), at: F.serverTimestamp() });
           ids.forEach((id) => tx.update(F.doc(db, 'expenses', id), { settlementId: ref.id, settledOn: date }));
         });
         for (const id of ids) await logStep(id, 'paid back', `${money(amount + adjusted)} total in ${s.kind} to ${name}`);
@@ -597,7 +807,7 @@ function paymentsFor(month) {
     if (month && s.date.slice(0, 7) !== month) return;
     if (!(s.amount > 0)) return;
     rows.push({ date: s.date, what: s.kind === 'advance' ? `Advance to ${s.personName}` : `Payback to ${s.personName} (${s.no})`, to: s.personName, mode: s.mode, ref: s.ref, amount: s.amount,
-      links: (s.expenseIds || []).map((id) => list.find((x) => x.id === id)).filter(Boolean), kind: s.kind === 'advance' ? 'Advance' : 'Payback' });
+      links: (s.expenseIds || []).map((id) => list.find((x) => x.id === id)).filter(Boolean).sort((a, b) => (a.voucherNo || a.date).localeCompare(b.voucherNo || b.date)), kind: s.kind === 'advance' ? 'Advance' : 'Payback' });
   });
   return rows.sort((a, b) => a.date.localeCompare(b.date));
 }

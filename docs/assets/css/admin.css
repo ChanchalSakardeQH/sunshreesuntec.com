@@ -249,3 +249,13 @@ table.pr-table td:last-child .btn { white-space: nowrap; }
   body.printing-report #exr-actions { display: none !important; }
   body.printing-report .exp-pane[data-pane=report] { display: block !important; }
 }
+/* 3.8: bill sheets, recovery */
+.items-table td { padding: .25rem; vertical-align: top; }
+.items-table input, .items-table select { width: 100%; min-width: 6.5rem; font: inherit; padding: .35rem .4rem; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); }
+.items-table td:nth-child(3) input { min-width: 11rem; }
+.items-table td:nth-child(5) input { min-width: 5.5rem; text-align: right; }
+.exd-sheet { border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem .8rem .8rem; margin: .5rem 0 1rem; background: var(--paper); }
+.exd-sheet h3 { margin: .2rem 0 .4rem; font-size: 1rem; }
+.exd-sheet ul { list-style: none; padding: 0; margin: 0 0 .6rem; display: grid; gap: .3rem; font-size: .92rem; }
+.exd-sheet li.current { font-weight: 600; }
+.exd-lift { border: 1px dashed var(--stamp); border-radius: var(--radius); padding: .5rem .8rem .8rem; margin: 1rem 0; }

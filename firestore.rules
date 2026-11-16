@@ -270,7 +270,10 @@ service cloud.firestore {
         || (perm('approveExpenses') && resource.data.submittedBy != request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reason', 'decidedBy', 'decidedByName', 'decidedAt', 'voucherNo']))
         || (perm('payExpenses') && resource.data.status == 'approved'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paidBy', 'payMode', 'payRef', 'paidOn', 'paidRecordedBy', 'paidRecordedAt', 'settlementId', 'settledOn'])));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paidBy', 'payMode', 'payRef', 'paidOn', 'paidRecordedBy', 'paidRecordedAt', 'payFiles', 'settlementId', 'settledOn']))
+        // an approved lift expense recovered from the members' bills (Lift sharing) is linked to it
+        || (perm('liftExpenses') && resource.data.status == 'approved'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['liftExpenseId', 'recovery'])));
       allow delete: if (signedIn() && resource.data.submittedBy == request.auth.uid && resource.data.status == 'submitted')
         || (isCommittee() && resource.data.status != 'approved');
       // Step-by-step history of the expense: added, corrected, approved, paid, paid back. Never changed.
