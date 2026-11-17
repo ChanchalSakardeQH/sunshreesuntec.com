@@ -6,6 +6,19 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.15.1] – 2026-11-17 – Penal interest at 18% as resolved by the members (13/04/2013), 12% from 01/07/2026
+
+### Changed
+- The suggested rate periods now follow the Society's own resolutions:
+  - **18% per year from 13/04/2013 to 30/06/2026.** Members' meeting of 13/04/2013, Ref. RES_PASSED/130413/002, item 9: *"For late payment i.e. beyond the calendar month, 18% extra would be charged per year"*. Penalty on defaulters confirmed at the AGM of 25/01/2015 (Ref. AGM-MOM/20150225).
+  - **12% per year from 01/07/2026** (MCS (Amendment) Rules, 2026, Rule 106C-12(4)-6).
+- *Interest on past arrears* starts by default in the month after the resolution (May 2013), which matches *beyond the calendar month*: each month's interest is on dues still unpaid from earlier months. It shows a warning when the months counted go back before April 2018, where balances are rebuilt from the audited year-end figures and the past committee's receipts.
+
+### Tested
+- The interest suite now runs at 18%: C 202 gets 15 months at 18% = ₹2,250 plus 4 months at 12% = ₹400, total ₹2,650; C 101 gets ₹900. The December bill charges ₹100 + ₹2,650 = ₹2,750. There are 2 new checks for the pre-April 2018 warning: 24 checks in all.
+
+---
+
 ## [3.15.0] – 2026-11-17 – Penal interest by rate period (21% to 30/06/2026, 12% from 01/07/2026); interest on past arrears
 
 ### Added

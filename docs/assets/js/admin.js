@@ -480,6 +480,8 @@ function renderPi() {
   const { rows, rates } = piResult;
   const total = rows.reduce((t, r) => t + r.total, 0);
   $('#pi-result').hidden = false;
+  $('#pi-note').hidden = piResult.from >= '2018-04';
+  $('#pi-note').textContent = 'Months before April 2018 use balances rebuilt from the audited year-end figures and the past committee’s receipts (Tally starts in April 2018). Check a few units’ ledgers in the Unit file before charging, and how far back to go with the Society’s advocate.';
   $('#pi-h1').textContent = rates[0] != null ? `At ${rates[0]}% (₹)` : '';
   $('#pi-h2').textContent = rates[1] != null ? `At ${rates[1]}% (₹)` : '';
   $('#pi-cards').innerHTML = `<div><dt>Units with interest</dt><dd>${rows.length}</dd></div>
@@ -1561,13 +1563,12 @@ function wireInterestPeriods() {
     }
   });
   $('#ip-add').addEventListener('click', () => { ipDraft = readIp(); ipDraft.push({ from: '', rate: '', ref: '' }); renderIp(); });
+  // As resolved by the members on 13/04/2013 (Ref. RES_PASSED/130413/002, item 9) and confirmed at the AGM of 25/01/2015;
+  // 12% from 01/07/2026 under the MCS (Amendment) Rules, 2026.
   $('#ip-suggest').addEventListener('click', () => {
-    ipDraft = readIp();
-    const first = ipDraft.find((p) => Number(p.rate) === 21)?.from || '';
-    ipDraft = [{ from: first, rate: 21, ref: 'Annual General Body resolution dated __ (21% simple p.a. on defaulted dues)' },
+    ipDraft = [{ from: '2013-04-13', rate: 18, ref: 'Members’ meeting 13/04/2013 (Ref. RES_PASSED/130413/002, item 9): 18% per year on late payment, i.e. beyond the calendar month; penalty on defaulters confirmed at the AGM of 25/01/2015 (Ref. AGM-MOM/20150225)' },
       { from: '2026-07-01', rate: 12, ref: 'MCS (Amendment) Rules, 2026, Rule 106C-12(4)-6 (notified 18/07/2026): maximum 12% simple p.a.; General Body resolution dated __' }];
     renderIp();
-    $('#ip-rows [data-f=from]')?.focus();
   });
   $('#ip-rows').addEventListener('click', (e) => { const b = e.target.closest('[data-ip-del]'); if (b) { ipDraft = readIp(); ipDraft.splice(Number(b.dataset.ipDel), 1); renderIp(); } });
   $('#ip-rows').addEventListener('change', () => { ipDraft = readIp(); renderIp(); });

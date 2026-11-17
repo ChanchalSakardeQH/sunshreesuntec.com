@@ -140,6 +140,7 @@
           <div class="form-actions"><button class="btn btn-primary" type="submit">Work it out</button><span class="muted" id="pi-progress"></span></div>
         </form>
         <div id="pi-result" hidden>
+          <p class="callout warn-note small-note" id="pi-note" hidden></p>
           <dl class="dues-summary" id="pi-cards"></dl>
           <div class="table-scroll"><table class="pi-table"><thead><tr><th>Unit</th><th>Name</th><th class="num">Months</th><th class="num">Highest arrears</th><th class="num" id="pi-h1"></th><th class="num" id="pi-h2"></th><th class="num">Interest (₹)</th><th></th></tr></thead><tbody id="pi-rows"></tbody></table></div>
           <div class="form-actions">
@@ -1214,7 +1215,7 @@
           <legend>Penal interest on arrears: rate periods</legend>
           <p class="muted small-note">Simple interest per year, at the rate fixed by the General Body. Each rate applies from its date until the next one starts. Ceiling: 21% before 18/07/2026; 12% from 18/07/2026 (MCS (Amendment) Rules, 2026, Rule 106C-12(4)-6). Bills for a month that spans two rates are charged by days.</p>
           <div class="table-scroll"><table class="ip-table"><thead><tr><th>From</th><th>Rate (% p.a.)</th><th>Authority / reference (shown to members)</th><th></th></tr></thead><tbody id="ip-rows"></tbody></table></div>
-          <div class="form-actions"><button class="btn btn-small" type="button" id="ip-add">Add a rate period</button><button class="btn btn-small" type="button" id="ip-suggest">Fill in 21% to 30/06/2026, 12% from 01/07/2026</button></div>
+          <div class="form-actions"><button class="btn btn-small" type="button" id="ip-add">Add a rate period</button><button class="btn btn-small" type="button" id="ip-suggest">Fill in 18% from 13/04/2013 to 30/06/2026, 12% from 01/07/2026</button></div>
           <p class="muted small-note" id="ip-summary"></p>
           <h3 class="mt-sm">Reference documents for members</h3>
           <p class="muted small-note">The notification, rule, article or resolution behind these rates. Kept in the Society’s Google Drive (<em>Reference documents › Interest on arrears</em>) and shown to signed-in members beside the interest explanation.</p>
@@ -1238,7 +1239,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.15.0</p>
+    <p class="muted mt" id="version-note">Software version 3.15.1</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

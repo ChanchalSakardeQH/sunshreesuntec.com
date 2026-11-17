@@ -415,6 +415,10 @@ Documents are stored as links (e.g. Google Drive), because file uploads would ne
   - `billAdjustments/<id>` `{ runId, runNo, unitId, unit, month, code: 'interest', amount, detail, byRate, months[{ month, base, rate, text, amount }], status: pending|billed|cancelled, billId?, billNo? }`.
   - Bill generation (screen: `generateMonth` → `loadPendingAdjustments`; automatic: `scripts/generate-bills.mjs`) passes them to `computeBill` as extras and marks them billed in the same transaction.
 - **References:** `public/site.interestRefs = [{ id, name, mime, title, addedOn }]`, files in Drive `Reference documents/Interest on arrears` (script `upload` `kind: reference`, committee); opened by members and staff through the script with `referenceId` (only listed files).
+- **The Society's rates:**
+    - **18% per year from 13/04/2013 to 30/06/2026.** Members' meeting 13/04/2013, Ref. RES_PASSED/130413/002, item 9: 18% per year on payment beyond the calendar month. Penalty confirmed at the AGM of 25/01/2015, Ref. AGM-MOM/20150225.
+    - **12% from 01/07/2026.**
+  - The scanned minutes are a reference document for members.
 - **Legal note:** under MCS Rule 106C-12(4)-6 the rate is fixed by the General Body, at most 12% simple p.a. from 18/07/2026. Earlier, up to 21% applied where the General Body had fixed it. Interest on past arrears should start no earlier than the resolution that fixed the rate. Members should be told before the bills go out.
 
 ---
