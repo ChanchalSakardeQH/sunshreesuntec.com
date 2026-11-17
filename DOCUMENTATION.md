@@ -22,6 +22,7 @@ This document explains what the system does, where the data lives, how every amo
 9. Lift charges and lift expenses
 10. Corrections and opening balances
 11. The public dues page
+11-1. Notices page
 11A. Unit file
 12. Member access
 12A. Staff: roles, access and agreement
@@ -91,7 +92,7 @@ flowchart LR
 
 | File | Purpose |
 |---|---|
-| `docs/index.html`, `assets/js/app.js` | Public website, tabs, dues tables, notices, committee, contact |
+| `docs/index.html`, `assets/js/app.js` | Public website, tabs, dues tables, notices with calendar, committee, contact |
 | `docs/assets/js/member.js` | Member registration, login, member account |
 | `docs/admin.html`, `assets/js/admin.js` | Committee accounts screens |
 | `docs/assets/js/accounts.js` | Every write that touches money (bills, payments, cancellations, corrections, lift expenses, import) |
@@ -320,6 +321,14 @@ Units → Open → Add a correction: debit (adds to dues) or credit (reduces due
 - Real amounts are stored in `private/dues` (protected by the rules); `public/dues` holds names and masks only.
 - Data comes from `public/dues`, rewritten in the same transaction as every bill, payment, cancellation and correction. If Firebase is unreachable, the page shows the 30 Sep 2026 statement from `data/dues.json`.
 - “Cr” means the member has paid in advance. “Under verification” means the opening balance is still being checked.
+
+---
+
+## 11-1. Notices page (3.10)
+
+- Notices are published from Accounts → Website and stored with the other site content in `public/site` (fallback `data/notices.json`). Newest first.
+- **Typing a notice:** a blank line separates paragraphs. Inside a paragraph, lines starting with •, -, * or – become a bulleted list; lines starting with `1.` or `1)` a numbered list (keeping the first number); other lines keep their line breaks. Rendered by `noticeBlock()` in `app.js`; everything is escaped, so no HTML can be typed into a notice.
+- **Calendar** (`initNoticeCalendar()` in `app.js`): a month grid beside the list (sticky on wide screens; between the heading and the list below 960 px). Opens on the current month in India time. Days with notices are buttons, highlighted, with the notice titles as their label and a count when there is more than one; choosing one scrolls to `#notice-<id>` and flashes it. Under the grid, the month's notices as links; an empty month links to the next (or latest earlier) month with notices.
 
 ---
 

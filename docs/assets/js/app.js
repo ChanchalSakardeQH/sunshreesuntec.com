@@ -256,14 +256,94 @@ loadLiveDues().then(({ data, live }) => {
 });
 
 /* ---------- Notices, committee, contact ---------- */
+
+/* A paragraph of a notice as typed in Accounts → Website: lines starting with •, - or * become a bulleted list,
+   lines starting with 1. 2. … a numbered list, other lines keep their line breaks (e.g. bank details). */
+const BULLET = /^\s*[•\-*–]\s+/, NUMBERED = /^\s*(\d+)[.)]\s+/;
+function noticeBlock(par) {
+  const lines = String(par).split('\n').map((l) => l.trim()).filter(Boolean);
+  let html = '', kind = null, items = [], start = 1;
+  const flush = () => {
+    if (!items.length) return;
+    if (kind === 'ul') html += `<ul>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+    else if (kind === 'ol') html += `<ol${start !== 1 ? ` start="${start}"` : ''}>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`;
+    else html += `<p>${items.map(esc).join('<br>')}</p>`;
+    items = [];
+  };
+  lines.forEach((l) => {
+    const k = BULLET.test(l) ? 'ul' : NUMBERED.test(l) ? 'ol' : 'p';
+    if (k !== kind) { flush(); kind = k; if (k === 'ol') start = Number(NUMBERED.exec(l)[1]) || 1; }
+    items.push(k === 'ul' ? l.replace(BULLET, '') : k === 'ol' ? l.replace(NUMBERED, '') : l);
+  });
+  flush();
+  return html;
+}
+
+/* Calendar beside the notices: days with a notice are highlighted; choosing one scrolls to it. */
+const CAL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function initNoticeCalendar(list) {
+  const byDate = {};
+  list.forEach((n) => (byDate[n.date] ??= []).push(n));
+  const now = new Date(Date.now() + 5.5 * 3600000).toISOString();   // India time
+  const today = now.slice(0, 10), thisMonth = now.slice(0, 7);
+  let month = thisMonth;
+  const shift = (ym, d) => { const [y, m] = ym.split('-').map(Number), t = y * 12 + (m - 1) + d; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`; };
+
+  const render = () => {
+    const [y, m] = month.split('-').map(Number);
+    const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(), days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    $('#cal-title').textContent = `${CAL_MONTHS[m - 1]} ${y}`;
+    let cells = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => `<span class="cal-dow" aria-hidden="true">${d}</span>`).join('');
+    cells += '<span class="cal-day other" aria-hidden="true"></span>'.repeat(first);
+    for (let d = 1; d <= days; d++) {
+      const iso = `${month}-${String(d).padStart(2, '0')}`, ns = byDate[iso] || [], cls = `cal-day${iso === today ? ' today' : ''}`;
+      cells += ns.length
+        ? `<button type="button" class="${cls} has" data-date="${iso}"${ns.length > 1 ? ` data-count="${ns.length}"` : ''}
+            aria-label="${d} ${CAL_MONTHS[m - 1]} ${y}: ${ns.length} notice${ns.length > 1 ? 's' : ''}, ${esc(ns.map((n) => n.title).join('; '))}" title="${esc(ns.map((n) => n.title).join('\n'))}">${d}</button>`
+        : `<span class="${cls}"${iso === today ? ' aria-label="Today"' : ''}>${d}</span>`;
+    }
+    $('#cal-grid').innerHTML = cells;
+    const inMonth = list.filter((n) => n.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
+    $('#cal-sub').textContent = inMonth.length ? `Notices in ${CAL_MONTHS[m - 1]} ${y}` : `No notices in ${CAL_MONTHS[m - 1]} ${y}`;
+    $('#cal-list').innerHTML = inMonth.map((n) => `<li><time datetime="${esc(n.date)}">${fmtDate(n.date)}</time><a href="#notices" data-notice="${esc(n.id)}">${esc(n.title)}</a></li>`).join('');
+    // Nothing this month: point to the nearest month that has notices.
+    if (!inMonth.length && list.length) {
+      const earlier = list.find((n) => n.date < `${month}-01`), later = [...list].reverse().find((n) => n.date > `${month}-31`);
+      const go = later || earlier;
+      if (go) $('#cal-list').innerHTML = `<li><a href="#notices" data-goto-month="${go.date.slice(0, 7)}">${later ? 'Next' : 'Latest'} notice: ${esc(CAL_MONTHS[Number(go.date.slice(5, 7)) - 1])} ${go.date.slice(0, 4)}</a></li>`;
+    }
+    $('#cal-today').hidden = month === thisMonth;
+  };
+
+  const show = (id) => {
+    const el = document.getElementById(`notice-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    el.focus({ preventScroll: true });
+  };
+
+  $('#cal-prev').addEventListener('click', () => { month = shift(month, -1); render(); });
+  $('#cal-next').addEventListener('click', () => { month = shift(month, 1); render(); });
+  $('#cal-today').addEventListener('click', () => { month = thisMonth; render(); });
+  $('#cal-grid').addEventListener('click', (e) => { const b = e.target.closest('[data-date]'); if (b) show(byDate[b.dataset.date][0].id); });
+  $('#cal-list').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-notice], [data-goto-month]');
+    if (!a) return;
+    e.preventDefault();
+    if (a.dataset.gotoMonth) { month = a.dataset.gotoMonth; render(); } else show(a.dataset.notice);
+  });
+  render();
+}
 loadSiteContent().then((site) => {
   const list = [...(site.notices || [])].sort((a, b) => b.date.localeCompare(a.date));
   $('#notice-list').innerHTML = list.map((n) => `
-    <article class="notice" id="notice-${esc(n.id)}">
+    <article class="notice" id="notice-${esc(n.id)}" tabindex="-1">
       <time datetime="${esc(n.date)}">${fmtDate(n.date)}</time>
       <h2>${esc(n.title)}</h2>
-      ${(n.body || []).map((p) => `<p>${esc(p)}</p>`).join('')}
+      ${(n.body || []).map(noticeBlock).join('')}
     </article>`).join('') || '<p class="empty">No notices yet.</p>';
+  initNoticeCalendar(list);
 
   const n = list[0];
   $('#latest-notice').innerHTML = n ? `

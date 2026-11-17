@@ -128,9 +128,24 @@
 
     <!-- NOTICES -->
     <section class="tab" data-tab="notices" hidden aria-labelledby="notices-title">
-      <div class="wrap narrow page">
-        <h1 id="notices-title">Notices</h1>
-        <div id="notice-list"></div>
+      <div class="wrap page notices-layout">
+        <div class="notices-main">
+          <h1 id="notices-title">Notices</h1>
+          <div id="notice-list"></div>
+        </div>
+        <!-- Calendar: days with a notice are highlighted; choosing one shows that notice -->
+        <aside class="notice-cal" aria-labelledby="cal-title">
+          <div class="cal-head">
+            <button class="cal-nav" type="button" id="cal-prev" aria-label="Previous month">&#8249;</button>
+            <h2 id="cal-title" aria-live="polite"></h2>
+            <button class="cal-nav" type="button" id="cal-next" aria-label="Next month">&#8250;</button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <p class="cal-key"><span class="cal-key-dot" aria-hidden="true"></span> Notice published <span class="cal-key-today" aria-hidden="true"></span> Today</p>
+          <h3 class="cal-sub" id="cal-sub"></h3>
+          <ul class="cal-list" id="cal-list"></ul>
+          <button class="btn-link cal-today-btn" type="button" id="cal-today">Back to this month</button>
+        </aside>
       </div>
     </section>
 

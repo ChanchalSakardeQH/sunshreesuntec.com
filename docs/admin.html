@@ -553,7 +553,8 @@
         <label>Date<input type="date" name="date" required></label>
         <label>Title<input type="text" name="title" required></label>
         <label>Short summary (shown on the home page)<input type="text" name="summary" required></label>
-        <label>Full text (blank line between paragraphs)<textarea name="body" rows="6" required></textarea></label>
+        <label>Full text<textarea name="body" rows="10" required aria-describedby="notice-hint"></textarea></label>
+        <p class="muted small-note" id="notice-hint">Leave a blank line between paragraphs. Start a line with • or - for a bullet point, or with 1. 2. 3. for numbered steps. Other lines stay on their own line, for example bank details. The notice's date is highlighted on the calendar on the Notices page.</p>
         <p class="form-msg" role="alert"></p>
         <div class="form-actions"><button class="btn btn-primary" type="submit">Publish notice</button></div>
       </form>
@@ -998,7 +999,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.9.0</p>
+    <p class="muted mt" id="version-note">Software version 3.10.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

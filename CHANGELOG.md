@@ -6,6 +6,24 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.10.0] – 2026-11-17 – Calendar on the Notices page; notices keep their bullet points
+
+### Added
+- **Calendar beside the notices** (Notices page, right side; above the notices on a phone):
+  - opens on the current month, with **‹ ›** to move between months and *Back to this month*;
+  - every date on which a notice was published is highlighted, with a small count when one day has more than one notice, and today is circled;
+  - choosing a highlighted date brings its notice into view and highlights it for a moment;
+  - below the calendar, the notices of the month shown, each a link to the notice; a month without notices offers a link to the nearest month that has some.
+
+### Fixed
+- **Notice text now appears as typed:** lines starting with •, - or * show as bullet points, lines starting with 1. 2. 3. as numbered steps, and other lines keep their own line (bank details, addresses). Before, the lines of a paragraph ran together.
+- The notice form in Accounts → Website explains how to type bullets and steps.
+
+### Tested
+- 19 checks on a computer screen and a phone: current month shown, published date highlighted together with today, bullets and numbered steps as lists, bank details on separate lines, a day with two notices with its count and both listed, choosing a date shows its notice, an empty month points to the next month with notices, *Back to this month*, and on a phone the heading, then the calendar, then the notices.
+
+---
+
 ## [3.9.0] – 2026-11-16 – Register first with Gmail; people who tried but never registered
 
 ### Changed
