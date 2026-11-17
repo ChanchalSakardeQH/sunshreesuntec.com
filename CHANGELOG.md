@@ -6,6 +6,34 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.12.0] – 2026-11-17 – Electricity and property tax in the unit file; unit documents and backups in Google Drive
+
+### Added
+- **Unit file → Electricity and property tax:**
+  - **Electricity (MSEB / MSEDCL):** consumer no., name on the bill, meter no., tariff category (LT-I Residential, LT-II Non-residential / Commercial, LT-V Industrial, HT, other), sanctioned load, bill month, units, amount, due date, with a scan of the bill.
+  - **Property tax (PMC):** property no., name in the PMC record, use as assessed (residential, non-residential / commercial, mixed), assessed area, year, tax, arrears, paid on and PMC receipt no., with a scan.
+  - **Possible commercial use:** a unit recorded as a *Residential Flat* is flagged when its latest electricity bill is at a commercial or industrial tariff, its latest property tax assessment is non-residential or mixed, or a current tenancy is for commercial use. The flag says what was found and what to do; the unit's card shows *Commercial use?*. Units already recorded as *Residential, using as Commercial* are not flagged.
+  - **All units:** *Check all units* lists every residential flat with such signs, with a link to each.
+- **Scans on every unit file record** (members, tenants, communication, electricity, property tax): add photos or PDFs in the record's form; they are saved in the Society's Google Drive under *Sunshree Suntec Society Records › Units › wing › unit › Members and shares / Tenants and agreements / Communication / Electricity (MSEB) / Property tax (PMC)*, and open from the record (📎). Removing a scan from a record leaves the file in the Drive.
+- **Communication: what it is:** application or request from the member, the Society's reply, notice from the Society, complaint, letter, other.
+- **Unit file backup in Google Drive:** *<unit> unit file backup.json* in each unit's folder, with the unit's details, member, tenant, communication, electricity and property tax records (with their scans' Drive references), ledger, bills, receipts, duplicate receipts, old receipts and Tally history. Saved by itself whenever a unit record is saved, or with *Back up now* (time and person shown under the unit file's tabs).
+- **Settings → Unit files in Google Drive:** *Back up all unit files now*, and *Restore a unit's records from its backup*: shows what is in the backup and what is missing here, and puts the missing records back with their original identity (existing records are not changed; bills, receipts and ledger stay permanent).
+
+### Drive script (tools/drive-upload/Code.gs, version 2)
+- New: unit documents (`upload` with `kind: unit`, needs *maintain unit files*), opening them (`fetch` with the unit record, checked with the person's own sign-in), `backup` (replaces the unit's backup file) and `readBackup` (committee only). **Deploy a new version of the script** (README → *Updating the script later*).
+
+### Security rules
+- Unit records `electricity` and `propertyTax`, same as members, tenants and communication (read: accounts team and the unit's approved member; write: *maintain unit files*; delete: committee).
+- New `driveBackups/<unit>`: when each unit was last backed up.
+
+### Fixed
+- The unit record form no longer runs off the right edge of a phone screen.
+
+### Tested
+- 19 checks in the browser: the new tab; scan box and where it goes; an MSEB bill at LT-II with its scan filed under *Units › C Wing › C 202 › Electricity (MSEB)*; the flag and the *Commercial use?* card; automatic backup with everything about the unit and the time shown; the scan opens; property tax with the year list and a PDF; a notice from the Society under Communication; a scan removed from a record but kept in Drive; *Check all units* flags a tariff and a commercial tenancy but not a unit recorded as commercial use; back up all units; a deleted record found missing and restored with its id and scan; scans disabled with a note when the Drive isn't connected. 18 new checks of the Drive script (folders, permissions, wrong units and kinds, opening through the record, backup replace, restore committee-only). All earlier suites pass: 194 browser checks and 43 script checks.
+
+---
+
 ## [3.11.0] – 2026-11-17 – Duplicate receipts for any past payment; receipts worded for any purpose
 
 ### Changed

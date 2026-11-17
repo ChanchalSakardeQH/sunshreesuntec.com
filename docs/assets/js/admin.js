@@ -29,6 +29,8 @@ import {
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING } from './defaults.js';
+import { loadDriveCfg, driveReady, driveFileUrl } from './drive.js';
+import { RECORD_FOLDER, TARIFFS, TAX_USES, commercialSigns, uploadUnitScans, backupUnitToDrive, compareWithBackup, restoreMissing } from './unitfiles.js';
 import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } from './data.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -269,6 +271,7 @@ function wireOnce() {
   wireLift();
   wireStaff();
   wireUnitFile();
+  wireDriveBackups();
   wireReports();
   wireDocuments();
   wireMembers();
@@ -1437,6 +1440,10 @@ function renderCategories() {
 
 async function loadSettings() {
   $('#import-box').hidden = units.length > 0;
+  await loadDriveCfg(fb).catch(() => null);
+  $('#ufb-box').hidden = !units.length;
+  $('#ufr-unit').innerHTML = unitOptions(false);
+  if (!driveReady()) setMsg($('#ufb-box'), 'Connect the Society’s Google Drive first: Expenses → Set-up.');
   const mf = $('#mmc-form');
   const mmc = billing.mmc || MMC_TEMPLATE;
   mf.method.value = billing.method || 'agm';
@@ -2021,7 +2028,8 @@ async function loadProfile() {
 let fileUnit = sessionStorage.getItem('fileUnit') || null;
 let payFor = null;
 let ufPane = 'account';
-const ufCache = { members: [], tenants: [], comms: [] };
+const ufCache = { members: [], tenants: [], comms: [], electricity: [], propertyTax: [] };
+const fyChoices = () => { const now = Number(financialYear(todayIST()).slice(0, 4)); const out = []; for (let y = now + 1; y >= 2011; y--) out.push(`${y}-${String((y + 1) % 100).padStart(2, '0')}`); return out; };
 
 const opt = (list) => list.map((v) => ({ v, l: v }));
 const RECORDS = {
@@ -2066,12 +2074,36 @@ const RECORDS = {
     title: 'Communication',
     fields: [
       ['date', 'Date', 'date', null, true],
+      ['kind', 'What it is', 'select', opt(['Application / request from the member', 'Society’s reply', 'Notice from the Society', 'Complaint', 'Letter / information', 'Other'])],
       ['channel', 'How', 'select', opt(['Letter', 'Notice', 'Email', 'WhatsApp', 'SMS', 'Phone call', 'Registered post', 'Meeting / visit'])],
       ['direction', 'Direction', 'select', opt(['Sent to member', 'Received from member', 'Sent to tenant', 'Received from tenant'])],
       ['subject', 'Subject', 'text', null, true, true],
       ['summary', 'Details', 'textarea', null, false, true],
       ['refNo', 'Reference / letter no.', 'text'], ['followUp', 'Follow up on', 'date'],
       ['docLink', 'Document link (copy of letter, email, acknowledgement)', 'url', null, false, true]
+    ]
+  },
+  electricity: {
+    title: 'Electricity bill',
+    fields: [
+      ['h', 'Connection'],
+      ['consumerNo', 'Consumer no.', 'text', null, true], ['nameOnBill', 'Name on the bill', 'text'], ['meterNo', 'Meter no.', 'text'],
+      ['tariff', 'Tariff category', 'select', opt(TARIFFS)], ['load', 'Sanctioned load (kW)', 'number'],
+      ['h', 'Bill'],
+      ['billMonth', 'Bill month', 'month', null, true], ['units', 'Units consumed', 'number'], ['amount', 'Bill amount (₹)', 'number'], ['dueDate', 'Due date', 'date'],
+      ['remarks', 'Remarks', 'textarea', null, false, true]
+    ]
+  },
+  propertyTax: {
+    title: 'Property tax record',
+    fields: [
+      ['h', 'Pune Municipal Corporation record'],
+      ['propertyNo', 'Property no. (PMC)', 'text', null, true], ['nameInRecord', 'Name in the PMC record', 'text'],
+      ['usage', 'Use as assessed', 'select', opt(TAX_USES)], ['area', 'Assessed area (sq ft)', 'number'],
+      ['h', 'Tax'],
+      ['year', 'Financial year', 'select', opt(fyChoices()), true], ['tax', 'Property tax for the year (₹)', 'number'], ['arrears', 'Arrears shown (₹)', 'number'],
+      ['paidOn', 'Paid on', 'date'], ['receiptNo', 'PMC receipt no.', 'text'],
+      ['remarks', 'Remarks', 'textarea', null, false, true]
     ]
   }
 };
@@ -2080,23 +2112,29 @@ const dd = (iso) => (iso ? ddmmyyyy(iso) : '');
 const linkHTML = (u) => (u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">Document</a>` : '');
 
 async function loadUnitFile() {
+  await loadDriveCfg(fb).catch(() => null);
   if (!fileUnit || !units.find((u) => u.id === fileUnit)) fileUnit = units[0]?.id;
   if (!fileUnit) { $('#uf-title').textContent = 'No units yet'; return; }
   $('#uf-pick').innerHTML = unitOptions(false);
   $('#uf-pick').value = fileUnit;
   const u = units.find((x) => x.id === fileUnit);
   const { F, db } = fb;
-  const [ledgerSnap, billSnap, paySnap, memSnap, tenSnap, comSnap] = await Promise.all([
+  const [ledgerSnap, billSnap, paySnap, memSnap, tenSnap, comSnap, elecSnap, taxSnap] = await Promise.all([
     F.getDocs(F.collection(db, 'units', fileUnit, 'ledger')),
     F.getDocs(F.query(F.collection(db, 'bills'), F.where('unitId', '==', fileUnit))),
     F.getDocs(F.query(F.collection(db, 'payments'), F.where('unitId', '==', fileUnit))),
     F.getDocs(F.collection(db, 'units', fileUnit, 'members')).catch(() => ({ docs: [] })),
     F.getDocs(F.collection(db, 'units', fileUnit, 'tenants')).catch(() => ({ docs: [] })),
-    F.getDocs(F.collection(db, 'units', fileUnit, 'comms')).catch(() => ({ docs: [] }))
+    F.getDocs(F.collection(db, 'units', fileUnit, 'comms')).catch(() => ({ docs: [] })),
+    F.getDocs(F.collection(db, 'units', fileUnit, 'electricity')).catch(() => ({ docs: [] })),
+    F.getDocs(F.collection(db, 'units', fileUnit, 'propertyTax')).catch(() => ({ docs: [] }))
   ]);
   ufCache.members = memSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.admissionDate || '').localeCompare(a.admissionDate || ''));
   ufCache.tenants = tenSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.from || '').localeCompare(a.from || ''));
   ufCache.comms = comSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  ufCache.electricity = elecSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.billMonth || '').localeCompare(a.billMonth || ''));
+  ufCache.propertyTax = taxSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.year || '').localeCompare(a.year || ''));
+  const signs = commercialSigns(u, ufCache);
 
   const currentTenants = ufCache.tenants.filter((t) => !t.to);
   $('#uf-title').textContent = `${u.unit}, ${blockName(u.block)}`;
@@ -2106,7 +2144,7 @@ async function loadUnitFile() {
     <div><dt>Balance today (₹)</dt><dd>${amt(u.balance)}</dd></div>
     <div><dt>Unpaid interest included (₹)</dt><dd>${fmt(u.interestDue || 0)}</dd></div>
     <div><dt>Builder pending maintenance (₹)</dt><dd>${u.bpm ? fmt(u.bpm) : '—'}</dd></div>
-    <div><dt>Occupancy</dt><dd>${currentTenants.length ? `<span class="pill warn">Rented</span> <small>${esc(currentTenants.map((t) => t.name).join(', '))}</small>` : `<span class="pill ok">${esc(u.status || 'Own / not set')}</span>`}</dd></div>
+    <div><dt>Occupancy</dt><dd>${currentTenants.length ? `<span class="pill warn">Rented</span> <small>${esc(currentTenants.map((t) => t.name).join(', '))}</small>` : `<span class="pill ok">${esc(u.status || 'Own / not set')}</span>`}${signs.length ? ' <span class="pill warn">Commercial use?</span>' : ''}</dd></div>
     <div><dt>Last bill</dt><dd>${lastBill ? `${esc(lastBill.billNo)}<small class="muted"> ₹ ${fmt(lastBill.total)}</small>` : '—'}</dd></div>`;
 
   // Account
@@ -2134,7 +2172,7 @@ async function loadUnitFile() {
 
   // Members (I & J register)
   $('#uf-members').innerHTML = ufCache.members.map((m) => `<tr>
-    <td><strong>${esc(m.name)}</strong>${m.address ? `<span class="sub">${esc(m.address)}</span>` : ''}${linkHTML(m.docLink)}</td>
+    <td><strong>${esc(m.name)}</strong>${m.address ? `<span class="sub">${esc(m.address)}</span>` : ''}${linkHTML(m.docLink)}${docChips('members', m)}</td>
     <td>${esc(m.role || '')}</td>
     <td>${m.mobile ? `<a href="tel:+91${esc(m.mobile)}">${esc(m.mobile)}</a>` : ''}${m.email ? `<span class="sub">${esc(m.email)}</span>` : ''}</td>
     <td>${dd(m.admissionDate)}${m.entranceFeeDate ? `<span class="sub">Entrance fee ${dd(m.entranceFeeDate)}</span>` : ''}</td>
@@ -2154,7 +2192,7 @@ async function loadUnitFile() {
     if (current && !t.policeDate) warns.push('No police verification');
     if (current && !t.agreementNo) warns.push('No agreement on record');
     return `<tr>
-      <td><strong>${esc(t.name)}</strong>${t.mobile ? `<span class="sub">${esc(t.mobile)}</span>` : ''}${linkHTML(t.docLink)}</td>
+      <td><strong>${esc(t.name)}</strong>${t.mobile ? `<span class="sub">${esc(t.mobile)}</span>` : ''}${linkHTML(t.docLink)}${docChips('tenants', t)}</td>
       <td>${esc(t.use || '')}${t.business ? `<span class="sub">${esc(t.business)}</span>` : ''}</td>
       <td>${dd(t.from)} – ${t.to ? dd(t.to) : 'now'}</td>
       <td>${esc(t.agreementType || '')}${t.agreementNo ? `<span class="sub">No. ${esc(t.agreementNo)}</span>` : ''}${t.agreementTo ? `<span class="sub">Valid ${t.agreementFrom ? `${dd(t.agreementFrom)} – ` : 'till '}${dd(t.agreementTo)}</span>` : ''}</td>
@@ -2165,11 +2203,31 @@ async function loadUnitFile() {
 
   // Communication
   $('#uf-comms').innerHTML = ufCache.comms.map((c) => `<tr>
-    <td>${dd(c.date)}</td><td>${esc(c.channel || '')}</td><td>${esc(c.direction || '')}</td>
-    <td><strong>${esc(c.subject)}</strong>${c.summary ? `<span class="sub">${esc(c.summary)}</span>` : ''}${linkHTML(c.docLink)}</td>
+    <td>${dd(c.date)}</td><td>${esc(c.channel || '')}${c.kind ? `<span class="sub">${esc(c.kind)}</span>` : ''}</td><td>${esc(c.direction || '')}</td>
+    <td><strong>${esc(c.subject)}</strong>${c.summary ? `<span class="sub">${esc(c.summary)}</span>` : ''}${linkHTML(c.docLink)}${docChips('comms', c)}</td>
     <td>${esc(c.refNo || '')}</td><td>${c.followUp ? `<span class="${c.followUp <= today ? 'pill warn' : ''}">${dd(c.followUp)}</span>` : ''}</td>
     <td>${editBtn('comms', c.id)}</td></tr>`).join('')
     || '<tr><td colspan="7" class="empty">No communication recorded.</td></tr>';
+
+  // Electricity and property tax (3.12)
+  $('#uf-electricity').innerHTML = ufCache.electricity.map((r) => `<tr>
+    <td>${r.billMonth ? monthLabel(r.billMonth) : ''}</td><td>${esc(r.consumerNo || '')}${r.meterNo ? `<span class="sub">Meter ${esc(r.meterNo)}</span>` : ''}</td>
+    <td>${esc(r.nameOnBill || '')}</td><td>${esc(r.tariff || '')}${r.load ? `<span class="sub">${fmt(r.load)} kW</span>` : ''}</td>
+    <td class="num">${r.units != null && r.units !== '' ? fmt(r.units) : ''}</td><td class="num">${r.amount != null && r.amount !== '' ? fmt(r.amount) : ''}</td>
+    <td>${docChips('electricity', r) || '—'}</td><td>${editBtn('electricity', r.id)}</td></tr>`).join('')
+    || '<tr><td colspan="8" class="empty">No electricity bills recorded.</td></tr>';
+  $('#uf-propertyTax').innerHTML = ufCache.propertyTax.map((r) => `<tr>
+    <td>${esc(r.year || '')}</td><td>${esc(r.propertyNo || '')}</td><td>${esc(r.nameInRecord || '')}</td>
+    <td>${esc(r.usage || '')}${r.area ? `<span class="sub">${fmt(r.area)} sq ft</span>` : ''}</td>
+    <td class="num">${r.tax != null && r.tax !== '' ? fmt(r.tax) : ''}${r.arrears ? `<span class="sub">Arrears ${fmt(r.arrears)}</span>` : ''}</td>
+    <td>${r.paidOn ? `${dd(r.paidOn)}${r.receiptNo ? `<span class="sub">${esc(r.receiptNo)}</span>` : ''}` : '<span class="pill warn">Not recorded</span>'}</td>
+    <td>${docChips('propertyTax', r) || '—'}</td><td>${editBtn('propertyTax', r.id)}</td></tr>`).join('')
+    || '<tr><td colspan="8" class="empty">No property tax records.</td></tr>';
+  $('#ut-flag').innerHTML = signs.length
+    ? `<div class="ut-flag" role="status"><h3>Possible commercial use of a residential flat</h3><ul>${signs.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+       <p>The Society’s records show <strong>${esc(u.type || 'Residential Flat')}</strong>. Check with the member. If the flat is used for business, record a notice under Communication and change the type to <em>Residential, using as Commercial</em> in <strong>Edit unit details</strong>, so the right charges apply from the next bill.</p></div>`
+    : (ufCache.electricity.length || ufCache.propertyTax.length ? `<p class="ut-ok">No sign of commercial use in the latest electricity and property tax records.</p>` : '');
+  showBackupNote().catch(() => {});
 
   // Audited history (2011-12 to 2017-18) and year-end balances.
   if (!auditCache.length) auditCache = await loadAuditYears(fb).catch(() => []);
@@ -2390,12 +2448,122 @@ function openRecord(kind, id) {
     if (type === 'textarea') return `<label${cls}>${esc(label)}<textarea name="${k}" rows="3">${esc(v)}</textarea></label>`;
     return `<label${cls}>${esc(label)}${req ? ' *' : ''}<input type="${type}" name="${k}" value="${esc(v)}" ${req ? 'required' : ''}></label>`;
   }).join('');
+  recFiles = (data.files || []).map((f) => ({ ...f, keep: true }));
+  recNew = [];
+  $('#rec-file-input').value = '';
+  const ready = driveReady();
+  $('#rec-file-input').disabled = !ready;
+  $('#rec-files-note').textContent = ready ? `Kept in the Society’s Google Drive: Units › ${wingName()} › ${units.find((u) => u.id === fileUnit)?.unit || ''} › ${RECORD_FOLDER[kind]}.`
+    : 'The Society’s Google Drive isn’t connected yet (Expenses → Set-up), so scans can’t be added.';
+  renderRecFiles();
   setMsg($('#rec-form'), '');
   $('#rec-dialog').showModal();
 }
 
+/* ---------- scans on unit file records (3.12) ---------- */
+let recFiles = [], recNew = [];
+const wingName = () => { const u = units.find((x) => x.id === fileUnit); return u ? blockName(u.block) : ''; };
+function docChips(kind, r) {
+  const label = `${units.find((u) => u.id === fileUnit)?.unit || ''} `;
+  return (r.files || []).map((f) => `<button class="doc-chip" type="button" data-doc="${kind}" data-rid="${esc(r.id)}" data-fid="${esc(f.id)}" title="${esc(f.name)}">📎 ${esc(f.name.startsWith(label) ? f.name.slice(label.length) : f.name)}</button>`).join('');
+}
+function renderRecFiles() {
+  $('#rec-file-list').innerHTML = recFiles.map((f, i) => `<li class="${f.keep ? '' : 'removing'}"><span>📎 ${esc(f.name)}</span>
+      <button class="btn-link" type="button" data-keep="${i}">${f.keep ? 'Remove from this record' : 'Keep'}</button></li>`).join('')
+    + recNew.map((f, i) => `<li><span>${esc(f.name)}</span> <span class="new">new, saved to Drive with the record</span> <button class="btn-link" type="button" data-drop="${i}">Remove</button></li>`).join('')
+    || '<li class="muted">No scans yet.</li>';
+}
+async function openUnitDoc(kind, rid, fid) {
+  const rec = ufCache[kind].find((r) => r.id === rid), f = rec?.files?.find((x) => x.id === fid);
+  if (!f) return;
+  const d = $('#ufdoc-dialog');
+  $('#ufdoc-title').textContent = f.name;
+  $('#ufdoc-body').textContent = 'Loading from the Society’s Google Drive…';
+  $('#ufdoc-save').disabled = true;
+  d.showModal();
+  try {
+    const url = await driveFileUrl(fb, { unitId: fileUnit, record: kind, recordId: rid, fileId: fid });
+    $('#ufdoc-body').innerHTML = f.mime?.startsWith('image/') ? `<img alt="${esc(f.name)}" src="${url}">` : `<p>PDF document. Use <strong>Save / open</strong> to see it.</p>`;
+    $('#ufdoc-save').disabled = false;
+    $('#ufdoc-save').onclick = async () => { try { await saveBlob(await (await fetch(url)).blob(), f.name); } catch (err) { alert(errorText(err)); } };
+  } catch (err) { $('#ufdoc-body').textContent = errorText(err); }
+}
+
+/** Saves the unit's backup in Drive; quiet unless asked. */
+async function backupThisUnit(unitId = fileUnit, { loud = false } = {}) {
+  if (!driveReady() || !canDo('unitRecords')) return null;
+  const u = units.find((x) => x.id === unitId);
+  try {
+    const r = await backupUnitToDrive(fb, { unitId, wing: blockName(u.block), siteVersion: SITE_VERSION, byName: me?.name || '' });
+    if (unitId === fileUnit) await showBackupNote();
+    return r;
+  } catch (err) {
+    console.warn('unit backup', err);
+    if (loud) throw err;
+    if (unitId === fileUnit) $('#uf-backup').textContent = `Google Drive backup: couldn’t be saved just now (${errorText(err)}).`;
+    return null;
+  }
+}
+async function showBackupNote() {
+  const { F, db } = fb;
+  const s = await F.getDoc(F.doc(db, 'driveBackups', fileUnit)).catch(() => null);
+  const b = s?.exists() ? s.data() : null;
+  const at = b?.at?.toDate ? b.at.toDate() : null;
+  $('#uf-backup').textContent = !driveReady() ? 'Google Drive backup: the Drive isn’t connected yet (Expenses → Set-up).'
+    : at ? `Google Drive backup: saved ${at.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${b.byName ? ` by ${b.byName}` : ''}.`
+      : 'Google Drive backup: not saved yet.';
+  $('#uf-backup-now').hidden = !driveReady() || !canDo('unitRecords');
+}
+
+/** Every unit: residential flats with signs of commercial use. */
+async function checkAllUnits() {
+  const { F, db } = fb;
+  const out = [];
+  const list = units.filter((u) => (u.type || 'Residential Flat') === 'Residential Flat');
+  for (let i = 0; i < list.length; i += 8) {
+    $('#ut-all').textContent = `Checking ${Math.min(i + 8, list.length)} of ${list.length} residential flats…`;
+    await Promise.all(list.slice(i, i + 8).map(async (u) => {
+      const get = (k) => F.getDocs(F.collection(db, 'units', u.id, k)).then((s) => s.docs.map((d) => ({ id: d.id, ...d.data() }))).catch(() => []);
+      const [electricity, propertyTax, tenants] = await Promise.all([get('electricity'), get('propertyTax'), get('tenants')]);
+      const signs = commercialSigns(u, { electricity, propertyTax, tenants });
+      if (signs.length) out.push({ u, signs });
+    }));
+  }
+  $('#ut-all').innerHTML = out.length
+    ? `<p><strong>${out.length}</strong> residential flat${out.length > 1 ? 's show' : ' shows'} signs of commercial use:</p><div class="table-scroll"><table><thead><tr><th>Unit</th><th>Member</th><th>What the records show</th><th></th></tr></thead><tbody>
+      ${out.sort((a, b) => a.u.id.localeCompare(b.u.id, undefined, { numeric: true })).map(({ u, signs }) => `<tr><td>${esc(u.unit)}</td><td>${esc(u.name || '')}</td><td>${signs.map(esc).join('<br>')}</td>
+        <td><button class="btn btn-small" type="button" data-goto-unit="${esc(u.id)}">Open</button></td></tr>`).join('')}</tbody></table></div>`
+    : `<p class="ut-ok">None of the ${list.length} residential flats shows a commercial tariff, a non-residential tax assessment or a commercial tenancy.</p>`;
+}
+
 function wireUnitFile() {
   $('#uf-tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-pane]'); if (b) showUfPane(b.dataset.pane); });
+  $('#rec-file-input').addEventListener('change', (e) => {
+    for (const f of e.target.files) {
+      if (!/^image\/|^application\/pdf$/.test(f.type)) { alert(`${f.name}: only photos and PDF files can be added.`); continue; }
+      if (f.size > 15 * 1024 * 1024 && f.type === 'application/pdf') { alert(`${f.name} is larger than 15 MB.`); continue; }
+      recNew.push(f);
+    }
+    e.target.value = '';
+    renderRecFiles();
+  });
+  $('#rec-file-list').addEventListener('click', (e) => {
+    const k = e.target.closest('[data-keep]'), dr = e.target.closest('[data-drop]');
+    if (k) { const f = recFiles[Number(k.dataset.keep)]; f.keep = !f.keep; renderRecFiles(); }
+    if (dr) { recNew.splice(Number(dr.dataset.drop), 1); renderRecFiles(); }
+  });
+  $('#ufdoc-close').addEventListener('click', () => $('#ufdoc-dialog').close());
+  $('#uf-backup-now').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    $('#uf-backup').textContent = 'Google Drive backup: saving…';
+    try { await backupThisUnit(fileUnit, { loud: true }); } catch (err) { $('#uf-backup').textContent = `Google Drive backup: ${errorText(err)}`; }
+  }));
+  $('#ut-check-all').addEventListener('click', (e) => busy(e.currentTarget, () => checkAllUnits().catch((err) => { $('#ut-all').textContent = errorText(err); })));
+  $('#ut-all').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-goto-unit]');
+    if (!b) return;
+    fileUnit = b.dataset.gotoUnit; sessionStorage.setItem('fileUnit', fileUnit);
+    loadUnitFile().then(() => { showUfPane('utility'); window.scrollTo(0, 0); }).catch((err) => alert(errorText(err)));
+  });
   $('#dup-fy').addEventListener('change', renderDupRows);
   $('#dup-src').addEventListener('change', renderDupRows);
   $('#dup-rows').addEventListener('change', dupCount);
@@ -2410,6 +2578,8 @@ function wireUnitFile() {
   $('section[data-tab="unitfile"]').addEventListener('click', (e) => {
     const add = e.target.closest('[data-add]');
     if (add) return openRecord(add.dataset.add);
+    const doc = e.target.closest('[data-doc]');
+    if (doc) return openUnitDoc(doc.dataset.doc, doc.dataset.rid, doc.dataset.fid);
     const ed = e.target.closest('[data-rec]');
     if (ed) openRecord(ed.dataset.rec, ed.dataset.id);
   });
@@ -2431,13 +2601,72 @@ function wireUnitFile() {
     const { F, db } = fb;
     await busy($('button[type=submit]', f), async () => {
       try {
+        const u = units.find((x) => x.id === fileUnit);
+        let added = [];
+        if (recNew.length) {
+          const title = recKind === 'electricity' ? `MSEB ${rec.billMonth || ''} ${rec.consumerNo || ''}` : recKind === 'propertyTax' ? `Property tax ${rec.year || ''} ${rec.propertyNo || ''}`
+            : recKind === 'comms' ? `${rec.date || ''} ${rec.kind || rec.channel || ''} ${rec.subject || ''}` : recKind === 'tenants' ? `Tenancy ${rec.name || ''} ${rec.from || ''}` : `Member ${rec.name || ''}`;
+          added = await uploadUnitScans(fb, { unitId: fileUnit, unitLabel: u.unit, wing: blockName(u.block), kind: recKind, title, files: recNew,
+            onStep: (i, n) => setMsg(f, `Saving scan ${i} of ${n} to the Society’s Google Drive…`) });
+        }
+        const files = [...recFiles.filter((x) => x.keep).map(({ keep, ...x }) => x), ...added];
+        if (recFiles.length || added.length) rec.files = files;
         const col = F.collection(db, 'units', fileUnit, recKind);
         if (recId) await F.updateDoc(F.doc(col, recId), { ...rec, updatedAt: F.serverTimestamp(), updatedBy: uid });
         else await F.addDoc(col, { ...rec, createdAt: F.serverTimestamp(), createdBy: uid });
+        recNew = [];
         $('#rec-dialog').close();
         await loadUnitFile();
         if (recKind === 'tenants') await syncOccupancy();
+        backupThisUnit(fileUnit);
       } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+}
+
+/* ---------- Settings: unit files in Google Drive (3.12) ---------- */
+let ufrFound = null;
+function wireDriveBackups() {
+  $('#ufb-all').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    const box = $('#ufb-box'), prog = $('#ufb-progress');
+    setMsg(box, '');
+    if (!driveReady()) return setMsg(box, 'Connect the Society’s Google Drive first: Expenses → Set-up.');
+    let ok = 0; const failed = [];
+    for (let i = 0; i < units.length; i++) {
+      prog.textContent = `Saving ${i + 1} of ${units.length}: ${units[i].unit}…`;
+      try { await backupThisUnit(units[i].id, { loud: true }); ok++; } catch (err) { failed.push(`${units[i].unit} (${errorText(err)})`); }
+    }
+    prog.textContent = '';
+    setMsg(box, failed.length ? `${ok} unit files backed up. Not saved: ${esc(failed.join('; '))}. Try again for those.` : `All ${ok} unit files backed up to the Society’s Google Drive.`, !failed.length);
+  }));
+  $('#ufr-read').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    const id = $('#ufr-unit').value, u = units.find((x) => x.id === id);
+    $('#ufr-result').innerHTML = ''; $('#ufr-msg').textContent = '';
+    if (!u) return;
+    try {
+      ufrFound = { unitId: id, ...(await compareWithBackup(fb, { unitId: id, wing: blockName(u.block) })) };
+      const kinds = Object.keys(RECORD_FOLDER);
+      const total = kinds.reduce((t, k) => t + ufrFound.missing[k].length, 0);
+      const saved = new Date(ufrFound.savedAt);
+      $('#ufr-result').innerHTML = `<p>Backup of <strong>${esc(u.unit)}</strong> saved on ${saved.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.</p>
+        <div class="table-scroll"><table><thead><tr><th>Records</th><th class="num">In the backup</th><th class="num">Missing here</th></tr></thead><tbody>
+        ${kinds.map((k) => `<tr><td>${esc(RECORD_FOLDER[k])}</td><td class="num">${(ufrFound.data.records?.[k] || []).length}</td><td class="num">${ufrFound.missing[k].length}</td></tr>`).join('')}
+        </tbody></table></div>
+        ${total ? `<div class="form-actions"><button class="btn btn-primary" type="button" id="ufr-restore">Restore ${total} missing record${total > 1 ? 's' : ''}</button></div>` : '<p class="ut-ok">Nothing is missing: every record in the backup is here.</p>'}`;
+    } catch (err) { $('#ufr-msg').textContent = errorText(err); }
+  }));
+  $('#ufr-result').addEventListener('click', (e) => {
+    const b = e.target.closest('#ufr-restore');
+    if (!b || !ufrFound) return;
+    if (!confirm('Put back the missing records from the Drive backup? Records that exist now are not changed.')) return;
+    busy(b, async () => {
+      try {
+        const n = await restoreMissing(fb, ufrFound.unitId, ufrFound.missing);
+        $('#ufr-result').innerHTML = '';
+        $('#ufr-msg').className = 'form-msg ok';
+        $('#ufr-msg').textContent = `${n} record${n === 1 ? '' : 's'} restored to ${units.find((x) => x.id === ufrFound.unitId)?.unit}.`;
+        ufrFound = null;
+      } catch (err) { $('#ufr-msg').className = 'form-msg'; $('#ufr-msg').textContent = errorText(err); }
     });
   });
 }

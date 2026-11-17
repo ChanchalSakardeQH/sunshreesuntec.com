@@ -24,6 +24,7 @@ This document explains what the system does, where the data lives, how every amo
 11. The public dues page
 11-1. Notices page
 11A. Unit file
+11B. Unit documents, electricity, property tax and backups
 12. Member access
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
@@ -352,6 +353,16 @@ Accounts → Units → **Unit file** shows, for one unit:
 
 Documents are stored as links (e.g. Google Drive), because file uploads would need Firebase's paid plan. Records are never deleted except by the committee. *Print unit file* prints all four sections.
 
+## 11B. Unit documents, electricity, property tax and backups (3.12)
+
+- **Records:** `units/{id}/electricity` (consumerNo, nameOnBill, meterNo, tariff, load, billMonth, units, amount, dueDate, remarks) and `units/{id}/propertyTax` (propertyNo, nameInRecord, usage, area, year, tax, arrears, paidOn, receiptNo, remarks), edited in Unit file → *Electricity and property tax* by *maintain unit files* (`unitRecords`).
+- **Commercial use check** (`commercialSigns()` in `unitfiles.js`): only for units of type *Residential Flat*; signs are a latest electricity tariff matching LT-II / non-residential / commercial / industrial / HT, a latest property tax use non-residential / commercial / mixed, or a current tenancy with commercial use. When confirmed, change the type to *Residential, using as Commercial* (charges follow from the next bill) and record the notice under Communication.
+- **Scans:** any unit record (`members`, `tenants`, `comms`, `electricity`, `propertyTax`) may carry `files: [{ id, name, mime, size }]`, stored by the Drive script in `Units/<wing>/<unit>/<folder>` (folders: Members and shares, Tenants and agreements, Communication, Electricity (MSEB), Property tax (PMC)). Files are opened through the script, which reads the record with the person's own sign-in first. Photos are reduced to 2000 px JPEG before upload; PDFs up to 15 MB.
+- **Backup:** `unitBackup()` builds `{ format: 'sunshree-suntec-unit-file', formatVersion: 1, unit, records, ledger, bills, payments, receiptCopies, pastReceipts, tallyHistory }` (times as `{ "$time": ISO }`); the script writes it as `<unit> unit file backup.json` in the unit's folder, replacing the previous one. Saved after every unit record is saved, with *Back up now*, and for all units in Settings. `driveBackups/{unitId}` notes when and by whom.
+- **Restore:** Settings → *Restore a unit's records from its backup* (committee): compares record ids and recreates missing ones with `setDoc` and their original id (`restoredAt`, `restoredBy` added). Bills, payments and the ledger are permanent in the database and are not rewritten; their copies in the backup are for reference and for rebuilding the database if it were ever lost.
+
+---
+
 ## 12. Member access
 
 **Register first, with Gmail (3.9).** Member login first asks *New here? Register* or *Already registered? Sign in*.
@@ -564,6 +575,7 @@ Bills keep the amounts they were issued with, even if rates change later. Receip
 - Monthly: Payments → Download CSV; Bills → Print all bills (PDF).
 - Before the AGM: Settings → Preview → Download CSV.
 - Full export: Firebase console → Firestore → Import/Export needs the paid Blaze plan; on the free plan, keep the monthly CSV and PDF files in the society's Google Drive.
+- Unit files (3.12): each unit's backup and documents are in the Society's Google Drive (Units › wing › unit); Settings → *Back up all unit files now* monthly.
 - Code: every change is in GitHub history; `CHANGELOG.md` lists what changed and when.
 
 ---

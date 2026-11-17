@@ -1,7 +1,7 @@
-# Bill storage in the Society's Google Drive
+# Records in the Society's Google Drive
 
-Expense bills (photos, scans) and saved monthly reports are kept in the Society's own Google account
-(sunshreesuntec@gmail.com), in a private folder:
+Expense bills (photos, scans), saved monthly reports and, since 3.12, the unit files' documents and backups
+are kept in the Society's own Google account (sunshreesuntec@gmail.com), in a private folder:
 
 ```
 Sunshree Suntec Society Records/
@@ -14,7 +14,19 @@ Sunshree Suntec Society Records/
   Reports/
     FY 2026-27/
       2026-11 November/   ← monthly reports saved from Expenses → Monthly report
+  Units/
+    C Wing/
+      C 202/
+        C 202 unit file backup.json   ← everything about the unit; updated whenever a unit record is saved
+        Members and shares/           ← Index II, share certificate, nomination …
+        Tenants and agreements/       ← leave and licence agreement, police verification …
+        Communication/                ← members' applications, the Society's replies, notices to the unit
+        Electricity (MSEB)/           ← electricity bills
+        Property tax (PMC)/           ← property tax bills and receipts
 ```
+
+Unit documents are seen on the accounts page by those who may read the unit's records; they are added by those
+with *maintain unit files*. Only the committee can read a backup back (Settings → Restore).
 
 Nothing in the folder is shared or public. People see a bill only on the accounts page, and only if the
 accounts' security rules let them read that expense (the person who added it, approvers, payers, and those with *view accounts*).
@@ -49,6 +61,10 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
    folder name and the account. Done.
 
 ## Updating the script later
+
+**3.12 needs this once:** the script gained unit documents and backups (`version: 2`). Until the new version is
+deployed, adding a scan to a unit record says *Unknown request* or files it wrongly, and backups fail.
+
 
 Paste the new `Code.gs`, save, then **Deploy** → **Manage deployments** → pencil icon → *Version: New version* → **Deploy**.
 The URL stays the same, so nothing changes on the website.

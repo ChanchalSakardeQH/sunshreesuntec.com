@@ -10,10 +10,17 @@
  *
  * Folders:  <ROOT_FOLDER>/Expenses/FY 2026-27/2026-11 November/Submitted | Approved | Rejected | Payments
  *           <ROOT_FOLDER>/Reports/FY 2026-27/2026-11 November
+ *           <ROOT_FOLDER>/Units/C Wing/C 202/Members and shares | Tenants and agreements | Communication |
+ *                                            Electricity (MSEB) | Property tax (PMC)
+ *           <ROOT_FOLDER>/Units/C Wing/C 202/C 202 unit file backup.json   (everything about the unit, kept up to date)
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
 var STATUS_FOLDER = { submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected' };
+/* Unit file records → their folder inside the unit's folder. */
+var UNIT_FOLDER = { members: 'Members and shares', tenants: 'Tenants and agreements', comms: 'Communication',
+  electricity: 'Electricity (MSEB)', propertyTax: 'Property tax (PMC)' };
+var MAX_BACKUP = 20 * 1024 * 1024;
 var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function config_() {
@@ -25,7 +32,7 @@ function config_() {
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 1 });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 2 });
 }
 
 function doPost(e) {
@@ -34,7 +41,7 @@ function doPost(e) {
     var cfg = config_();
     var who = verifyToken_(cfg, req.idToken);
     var team = teamRecord_(cfg, who, req.idToken);
-    var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_ };
+    var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_ };
     var fn = actions[req.action];
     if (!fn) throw new Error('Unknown request.');
     var out = fn(cfg, req, who, team);
@@ -164,6 +171,7 @@ function ping_(cfg, req, who, team) {
 }
 
 function upload_(cfg, req, who, team) {
+  if (req.kind === 'unit') return uploadUnit_(cfg, req, who, team);
   var report = req.kind === 'report', payment = req.kind === 'payment';
   var need = report ? ['view', 'approveExpenses', 'payExpenses'] : payment ? ['payExpenses'] : ['submitExpenses', 'approveExpenses', 'payExpenses'];
   if (!any_(team, need)) throw new Error('You don’t have permission to add ' + (report ? 'reports.' : payment ? 'payment proofs.' : 'expenses.'));
@@ -185,7 +193,13 @@ function upload_(cfg, req, who, team) {
  */
 function fetchFile_(cfg, req, who, team) {
   var rec, list;
-  if (req.settlementId) {
+  if (req.unitId) {
+    // A unit file document: the record it belongs to is read with the person's own sign-in.
+    if (!validUnitId_(req.unitId) || !UNIT_FOLDER[req.record] || !/^[A-Za-z0-9_-]{1,60}$/.test(String(req.recordId || ''))) throw new Error('Unknown unit record.');
+    rec = readDoc_(cfg, req.idToken, 'units/' + encodeURIComponent(req.unitId) + '/' + req.record + '/' + encodeURIComponent(req.recordId));
+    if (!rec) throw new Error('You can’t see this unit record.');
+    list = rec.files || [];
+  } else if (req.settlementId) {
     rec = readDoc_(cfg, req.idToken, 'staffSettlements/' + encodeURIComponent(String(req.settlementId)));
     if (!rec) throw new Error('You can’t see this payment.');
     list = rec.files || [];
@@ -226,6 +240,60 @@ function move_(cfg, req, who, team) {
     } catch (e) { /* a missing file is skipped */ }
   });
   return { moved: moved, folder: target.getName() };
+}
+
+/* ---------------- unit files ---------------- */
+
+function validUnitId_(id) { return /^[A-Za-z0-9-]{1,12}$/.test(String(id || '')); }
+
+/** The unit's folder: Units/<wing>/<unit>. The unit is read with the person's sign-in, so only units they may see. */
+function unitFolder_(cfg, req) {
+  if (!validUnitId_(req.unitId)) throw new Error('Unknown unit.');
+  var u = readDoc_(cfg, req.idToken, 'units/' + encodeURIComponent(req.unitId));
+  if (!u) throw new Error('You can’t see this unit.');
+  var wing = cleanName_(req.wing || (u.block ? u.block + ' Wing' : 'Other'));
+  return { folder: child_(child_(child_(rootFolder_(cfg), 'Units'), wing), cleanName_(u.unit || req.unitId)), unit: u };
+}
+
+function uploadUnit_(cfg, req, who, team) {
+  if (!team.can('unitRecords')) throw new Error('You don’t have permission to add documents to unit files.');
+  if (!UNIT_FOLDER[req.record]) throw new Error('Unknown kind of unit record.');
+  if (MIME_OK.indexOf(req.mimeType) < 0 || req.mimeType === 'text/csv') throw new Error('Only photos (JPEG, PNG, WebP) and PDF files can be kept.');
+  var bytes = Utilities.base64Decode(String(req.data || ''));
+  if (!bytes.length) throw new Error('The file is empty.');
+  if (bytes.length > MAX_BYTES) throw new Error('The file is larger than 15 MB.');
+  var folder = child_(unitFolder_(cfg, req).folder, UNIT_FOLDER[req.record]);
+  var file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, cleanName_(req.name)));
+  file.setDescription(('Added by ' + team.name + ' <' + who.email + '> (' + team.role + ') on ' +
+    Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm') + (req.note ? '\n' + String(req.note) : '')).slice(0, 1500));
+  return { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: req.mimeType } };
+}
+
+/** Saves (replaces) "<unit> unit file backup.json" in the unit's folder. */
+function backup_(cfg, req, who, team) {
+  if (!team.can('unitRecords')) throw new Error('You don’t have permission to back up unit files.');
+  var text = String(req.json || '');
+  if (!text || text.length > MAX_BACKUP) throw new Error('The backup is empty or too large.');
+  var parsed;
+  try { parsed = JSON.parse(text); } catch (e) { throw new Error('The backup is not valid.'); }
+  if (!parsed || parsed.unitId !== req.unitId) throw new Error('The backup is for another unit.');
+  var uf = unitFolder_(cfg, req), name = cleanName_((uf.unit.unit || req.unitId) + ' unit file backup.json');
+  var it = uf.folder.getFilesByName(name), file;
+  if (it.hasNext()) { file = it.next(); file.setContent(text); }
+  else file = uf.folder.createFile(name, text, 'application/json');
+  file.setDescription('Backup of the unit file from the Society website. Last saved by ' + team.name + ' <' + who.email + '> on ' +
+    Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm') + '.');
+  return { file: { id: file.getId(), name: name, size: text.length } };
+}
+
+/** Gives back a unit's backup (committee only), to restore records from it. */
+function readBackup_(cfg, req, who, team) {
+  if (!team.committee) throw new Error('Only the committee can restore from a backup.');
+  var uf = unitFolder_(cfg, req), name = cleanName_((uf.unit.unit || req.unitId) + ' unit file backup.json');
+  var it = uf.folder.getFilesByName(name);
+  if (!it.hasNext()) throw new Error('There is no backup of this unit in the Drive yet.');
+  var file = it.next();
+  return { json: file.getBlob().getDataAsString('UTF-8'), updated: file.getLastUpdated().toISOString() };
 }
 
 /* ---------------- helpers ---------------- */

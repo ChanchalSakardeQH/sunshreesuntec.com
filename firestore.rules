@@ -211,11 +211,12 @@ service cloud.firestore {
         allow read: if perm('view') || approvedFor(unitId);
         allow write: if isCommittee();
       }
-      // Unit file: member register (I & J), tenants / rental history, communication.
+      // Unit file: member register (I & J), tenants / rental history, communication,
+      // electricity (MSEB) and property tax (PMC) records (3.12). Scans are in the Society's Google Drive.
       match /{record}/{recordId} {
-        allow read: if record in ['members', 'tenants', 'comms'] && (perm('view') || approvedFor(unitId));
-        allow create, update: if record in ['members', 'tenants', 'comms'] && perm('unitRecords');
-        allow delete: if record in ['members', 'tenants', 'comms'] && isCommittee();
+        allow read: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax'] && (perm('view') || approvedFor(unitId));
+        allow create, update: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax'] && perm('unitRecords');
+        allow delete: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax'] && isCommittee();
       }
     }
 
@@ -232,6 +233,12 @@ service cloud.firestore {
         && changes().hasOnly(['status', 'cancelReason', 'cancelledAt', 'cancelledBy'])
         && request.resource.data.status == 'cancelled';
       allow delete: if false;             // receipts are never deleted
+    }
+
+    // When each unit file was last backed up to the Society's Google Drive (3.12).
+    match /driveBackups/{unitId} {
+      allow read: if perm('view') || perm('unitRecords');
+      allow write: if perm('unitRecords');
     }
 
     // Duplicate receipts issued from the unit file (3.11): a permanent record of every copy printed.

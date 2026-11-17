@@ -265,3 +265,22 @@ table.pr-table td:last-child .btn { white-space: nowrap; }
 .dup-table tr.picked td { background: var(--stamp-soft); }
 .dup-form { margin-top: 1rem; max-width: 760px; }
 .dup-form .form-actions { align-items: center; gap: 1rem; }
+/* 3.12: unit file scans, electricity and property tax */
+.rec-files { min-width: 0; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem 1rem .8rem; margin: 1rem 0 0; }
+.rec-files legend { font-weight: 600; padding: 0 .3rem; }
+.rec-file-list { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .35rem; }
+.rec-file-list li { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.rec-file-list li.removing span { text-decoration: line-through; color: var(--muted); }
+.rec-file-list .new { color: var(--credit); font-size: .85rem; }
+.doc-chip { font: inherit; font-size: .84rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--stamp); padding: .15rem .6rem; cursor: pointer; margin: .1rem .2rem .1rem 0; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-chip:hover, .doc-chip:focus-visible { border-color: var(--stamp); }
+.ufdoc-body { min-height: 6rem; display: grid; place-items: center; }
+.ufdoc-body img { max-width: 100%; max-height: 70vh; border: 1px solid var(--line); border-radius: var(--radius); }
+.ut-flag { border-left: 4px solid var(--due); background: color-mix(in srgb, var(--due) 8%, var(--surface)); padding: .8rem 1rem; border-radius: var(--radius); margin: .5rem 0 1rem; }
+.ut-flag h3 { margin: 0 0 .3rem; color: var(--due); font-size: 1rem; }
+.ut-flag ul { margin: .3rem 0 .5rem; padding-left: 1.2rem; }
+.ut-ok { color: var(--credit); margin: .3rem 0 1rem; }
+.uf-backup-line { margin: .4rem 0 0; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.uf-backup-line .btn-link { padding: 0; font-size: inherit; }
+.rec-files input[type="file"] { max-width: 100%; width: 100%; }
+.rec-file-list li span { overflow-wrap: anywhere; }

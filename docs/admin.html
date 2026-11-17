@@ -355,9 +355,12 @@
         <button type="button" data-pane="members" aria-pressed="false">Members (I &amp; J register)</button>
         <button type="button" data-pane="tenants" aria-pressed="false">Tenants and rental history</button>
         <button type="button" data-pane="comms" aria-pressed="false">Communication</button>
+        <button type="button" data-pane="utility" aria-pressed="false">Electricity and property tax</button>
         <button type="button" data-pane="oldrcpt" aria-pressed="false">Old receipts 2011–2016</button>
         <button type="button" data-pane="dup" aria-pressed="false">Duplicate receipts</button>
       </div>
+      <p class="muted small-note uf-backup-line"><span id="uf-backup">Google Drive backup: not saved yet.</span>
+        <button class="btn-link" type="button" id="uf-backup-now" data-perm="unitRecords">Back up now</button></p>
 
       <div class="uf-pane" data-pane="account">
         <h2>Account</h2>
@@ -399,6 +402,23 @@
         <p class="muted">Letters, notices, emails, WhatsApp messages, calls and meetings with this unit’s member or tenant.</p>
         <div class="form-actions"><button class="btn btn-primary" type="button" data-add="comms" data-perm="unitRecords">Add communication</button></div>
         <div class="table-scroll"><table><thead><tr><th>Date</th><th>How</th><th>Direction</th><th>Subject</th><th>Ref. no.</th><th>Follow up</th><th></th></tr></thead><tbody id="uf-comms"></tbody></table></div>
+      </div>
+
+      <div class="uf-pane" data-pane="utility" hidden>
+        <h2>Electricity (MSEB) and property tax (PMC)</h2>
+        <p class="muted">The unit’s electricity connection and its Pune Municipal Corporation property tax record, with a scan of each bill. If MSEB bills the unit at a commercial tariff, or PMC taxes it as non-residential, while the Society’s records show a residential flat, the unit is flagged: it may be used for business without the Society being informed.</p>
+        <div id="ut-flag"></div>
+        <h3>Electricity (MSEB / MSEDCL)</h3>
+        <div class="form-actions"><button class="btn btn-primary" type="button" data-add="electricity" data-perm="unitRecords">Add electricity bill</button></div>
+        <div class="table-scroll"><table><thead><tr><th>Bill month</th><th>Consumer no.</th><th>Name on the bill</th><th>Tariff</th><th class="num">Units</th><th class="num">Amount (₹)</th><th>Scan</th><th></th></tr></thead><tbody id="uf-electricity"></tbody></table></div>
+        <h3 class="mt-sm">Property tax (Pune Municipal Corporation)</h3>
+        <div class="form-actions"><button class="btn btn-primary" type="button" data-add="propertyTax" data-perm="unitRecords">Add property tax record</button></div>
+        <div class="table-scroll"><table><thead><tr><th>Year</th><th>Property no.</th><th>Name in PMC record</th><th>Use as assessed</th><th class="num">Tax (₹)</th><th>Paid</th><th>Scan</th><th></th></tr></thead><tbody id="uf-propertyTax"></tbody></table></div>
+        <details class="glossary mt-sm" id="ut-all-wrap"><summary>All units: residential flats billed or taxed as commercial</summary>
+          <p class="muted">Looks through every unit file for a commercial electricity tariff, a non-residential property tax assessment or a commercial tenancy where the unit is recorded as a Residential Flat.</p>
+          <button class="btn" type="button" id="ut-check-all">Check all units</button>
+          <div id="ut-all" class="mt-sm"></div>
+        </details>
       </div>
 
       <div class="uf-pane" data-pane="oldrcpt" hidden>
@@ -446,6 +466,17 @@
         <div class="table-scroll"><table><thead><tr><th>Reference</th><th>Issued on</th><th>By</th><th>Receipts</th><th>Reason</th><th></th></tr></thead><tbody id="dup-log"></tbody></table></div>
       </div>
 
+      <dialog id="ufdoc-dialog">
+        <div class="form">
+          <h2 id="ufdoc-title">Document</h2>
+          <div id="ufdoc-body" class="ufdoc-body">Loading…</div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="button" id="ufdoc-save">Save / open</button>
+            <button class="btn" type="button" id="ufdoc-close">Close</button>
+          </div>
+        </div>
+      </dialog>
+
       <dialog id="pr-dialog">
         <form id="pr-form" class="form" method="dialog" novalidate>
           <h2 id="pr-title">Old receipt</h2>
@@ -478,6 +509,12 @@
         <form id="rec-form" class="form" method="dialog" novalidate>
           <h2 id="rec-title">Record</h2>
           <div id="rec-fields" class="rec-grid"></div>
+          <fieldset class="rec-files" id="rec-files-box">
+            <legend>Scans and documents</legend>
+            <ul class="rec-file-list" id="rec-file-list"></ul>
+            <label>Add photos or PDF files<input type="file" id="rec-file-input" accept="image/*,application/pdf" multiple></label>
+            <p class="muted small-note" id="rec-files-note">Kept in the Society’s Google Drive, in this unit’s folder.</p>
+          </fieldset>
           <p class="form-msg" role="alert"></p>
           <div class="form-actions">
             <button class="btn btn-primary" type="submit">Save</button>
@@ -932,6 +969,21 @@
         <p class="form-msg" id="pr-msg" role="alert"></p>
       </div>
 
+      <div class="callout" id="ufb-box">
+        <h2>Unit files in Google Drive: backup and restore</h2>
+        <p>Each unit has a folder in the Society’s Google Drive (<strong>Sunshree Suntec Society Records → Units → wing → unit</strong>) holding its scans (members and shares, tenants and agreements, communication, electricity, property tax) and <strong>“unit file backup.json”</strong>: everything about the unit, including details, member and tenant records, communication, electricity and tax records, ledger, bills, receipts and old receipts. The backup is updated by itself whenever a unit record is saved. Back up all units at least once a month, and before any big change.</p>
+        <div class="form-actions"><button class="btn btn-primary" type="button" id="ufb-all">Back up all unit files now</button><span id="ufb-progress" class="muted"></span></div>
+        <p class="form-msg" id="ufb-msg" role="alert"></p>
+        <h3 class="mt-sm">Restore a unit’s records from its backup</h3>
+        <p class="muted">Puts back member, tenant, communication, electricity and property tax records that are in the Drive backup but missing here (for example, deleted by mistake). Records that exist here are not changed. Bills, receipts and the ledger are permanent records and can’t be rewritten from the website; their copies stay in the backup.</p>
+        <div class="form-actions">
+          <label class="inline-label">Unit<select id="ufr-unit"></select></label>
+          <button class="btn" type="button" id="ufr-read">Read backup</button>
+        </div>
+        <div id="ufr-result"></div>
+        <p class="form-msg" id="ufr-msg" role="alert"></p>
+      </div>
+
       <div class="callout" id="tally-box">
         <h2>Tally migration</h2>
         <p>Bring the Society’s Tally books into these accounts. Use the export file made on the accountant’s laptop by <strong>Export-TallyData.bat</strong> (tally-export-….json), or the earlier <strong>tally-ledgers-2018-2026.json</strong>. Keep these files private; they are read here in your browser and saved only to the Society’s database.</p>
@@ -1029,7 +1081,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.11.0</p>
+    <p class="muted mt" id="version-note">Software version 3.12.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>
