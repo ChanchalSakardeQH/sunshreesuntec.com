@@ -6,6 +6,56 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.15.0] – 2026-11-17 – Penal interest by rate period (21% to 30/06/2026, 12% from 01/07/2026); interest on past arrears
+
+### Added
+- **Settings → Penal interest on arrears: rate periods.** Each rate (% simple per year) applies from its date until the next one starts, with its authority (AGM resolution, MCS Rules) shown to members.
+  - *Fill in 21% to 30/06/2026, 12% from 01/07/2026* keeps the start date entered (the date of the General Body resolution that fixed 21%).
+  - Legal ceilings are checked by date: 21% before 18/07/2026, and 12% from 18/07/2026 (MCS (Amendment) Rules, 2026, Rule 106C-12(4)-6). A rate above 12% running past 17/07/2026 is refused.
+  - Monthly bills use the rate for their month, split by days when a month spans two rates. The bill line says which rate.
+- **Reference documents for members** (same section): the notification, rule, article or resolution behind the rates. They are saved in the Society's Google Drive (*Reference documents › Interest on arrears*) and shown to signed-in members.
+- **Bills → Interest on past arrears** (committee):
+  - **The calculation:** for each unit, simple interest month by month from the ledger (the old Tally books joined to these accounts). It uses the balance at the start of each month, less interest already billed, × that month's rate ÷ 12.
+  - **What's left out:** months whose bill already charged interest, months covered by an earlier calculation, and units in credit.
+  - **Before charging:** a preview per unit (months, highest arrears, interest at each rate, total), each unit's months, and CSV downloads.
+  - **Charging:** *Add to the bills of <month>* records **INT/2026-27/001** and one pending amount per unit, and saves a copy of the calculation in the Drive. The amount is charged on that month's bill (made on screen or automatically on the 1st) as part of *Penal Interest On Arrears*, with an explanation. It is kept out of later interest (simple interest only).
+  - **Cancelling:** possible until the bills are made.
+- **Members' account page → Interest on late payment:** the rates with their dates and authority, the reference documents, and the calculation for their unit month by month, with the bill it was charged on.
+- **Printed bills:** the interest note now gives the current rate and the earlier one, e.g. *Simple interest @12% p.a. … (21% p.a. up to 30/06/2026), as fixed by the General Body under MCS Rule 106C-12(4)-6*.
+
+### Changed
+- The automatic monthly bill run also adds approved interest on past arrears.
+
+### Drive script (version 5)
+- `upload` with `kind: reference` (committee): *Reference documents/Interest on arrears* for PDFs, photos and calculation CSVs. `fetch` / `memberFetch` with `referenceId` opens only documents listed on the website. **Deploy a new version of the script.**
+
+### Security rules
+- `interestRuns`: the committee creates and cancels them.
+- `billAdjustments`:
+  - created by the committee, only for a month not yet billed;
+  - cancelled by the committee while still pending;
+  - marked billed when the bills are made;
+  - read by the accounts team and the unit's approved member;
+  - never deleted.
+- Counter `interest-<year>`.
+
+### Tested
+- 22 browser checks:
+  - a 21% rate running past 17/07/2026 is refused, and the suggested periods and their summary are saved for bills and members;
+  - two reference documents are filed in the Drive;
+  - **C 202** (₹10,000 overdue since April 2025): 15 months at 21% = ₹2,625 and 4 months at 12% = ₹400, total ₹3,025;
+  - **C 101**, paid in January 2026: 10 months = ₹1,050; a unit in credit is left out;
+  - month-by-month view and CSV;
+  - INT/2026-27/001 with pending amounts and a Drive copy, and a repeat run finds the months already covered;
+  - the December bill charges ₹100 (12% on ₹10,000) + ₹3,025 = ₹3,125 with the explanation, marks the amounts billed and keeps interest out of the base;
+  - the member sees the rates, references and their calculation, and opens a reference;
+  - the printed bill note is right.
+- 8 Drive-script checks for reference documents.
+- All earlier suites pass: 269 browser checks and 88 script checks.
+- The automatic monthly bill script was only checked for syntax; it can't be run here.
+
+---
+
 ## [3.14.0] – 2026-11-17 – Correspondence register; committee list editor
 
 ### Added

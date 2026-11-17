@@ -127,7 +127,12 @@ function billHTML(b, site) {
   const total = b.total;
   const words = total < 0 ? `Credit balance of ${amountInWords(-total)}` : amountInWords(total);
   const rate = site.interestRatePA;
-  const interestNote = rate ? `Simple interest @${rate}% p.a. will be Charged on Outstanding Dues.`
+  // 3.15: the rate in force now, and the earlier rate(s) for older dues.
+  const periods = (site.interestPeriods || []).filter((p) => Number(p.rate) > 0);
+  const nowP = periods.filter((p) => p.from <= (b.billDate || '9999')).at(-1);
+  const older = periods.filter((p) => p !== nowP && p.from < (nowP?.from || '')).map((p) => `${p.rate}% p.a. up to ${ddmmyyyy(p.to)}`);
+  const interestNote = nowP ? `Simple interest @${nowP.rate}% p.a. will be charged on outstanding dues${older.length ? ` (${older.join('; ')})` : ''}, as fixed by the General Body under MCS Rule 106C-12(4)-6.`
+    : rate ? `Simple interest @${rate}% p.a. will be Charged on Outstanding Dues.`
     : 'Interest on outstanding dues will be charged at the rate fixed by the General Body.';
   const contactNo = site.society.contactNo || '__________________';
 

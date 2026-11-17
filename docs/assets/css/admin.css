@@ -303,3 +303,10 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .cr-dir.out { background: color-mix(in srgb, var(--stamp) 14%, transparent); color: var(--stamp); }
 .cr-overdue { color: var(--due); font-weight: 600; }
 .cr-cards { margin: 1rem 0; }
+/* 3.15: penal interest */
+.ip-box { border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem 1rem .8rem; }
+.ip-table input { width: 100%; }
+.ip-table td:nth-child(1) { width: 11rem; } .ip-table td:nth-child(2) { width: 7rem; }
+.pi-box summary { cursor: pointer; }
+.pi-table tr.pi-months td { background: var(--paper, #f6f7f9); font-size: .86rem; }
+.pi-months table { width: auto; }

@@ -16,6 +16,8 @@
  *           <ROOT_FOLDER>/Units/C Wing/C 202/Ownership (sale deeds and Index II) | Occupants | Agreements   (3.13)
  *           <ROOT_FOLDER>/Correspondence/FY 2026-27/Inward | Outward   (3.14, the Society's letters and documents)
  *           <ROOT_FOLDER>/Correspondence/FY 2026-27/Correspondence register FY 2026-27.json   (backup of the register)
+ *           <ROOT_FOLDER>/Reference documents/Interest on arrears   (3.15: rules, circulars, articles shown to members,
+ *                                                                   and a copy of each interest calculation)
  *
  * Members (3.13) use three actions of their own: memberUpload (documents of their unit), memberFetch (open them)
  * and memberAgreement (their accepted portal agreement → PDF in the unit's Agreements folder, emailed to them
@@ -43,7 +45,7 @@ function config_() {
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 4 });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 5 });
 }
 
 function doPost(e) {
@@ -191,6 +193,7 @@ function ping_(cfg, req, who, team) {
 function upload_(cfg, req, who, team) {
   if (req.kind === 'unit') return uploadUnit_(cfg, req, who, team);
   if (req.kind === 'correspondence') return uploadLetter_(cfg, req, who, team);
+  if (req.kind === 'reference') return uploadReference_(cfg, req, who, team);
   var report = req.kind === 'report', payment = req.kind === 'payment';
   var need = report ? ['view', 'approveExpenses', 'payExpenses'] : payment ? ['payExpenses'] : ['submitExpenses', 'approveExpenses', 'payExpenses'];
   if (!any_(team, need)) throw new Error('You don’t have permission to add ' + (report ? 'reports.' : payment ? 'payment proofs.' : 'expenses.'));
@@ -218,6 +221,8 @@ function fetchFile_(cfg, req, who, team) {
     rec = readDoc_(cfg, req.idToken, 'units/' + encodeURIComponent(req.unitId) + '/' + req.record + '/' + encodeURIComponent(req.recordId));
     if (!rec) throw new Error('You can’t see this unit record.');
     list = rec.files || [];
+  } else if (req.referenceId) {
+    list = siteReferences_(cfg, req.idToken);
   } else if (req.correspondenceId) {
     if (!/^[A-Za-z0-9_-]{1,60}$/.test(String(req.correspondenceId))) throw new Error('Unknown letter.');
     rec = readDoc_(cfg, req.idToken, 'correspondence/' + encodeURIComponent(req.correspondenceId));
@@ -325,6 +330,30 @@ function readBackup_(cfg, req, who, team) {
   return { json: file.getBlob().getDataAsString('UTF-8'), updated: file.getLastUpdated().toISOString() };
 }
 
+/* ---------------- reference documents (3.15) ---------------- */
+
+var REFERENCE_TOPICS = ['Interest on arrears'];
+
+function uploadReference_(cfg, req, who, team) {
+  if (!team.committee) throw new Error('Only the committee can add reference documents.');
+  if (REFERENCE_TOPICS.indexOf(req.topic) < 0) throw new Error('Unknown topic.');
+  if (['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'].indexOf(req.mimeType) < 0) throw new Error('Only photos, PDF and CSV files can be kept.');
+  var bytes = Utilities.base64Decode(String(req.data || ''));
+  if (!bytes.length) throw new Error('The file is empty.');
+  if (bytes.length > MAX_MEMBER_PDF) throw new Error('The file is larger than 25 MB.');
+  var folder = child_(child_(rootFolder_(cfg), 'Reference documents'), req.topic);
+  var file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, cleanName_(req.name)));
+  file.setDescription(('Added by ' + team.name + ' <' + who.email + '> on ' + Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm') +
+    (req.note ? '\n' + String(req.note) : '')).slice(0, 1500));
+  return { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: req.mimeType } };
+}
+
+/** The reference documents the Society shows on its pages (public/site.interestRefs). */
+function siteReferences_(cfg, idToken) {
+  var site = readDoc_(cfg, idToken, 'public/site') || {};
+  return (site.interestRefs || []).filter(function (r) { return r && r.id; });
+}
+
 /* ---------------- Society correspondence (3.14) ---------------- */
 
 function validFy_(fy) { return /^20\d{2}-\d{2}$/.test(String(fy || '')); }
@@ -395,7 +424,9 @@ function memberUpload_(cfg, req, who, m) {
 
 function memberFetch_(cfg, req, who, m) {
   var list;
-  if (req.agreementId) {
+  if (req.referenceId) {
+    list = siteReferences_(cfg, req.idToken);
+  } else if (req.agreementId) {
     var a = readDoc_(cfg, req.idToken, 'memberAgreements/' + encodeURIComponent(String(req.agreementId)));
     if (!a || a.uid !== who.uid) throw new Error('You can’t see this agreement.');
     list = a.pdf ? [a.pdf] : [];

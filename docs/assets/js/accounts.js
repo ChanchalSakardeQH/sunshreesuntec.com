@@ -131,6 +131,8 @@ export async function generateBill(fb, unitId, opts) {
       balance: newBalance, interestDue: Math.max(0, round(unit.interestDue)) + calc.interest,
       lastBillId: billRef.id, updatedAt: F.serverTimestamp()
     });
+    // Interest on past arrears added to this bill (3.15): marked as billed, with the bill it went on.
+    for (const id of calc.adjIds || []) tx.update(F.doc(db, 'billAdjustments', id), { status: 'billed', billId: billRef.id, billNo: bill.billNo, billedAt: F.serverTimestamp() });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: newBalance });
     return bill;
   });
@@ -142,10 +144,11 @@ export async function generateMonth(fb, opts, onProgress = () => {}) {
   const ctx = buildContext(allUnits);
   const prepared = prepareExtras(opts.extras, allUnits); // one-off charges: per unit, equal share or by area
   const liftExpenses = await loadLiftExpensesFor(fb, opts.monthKey);
+  const pending = await loadPendingAdjustments(fb, opts.monthKey);
   const made = [], skipped = [], failed = [];
   for (const [i, u] of units.entries()) {
     try {
-      const extras = extrasForUnit(prepared, u);
+      const extras = [...extrasForUnit(prepared, u), ...(pending[u.id] || [])];
       const b = await generateBill(fb, u.id, { ...opts, extras, liftExpenses, ctx });
       (b ? made : skipped).push(u.unit);
     } catch (err) {
@@ -155,6 +158,18 @@ export async function generateMonth(fb, opts, onProgress = () => {}) {
   }
   if (made.length) await markBilled(fb, opts.monthKey, made.length);
   return { made, skipped, failed };
+}
+
+/** Interest on past arrears approved for a month's bills (billAdjustments, status pending), by unit, as bill extras. */
+export async function loadPendingAdjustments({ F, db }, monthKey) {
+  const snap = await F.getDocs(F.query(F.collection(db, 'billAdjustments'), F.where('month', '==', monthKey)));
+  const out = {};
+  snap.docs.forEach((d) => {
+    const a = d.data();
+    if (a.status !== 'pending' || !(Number(a.amount) > 0)) return;
+    (out[a.unitId] ??= []).push({ code: a.code || 'interest', amount: Number(a.amount), detail: a.detail || '', adjId: d.id });
+  });
+  return out;
 }
 
 /** Remembers the latest month that has bills, so lift expenses can't be added to a month already billed. */

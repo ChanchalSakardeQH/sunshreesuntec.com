@@ -31,6 +31,8 @@ Sunshree Suntec Society Records/
       Inward/                         ← letters and documents received (DDR, PMC, MSEDCL, banks, AMC vendors …), IN-2026-27-0001 …
       Outward/                        ← letters sent, OUT-2026-27-0001 …
       Correspondence register FY 2026-27.json   ← backup of the year's register
+  Reference documents/
+    Interest on arrears/              ← rules, articles, resolutions shown to members; a copy of each interest calculation (INT-2026-27-001 …)
 ```
 
 Unit documents are seen on the accounts page by those who may read the unit's records; they are added by those

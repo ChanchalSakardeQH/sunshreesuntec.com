@@ -58,12 +58,13 @@ service cloud.firestore {
         && profile().unit == unitId;
     }
     function fullAccess() { return profile().get('access', 'full') == 'full'; }
-    // 3.13: an approved member of the unit with any access (full or basic), for the unit's documents.
+    // Any approved member with a confirmed email (any unit, full or basic access), not removed.
     function approvedMember() {
       return signedIn() && request.auth.token.email_verified == true
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && profile().status == 'approved' && profile().get('removed', false) != true;
     }
+    // 3.13: an approved member of that unit (full or basic access), for the unit's documents.
     function memberOf(unitId) { return approvedMember() && profile().unit == unitId; }
     function memberAgreementVersion() { return get(/databases/$(database)/documents/settings/memberAgreement).data.version; }
     function changes() { return request.resource.data.diff(resource.data).affectedKeys(); }
@@ -72,14 +73,6 @@ service cloud.firestore {
     function lockDate() {
       return exists(/databases/$(database)/documents/settings/billing)
         ? get(/databases/$(database)/documents/settings/billing).data.get('lockedUpTo', '') : '';
-    }
-
-    // Any approved member with a confirmed email (any unit).
-    function approvedMember() {
-      return signedIn()
-        && request.auth.token.email_verified == true
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && profile().status == 'approved';
     }
 
     // ---------- website ----------
@@ -319,6 +312,27 @@ service cloud.firestore {
       allow delete: if isCommittee();
     }
 
+    // 3.15: interest on past arrears. A calculation (interestRuns) puts one amount per unit (billAdjustments) on a
+    // month's bills. The committee adds or cancels them; bill generation marks them billed. Members see their own.
+    match /interestRuns/{id} {
+      allow read: if perm('view');
+      allow create: if isCommittee() && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time
+        && request.resource.data.status == 'pending';
+      allow update: if isCommittee() && changes().hasOnly(['status', 'cancelledAt', 'cancelledBy']) && request.resource.data.status == 'cancelled';
+      allow delete: if false;
+    }
+    match /billAdjustments/{id} {
+      allow read: if perm('view') || approvedFor(resource.data.unitId);
+      allow create: if isCommittee() && request.resource.data.status == 'pending' && request.resource.data.code == 'interest'
+        && request.resource.data.amount is number && request.resource.data.amount > 0
+        && request.resource.data.unitId is string && request.resource.data.month is string
+        && request.resource.data.month > get(/databases/$(database)/documents/settings/billing).data.get('lastBilledMonth', '');
+      allow update: if resource.data.status == 'pending' && (
+          (isCommittee() && changes().hasOnly(['status', 'cancelledAt', 'cancelledBy']) && request.resource.data.status == 'cancelled')
+          || (perm('generateBills') && changes().hasOnly(['status', 'billId', 'billNo', 'billedAt']) && request.resource.data.status == 'billed'));
+      allow delete: if false;
+    }
+
     // Duplicate receipts issued from the unit file (3.11): a permanent record of every copy printed.
     match /receiptCopies/{id} {
       allow read: if perm('view') || approvedFor(resource.data.unitId);
@@ -336,7 +350,8 @@ service cloud.firestore {
         || (docId.matches('expenses-.*') && perm('approveExpenses'))
         || (docId.matches('(paybacks|advances)-.*') && perm('payExpenses'))
         || (docId.matches('acks-.*') && perm('unitRecords'))
-        || (docId.matches('(inward|outward)-.*') && perm('correspondence'));
+        || (docId.matches('(inward|outward)-.*') && perm('correspondence'))
+        || (docId.matches('interest-.*') && isCommittee());
     }
 
     // ---------- expenses (3.7) ----------

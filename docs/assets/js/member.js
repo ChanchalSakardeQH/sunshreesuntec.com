@@ -440,6 +440,30 @@ async function archiveAgreement(id) {
   } catch (err) { console.warn('agreement copy', err); return null; }
 }
 
+/* ---------- interest on late payment (3.15) ---------- */
+let interestRefs = [];
+async function loadInterestInfo() {
+  const { F, db } = fb;
+  const s = await F.getDoc(F.doc(db, 'public', 'site'));
+  const site = s.exists() ? s.data() : {};
+  const periods = site.interestPeriods || [], refs = site.interestRefs || [];
+  interestRefs = refs;
+  const dd = (iso) => (iso ? ddmmyyyy(iso) : '');
+  if (!periods.length && !refs.length) { $('#interest-info').hidden = true; return; }
+  $('#interest-info').hidden = false;
+  $('#ii-periods').innerHTML = periods.map((p) => `<li><strong>${esc(p.rate)}% simple per year</strong> ${p.to ? `from ${dd(p.from)} to ${dd(p.to)}` : `from ${dd(p.from)} onwards`}${p.ref ? `<span class="sub">${esc(p.ref)}</span>` : ''}</li>`).join('');
+  $('#ii-refs').innerHTML = refs.length ? `<p class="small-note"><strong>References:</strong> ${refs.map((r, i) => `<button class="file-link" type="button" data-ii-ref="${i}">📎 ${esc(r.title || r.name)}</button>`).join(' · ')}</p>` : '';
+  // Interest on past arrears worked out for this unit (full access only).
+  if ((profile.access || 'full') !== 'full') { $('#ii-mine').innerHTML = ''; return; }
+  const snap = await F.getDocs(F.query(F.collection(db, 'billAdjustments'), F.where('unitId', '==', profile.unit))).catch(() => ({ docs: [] }));
+  const adj = snap.docs.map((d) => d.data()).filter((a) => a.status !== 'cancelled').sort((a, b) => String(b.month).localeCompare(String(a.month)));
+  $('#ii-mine').innerHTML = adj.map((a) => `<details class="ii-calc"><summary><strong>₹ ${fmt(a.amount)}</strong> interest on arrears ${monthLabel(a.fromMonth)} to ${monthLabel(a.toMonth)} (${esc(a.runNo)}), ${a.status === 'billed' ? `charged on bill ${esc(a.billNo || '')}` : `to be charged on the ${monthLabel(a.month)} bill`}</summary>
+      <p class="small-note">${esc(a.detail)}</p>
+      <div class="table-scroll"><table><thead><tr><th>Month</th><th class="num">Dues outstanding at the start of the month (₹)</th><th>Rate</th><th class="num">Interest (₹)</th></tr></thead><tbody>
+      ${(a.months || []).map((m) => `<tr><td>${monthLabel(m.month)}</td><td class="num">${fmt(m.base)}</td><td>${esc(m.text)}</td><td class="num">${Number(m.amount).toFixed(2)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="small-note">For any question about this calculation, please write to the Managing Committee.</p></details>`).join('');
+}
+
 /* ---------- my unit's documents (3.13) ---------- */
 /** "C 202 Agreement for sale … - agreement-2012.pdf" → "agreement-2012.pdf" */
 const shortName = (n) => { const i = String(n).lastIndexOf(' - '); return i > 0 ? n.slice(i + 3) : n; };
@@ -534,8 +558,8 @@ async function saveMd(e) {
   });
 }
 
-async function openMemberFile(payload, name) {
-  const msg = $('#md-msg');
+async function openMemberFile(payload, name, msgEl = null) {
+  const msg = msgEl || $('#md-msg');
   setMsg(msg, 'Opening…', true);
   try {
     const r = await driveCall(fb, 'memberFetch', payload);
@@ -565,6 +589,12 @@ function wireMemberDocs() {
     if (k) { const x = mdFiles[Number(k.dataset.mdKeep)]; x.keep = !x.keep; renderMdFiles(); }
     if (d) { mdNew.splice(Number(d.dataset.mdDrop), 1); renderMdFiles(); }
   });
+  $('#interest-info').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ii-ref]');
+    if (!b) return;
+    const r = interestRefs[Number(b.dataset.iiRef)];
+    openMemberFile({ referenceId: r.id, fileId: r.id }, r.name, $('#ii-msg'));
+  });
   $('#my-docs').addEventListener('click', async (e) => {
     const ed = e.target.closest('[data-md-edit]'), del = e.target.closest('[data-md-del]'), fl = e.target.closest('[data-md-file]'), ag = e.target.closest('[data-agreement]');
     if (ed) { const d = myDocs.find((x) => x.id === ed.dataset.mdEdit); if (d) openMd(d.kind, d); }
@@ -586,6 +616,7 @@ async function loadAccount() {
   const unitId = profile.unit;
   await loadDriveCfg(fb).catch(() => null);
   loadMyDocs().catch((err) => console.warn('unit documents', err));
+  loadInterestInfo().catch((err) => console.warn('interest info', err));
   $('#account-unit').textContent = unitLabel(unitId);
   $('#account-name').textContent = `${profile.name} · ${relationLabel(profile.relation)}`;
   // Access 'basic' (set by the committee, e.g. for a caretaker): Society accounts and documents only.

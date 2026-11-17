@@ -123,6 +123,36 @@
         </div>
       </form>
 
+      <details class="callout pi-box" id="pi-box" hidden>
+        <summary><strong>Interest on past arrears</strong> <span class="muted" id="pi-sum"></span></summary>
+        <p>Works out simple interest on each unit’s overdue balance, month by month, from the ledger (the old Tally books and these accounts), at the rate in force each month under <em>Settings → Penal interest rate periods</em>. It is the same way a monthly bill charges interest: the balance at the start of the month, less interest already billed, × the month’s rate ÷ 12. Months whose bill already charged interest are left out. Nothing is charged until you add it to a month’s bills; it can be cancelled until those bills are made.</p>
+        <p class="callout warn-note small-note">Charge interest only from the date of the General Body resolution that fixed the rate, and tell members before the bills go out. Members see the calculation for their unit, the rate periods and the reference documents on their account page.</p>
+        <form id="pi-form" class="form" novalidate>
+          <div class="cr-grid">
+            <label>Interest from month<input type="month" name="from" required></label>
+            <label>Up to month<input type="month" name="to" required></label>
+            <label>Add to the bills of<input type="month" name="billMonth" required></label>
+            <label>Leave out amounts below (₹)<input type="number" name="min" min="0" step="1" value="10"></label>
+            <label>Units<select name="block"></select></label>
+          </div>
+          <p class="muted small-note" id="pi-rates"></p>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Work it out</button><span class="muted" id="pi-progress"></span></div>
+        </form>
+        <div id="pi-result" hidden>
+          <dl class="dues-summary" id="pi-cards"></dl>
+          <div class="table-scroll"><table class="pi-table"><thead><tr><th>Unit</th><th>Name</th><th class="num">Months</th><th class="num">Highest arrears</th><th class="num" id="pi-h1"></th><th class="num" id="pi-h2"></th><th class="num">Interest (₹)</th><th></th></tr></thead><tbody id="pi-rows"></tbody></table></div>
+          <div class="form-actions">
+            <button class="btn" type="button" id="pi-csv">Download (CSV)</button>
+            <button class="btn" type="button" id="pi-csv-months">Download month by month (CSV)</button>
+            <button class="btn btn-primary" type="button" id="pi-add">Add to the bills</button>
+          </div>
+        </div>
+        <h3 class="mt-sm">Calculations added to bills</h3>
+        <div class="table-scroll"><table><thead><tr><th>No.</th><th>Period</th><th>Bills of</th><th class="num">Units</th><th class="num">Interest (₹)</th><th>Status</th><th></th></tr></thead><tbody id="pi-runs"></tbody></table></div>
+        <p class="form-msg" id="pi-runs-msg" role="alert"></p>
+      </details>
+
       <div class="account-head">
         <h2 id="bills-title">Bills</h2>
         <div class="form-actions">
@@ -1180,7 +1210,21 @@
         <label>Sinking fund (% per year of construction cost, minimum 0.25)<input type="number" name="sinkingPct" min="0" step="0.01"></label>
         <label>Repairs &amp; maintenance fund (% per year of construction cost, minimum 0.75)<input type="number" name="repairsPct" min="0" step="0.01"></label>
         <label>Non-occupancy charges (% of service charges, for let-out premises)<input type="number" name="nonOccupancyPct" min="0" max="10" step="0.5"></label>
-        <label>Penal interest on arrears (% simple per year, 0 for none, maximum 12)<input type="number" name="interestRatePA" min="0" max="12" step="0.5"></label>
+        <fieldset class="wide-label ip-box">
+          <legend>Penal interest on arrears: rate periods</legend>
+          <p class="muted small-note">Simple interest per year, at the rate fixed by the General Body. Each rate applies from its date until the next one starts. Ceiling: 21% before 18/07/2026; 12% from 18/07/2026 (MCS (Amendment) Rules, 2026, Rule 106C-12(4)-6). Bills for a month that spans two rates are charged by days.</p>
+          <div class="table-scroll"><table class="ip-table"><thead><tr><th>From</th><th>Rate (% p.a.)</th><th>Authority / reference (shown to members)</th><th></th></tr></thead><tbody id="ip-rows"></tbody></table></div>
+          <div class="form-actions"><button class="btn btn-small" type="button" id="ip-add">Add a rate period</button><button class="btn btn-small" type="button" id="ip-suggest">Fill in 21% to 30/06/2026, 12% from 01/07/2026</button></div>
+          <p class="muted small-note" id="ip-summary"></p>
+          <h3 class="mt-sm">Reference documents for members</h3>
+          <p class="muted small-note">The notification, rule, article or resolution behind these rates. Kept in the Society’s Google Drive (<em>Reference documents › Interest on arrears</em>) and shown to signed-in members beside the interest explanation.</p>
+          <ul class="rec-file-list" id="ir-list"></ul>
+          <div class="cr-grid">
+            <label>Title shown to members<input type="text" id="ir-title" maxlength="140" placeholder="e.g. MCS (Amendment) Rules 2026: interest up to 12% (newspaper, 18/07/2026)"></label>
+            <label>File (PDF or photo)<input type="file" id="ir-file" accept="application/pdf,image/*"></label>
+          </div>
+          <div class="form-actions"><button class="btn btn-small" type="button" id="ir-upload">Upload reference</button><span class="muted" id="ir-msg"></span></div>
+        </fieldset>
         <label>Days until due date<input type="number" name="dueDays" min="0" max="60" step="1"></label>
         <label class="wide-label">Basis of charges (printed on every bill)<input type="text" name="chargesBasis"></label>
         <p class="form-msg" role="alert"></p>
@@ -1194,7 +1238,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.14.0</p>
+    <p class="muted mt" id="version-note">Software version 3.15.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

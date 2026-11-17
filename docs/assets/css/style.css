@@ -399,3 +399,8 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 .doc-pill.due { background: color-mix(in srgb, var(--due) 12%, transparent); color: var(--due); }
 .file-link { font: inherit; font-size: .86rem; color: var(--stamp); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-align: left; overflow-wrap: anywhere; }
 #my-docs .sub { display: block; font-size: .84rem; color: var(--muted); margin-top: .15rem; }
+/* 3.15: interest on late payment */
+.interest-periods { padding-left: 1.2rem; display: grid; gap: .35rem; }
+.interest-periods .sub, .interest-info .sub { display: block; font-size: .84rem; color: var(--muted); }
+.ii-calc { border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem .9rem; margin: .6rem 0; }
+.ii-calc summary { cursor: pointer; }

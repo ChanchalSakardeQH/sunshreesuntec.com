@@ -381,13 +381,13 @@ export function extrasForUnit(prepared, unit) {
  */
 export function computeBill({ unit, settings, monthKey, extras = [], liftExpenses = [], ctx }) {
   const arrears = round(unit.balance);
-  const rate = Math.min(Number(settings?.interestRatePA) || 0, MAX_INTEREST_PA);
+  const mr = monthInterestRate(settings, monthKey);
   const base = Math.max(0, arrears - Math.max(0, round(unit.interestDue)));
-  const interest = rate > 0 && base > 0 ? round((base * rate) / 100 / 12) : 0;
+  const monthly = mr.rate > 0 && base > 0 ? round((base * mr.rate) / 100 / 12) : 0;
 
   const { amounts: charges, details } = chargesFor(unit, settings, monthKey, ctx);
-  const amounts = { ...charges, interest };
-  if (interest) details.interest = `${rate}% p.a. simple on ₹${base}`;
+  const amounts = { ...charges, interest: monthly };
+  if (monthly) details.interest = `${mr.text} simple on ₹${base}`;
   for (const x of extras) {
     if (!x || !x.code || x.code === 'arrears') continue;
     amounts[x.code] = (amounts[x.code] || 0) + round(x.amount);
@@ -413,11 +413,105 @@ export function computeBill({ unit, settings, monthKey, extras = [], liftExpense
     .filter((l) => l.amount !== 0);
 
   const current = lines.reduce((s, l) => s + l.amount, 0);
-  return { arrears, lines, interest, current, total: arrears + current, liftNotes };
+  // All penal interest on this bill (the month's and any interest on past arrears) is kept out of the interest base later.
+  const interest = round(amounts.interest || 0);
+  const adjIds = extras.filter((x) => x && x.adjId).map((x) => x.adjId);
+  return { arrears, lines, interest, current, total: arrears + current, liftNotes, adjIds };
 }
 
 /** Ceiling on penal interest: 12% simple p.a. under the MCS (Amendment) Rules, 2026. */
 export const MAX_INTEREST_PA = 12;
+
+/* ---------- penal interest rate periods (3.15) ----------
+ * settings.interestPeriods = [{ from: 'YYYY-MM-DD', rate, ref }] — each runs until the day before the next one's
+ * `from`. Example: 21% from the AGM resolution up to 30/06/2026, 12% from 01/07/2026.
+ * Legal ceilings: 21% simple p.a. before the MCS (Amendment) Rules, 2026 took effect (notified 18/07/2026),
+ * 12% simple p.a. from then (Rule 106C-12(4)-6). Without periods, the single interestRatePA is used. */
+export const RULES_2026_FROM = '2026-07-18';
+export const OLD_MAX_INTEREST_PA = 21;
+export const maxInterestOn = (iso) => (iso < RULES_2026_FROM ? OLD_MAX_INTEREST_PA : MAX_INTEREST_PA);
+
+const dayMs = 86400000;
+const isoAdd = (iso, days) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * dayMs).toISOString().slice(0, 10);
+const daysBetween = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / dayMs) + 1; // inclusive
+
+/** The periods, sorted, each with its last day ('to'); '' = open-ended. */
+export function interestPeriodsOf(settings) {
+  const list = (settings?.interestPeriods || []).filter((p) => p && /^\d{4}-\d{2}-\d{2}$/.test(p.from) && Number(p.rate) >= 0)
+    .map((p) => ({ from: p.from, rate: Number(p.rate), ref: p.ref || '' })).sort((a, b) => a.from.localeCompare(b.from));
+  if (!list.length) return Number(settings?.interestRatePA) > 0 ? [{ from: '2000-01-01', to: '', rate: Math.min(Number(settings.interestRatePA), MAX_INTEREST_PA), ref: '' }] : [];
+  return list.map((p, i) => ({ ...p, to: list[i + 1] ? isoAdd(list[i + 1].from, -1) : '' }));
+}
+
+/** Problems with the periods (empty = fine): ceilings by date, order, rates. */
+export function checkInterestPeriods(periods) {
+  const out = [];
+  const list = interestPeriodsOf({ interestPeriods: periods });
+  list.forEach((p) => {
+    if (p.rate > OLD_MAX_INTEREST_PA) out.push(`${p.rate}% from ${p.from}: more than ${OLD_MAX_INTEREST_PA}% was never allowed.`);
+    const end = p.to || '9999-12-31';
+    if (p.rate > MAX_INTEREST_PA && end >= RULES_2026_FROM) {
+      out.push(`${p.rate}% runs past 17/07/2026; from 18/07/2026 (MCS (Amendment) Rules, 2026) the maximum is ${MAX_INTEREST_PA}% simple p.a. Start a period of ${MAX_INTEREST_PA}% or less on or before 18/07/2026.`);
+    }
+  });
+  if (new Set(list.map((p) => p.from)).size !== list.length) out.push('Two periods start on the same date.');
+  return out;
+}
+
+/** Day-weighted rate for a month, with the parts it is made of. */
+export function monthInterestRate(settings, monthKey) {
+  const first = `${monthKey}-01`, last = isoAdd(`${monthKey === '9999-12' ? '9999-12' : addMonthsKey(monthKey, 1)}-01`, -1);
+  const days = daysBetween(first, last);
+  const parts = [];
+  for (const p of interestPeriodsOf(settings)) {
+    const a = p.from > first ? p.from : first, b = p.to && p.to < last ? p.to : last;
+    if (a > b) continue;
+    parts.push({ from: a, to: b, days: daysBetween(a, b), rate: Math.min(p.rate, maxInterestOn(a)) });
+  }
+  const rate = parts.reduce((t, x) => t + (x.rate * x.days) / days, 0);
+  const shown = parts.filter((x) => x.rate > 0);
+  const text = shown.length <= 1 ? `${shown[0]?.rate ?? 0}% p.a.` : shown.map((x) => `${x.rate}% p.a. for ${x.days} days`).join(', ');
+  return { rate: Math.round(rate * 10000) / 10000, parts, days, text };
+}
+function addMonthsKey(monthKey, n) {
+  const [y, m] = monthKey.split('-').map(Number), t = y * 12 + (m - 1) + n;
+  return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Simple interest on past arrears, month by month (the same way a monthly bill charges it):
+ * each month, the balance at the start of the month (less interest already billed) × the month's rate ÷ 12.
+ * entries: the unit's ledger, oldest first ({ date, debit, credit, interest? }).
+ * skip: months whose bill already charged interest. Returns the months and the total by rate.
+ */
+export function pastInterest(entries, settings, { fromMonth, toMonth, skip = new Set() }) {
+  const months = [];
+  const byRate = {};
+  let i = 0, bal = 0, billedInterest = 0, total = 0;
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  for (let m = fromMonth; m <= toMonth; m = addMonthsKey(m, 1)) {
+    const start = `${m}-01`;
+    while (i < sorted.length && sorted[i].date < start) {
+      bal += (Number(sorted[i].debit) || 0) - (Number(sorted[i].credit) || 0);
+      billedInterest += Number(sorted[i].interest) || 0;
+      i++;
+    }
+    if (skip.has(m)) continue;
+    const base = round(Math.max(0, bal - Math.max(0, billedInterest)));
+    if (!base) continue;
+    const mr = monthInterestRate(settings, m);
+    let amount = 0;
+    for (const p of mr.parts) {
+      const part = (base * p.rate * p.days) / mr.days / 100 / 12;
+      if (!part) continue;
+      byRate[p.rate] = (byRate[p.rate] || 0) + part;
+      amount += part;
+    }
+    if (amount) { months.push({ month: m, base, rate: mr.rate, text: mr.text, amount: Math.round(amount * 100) / 100 }); total += amount; }
+  }
+  Object.keys(byRate).forEach((k) => (byRate[k] = round(byRate[k])));
+  return { months, byRate, total: round(total) };
+}
 
 /* ---------- amount in words (Indian system) ---------- */
 

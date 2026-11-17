@@ -28,6 +28,7 @@ This document explains what the system does, where the data lives, how every amo
 11C. Member portal agreement and members' documents
 11D. Correspondence register
 11E. Committee list
+11F. Penal interest: rate periods and interest on past arrears
 12. Member access
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
@@ -395,6 +396,26 @@ Documents are stored as links (e.g. Google Drive), because file uploads would ne
 ## 11E. Committee list (3.14)
 
 `public/site.committee` = `[{ role, name, unit?, phone }]` in display order. It is edited in Accounts → Website (add, remove, ↑ ↓) and shown on the website's Committee page as *name (unit)*. It is not linked to access: accounts access is given in the Staff tab.
+
+---
+
+## 11F. Penal interest: rate periods and interest on past arrears (3.15)
+
+- **Rates:** `settings/billing.interestPeriods = [{ from, rate, ref }]` (each to the day before the next `from`); copied to `public/site.interestPeriods` (with `to`) for bills and members. `interestRatePA` = today's rate (kept for older code). `billing-core.js`:
+  - `interestPeriodsOf`, `checkInterestPeriods`;
+  - ceilings via `maxInterestOn(date)`: 21% before `RULES_2026_FROM` = 2026-07-18, then 12%;
+  - `monthInterestRate(settings, month)`: day-weighted, with parts.
+- **Monthly bill:** `computeBill` charges (balance − interest already billed) × month rate ÷ 12; `interest` returned = all interest on the bill (month + past), added to `unit.interestDue`.
+- **Interest on past arrears:** `pastInterest(entries, settings, { fromMonth, toMonth, skip })`.
+  - **Method:** month by month, on the ledger balance at the start of the month less interest billed before (bill entries carry their bill's interest), split by days when rates change mid-month.
+  - **Ledger:** `loadMergedLedgers` (Tally history + live; the 2011–18 section only if the start is before April 2018).
+  - **Skipped:** months whose bill had interest, and months already in a non-cancelled `billAdjustments.months`.
+- **Records:**
+  - `interestRuns/<id>` `{ no: INT/<FY>/<nnn>, fromMonth, toMonth, billMonth, periods, units, total, status }`;
+  - `billAdjustments/<id>` `{ runId, runNo, unitId, unit, month, code: 'interest', amount, detail, byRate, months[{ month, base, rate, text, amount }], status: pending|billed|cancelled, billId?, billNo? }`.
+  - Bill generation (screen: `generateMonth` → `loadPendingAdjustments`; automatic: `scripts/generate-bills.mjs`) passes them to `computeBill` as extras and marks them billed in the same transaction.
+- **References:** `public/site.interestRefs = [{ id, name, mime, title, addedOn }]`, files in Drive `Reference documents/Interest on arrears` (script `upload` `kind: reference`, committee); opened by members and staff through the script with `referenceId` (only listed files).
+- **Legal note:** under MCS Rule 106C-12(4)-6 the rate is fixed by the General Body, at most 12% simple p.a. from 18/07/2026. Earlier, up to 21% applied where the General Body had fixed it. Interest on past arrears should start no earlier than the resolution that fixed the rate. Members should be told before the bills go out.
 
 ---
 

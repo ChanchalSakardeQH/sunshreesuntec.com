@@ -39,6 +39,15 @@ const liftSnap = await db.collection('liftExpenses').where('startMonth', '<=', m
 const liftExpenses = liftSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
   .filter((e) => e.status !== 'deleted' && liftExpenseEndMonth(e) >= monthKey);
 
+// Interest on past arrears approved by the committee for this month's bills (3.15).
+const adjSnap = await db.collection('billAdjustments').where('month', '==', monthKey).get();
+const pending = {};
+adjSnap.docs.forEach((d) => {
+  const a = d.data();
+  if (a.status !== 'pending' || !(Number(a.amount) > 0)) return;
+  (pending[a.unitId] ??= []).push({ code: a.code || 'interest', amount: Number(a.amount), detail: a.detail || '', adjId: d.id });
+});
+
 let made = 0, skipped = 0;
 const failed = [];
 
@@ -53,7 +62,7 @@ for (const doc of unitsSnap.docs) {
       const unit = { id: doc.id, ...unitSnap.data() };
       if (unit.active === false) return false;
 
-      const calc = computeBill({ unit, settings, monthKey, liftExpenses, ctx });
+      const calc = computeBill({ unit, settings, monthKey, extras: pending[unit.id] || [], liftExpenses, ctx });
       const bill = {
         billNo: billNumber(unit.unit, billDate), unitId: unit.id, unit: unit.unit, block: unit.block,
         name: unit.name || '', type: unit.type, status: unit.status || '', month: monthKey, billDate, dueDate,
@@ -73,6 +82,9 @@ for (const doc of unitsSnap.docs) {
         balance: newBalance, interestDue: Math.max(0, round(unit.interestDue)) + calc.interest,
         lastBillId: billRef.id, updatedAt: FieldValue.serverTimestamp()
       });
+      for (const id of calc.adjIds || []) {
+        tx.update(db.doc(`billAdjustments/${id}`), { status: 'billed', billId: billRef.id, billNo: bill.billNo, billedAt: FieldValue.serverTimestamp() });
+      }
       if (pubSnap.exists) {
         const data = pubSnap.data();
         const units = data.units.map((r) => (r.id === unit.id ? { ...r, owner: round(newBalance) } : r));

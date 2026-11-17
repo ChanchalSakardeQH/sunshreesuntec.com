@@ -24,12 +24,13 @@ import {
 import {
   LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
   categoryIdFor, liftGroupFor, LIFT_GROUPS, LIFT_KINDS, addMonths, liftExpenseEndMonth, MAX_INTEREST_PA,
+  interestPeriodsOf, checkInterestPeriods, monthInterestRate, pastInterest, RULES_2026_FROM,
   PARTICULARS, buildContext, mmcRates, computeBill, prepareExtras, extrasForUnit, constructionCostOf,
   financialYear, fyBounds, fyList, longDate,
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING } from './defaults.js';
-import { loadDriveCfg, driveReady, driveFileUrl, driveCall } from './drive.js';
+import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64 } from './drive.js';
 import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { initCorrespondence, loadCorrespondence, lettersForUnit, statusText as letterStatus } from './correspondence.js';
@@ -334,6 +335,7 @@ async function loadDashboard() {
 /* ---------------- bills ---------------- */
 
 function wireBills() {
+  wirePastInterest();
   const form = $('#gen-form');
   form.extraCode.innerHTML += ONE_OFF.map((c) => `<option value="${c}">${LABEL[c]}</option>`).join('');
   form.extraBlock.innerHTML += dues.blocks.map((b) => `<option value="${b.id}">${esc(b.name)} only</option>`).join('');
@@ -380,6 +382,7 @@ function wireBills() {
         await refreshCore();
         $('#bills-month').value = monthKey;
         await listBills(monthKey);
+        renderPiRuns().catch(() => {});
       } catch (err) { setMsg(form, esc(errorText(err))); }
     });
   });
@@ -390,6 +393,201 @@ function wireBills() {
 
 async function loadBills() {
   await listBills($('#bills-month').value || monthOf(todayIST()));
+  setupPastInterest().catch((err) => console.warn('past interest', err));
+}
+
+/* ---------------- Interest on past arrears (3.15) ---------------- */
+let piResult = null;
+const nextMonth = (m) => addMonths(m, 1);
+const fyOfMonth = (m) => financialYear(`${m}-01`);
+
+async function setupPastInterest() {
+  const box = $('#pi-box');
+  box.hidden = !canDo('committee');
+  if (box.hidden) return;
+  const periods = interestPeriodsOf(billing);
+  const f = $('#pi-form');
+  $('#pi-rates').innerHTML = periods.length
+    ? `Rates: ${periods.map((p) => `<strong>${p.rate}%</strong> from ${dd(p.from)}${p.to ? ` to ${dd(p.to)}` : ' onwards'}`).join('; ')}. Change them in Settings → Penal interest rate periods.`
+    : '<span class="cr-overdue">No penal interest rates are set. Add the rate periods in Settings first.</span>';
+  $('#pi-sum').textContent = periods.length ? `· ${periods.map((p) => `${p.rate}% from ${dd(p.from)}`).join(', ')}` : '· no rates set';
+  if (!f.from.value) {
+    const first = periods.find((p) => p.rate > 0);
+    f.from.value = first ? (first.from.endsWith('-01') ? first.from.slice(0, 7) : nextMonth(first.from.slice(0, 7))) : '';
+    const lb = lastBilled();
+    f.to.value = lb || addMonths(monthOf(todayIST()), -1);
+    f.billMonth.value = lb ? nextMonth(lb) : monthOf(todayIST());
+    f.block.innerHTML = '<option value="">All units</option>' + dues.blocks.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
+  }
+  await renderPiRuns();
+}
+
+async function calcPastInterest(e) {
+  e.preventDefault();
+  const f = e.currentTarget, from = f.from.value, to = f.to.value, billMonth = f.billMonth.value, min = Number(f.min.value) || 0;
+  if (!from || !to || !billMonth) return setMsg(f, 'Choose the months.');
+  if (to < from) return setMsg(f, '“Up to” is before “from”.');
+  if (billMonth <= to) return setMsg(f, 'Add it to the bills of a month after the last month counted.');
+  if (!interestPeriodsOf(billing).length) return setMsg(f, 'Set the penal interest rate periods in Settings first.');
+  setMsg(f, '');
+  await busy($('button[type=submit]', f), async () => {
+    try {
+      $('#pi-progress').textContent = 'Reading the ledgers…';
+      if (!auditCache.length) auditCache = await loadAuditYears(fb).catch(() => []);
+      const scope = units.filter((u) => u.active !== false && (!f.block.value || u.block === f.block.value));
+      const old = from < '2018-04' ? await allOldReceipts() : {};
+      const pre = from < '2018-04' ? Object.fromEntries(scope.map((u) => [u.id, preLedger(u.id, auditCache, old[u.id] || [])])) : {};
+      const [{ ledgers }, billSnap, adjSnap] = await Promise.all([
+        loadMergedLedgers(fb, scope, pre),
+        fb.F.getDocs(fb.F.collection(fb.db, 'bills')),
+        fb.F.getDocs(fb.F.collection(fb.db, 'billAdjustments'))
+      ]);
+      // Interest each bill already charged (by bill id), and months already covered by an earlier calculation.
+      const billInterest = {}, billedMonths = {};
+      billSnap.docs.forEach((d) => {
+        const b = d.data(), i = (b.lines || []).filter((l) => l.code === 'interest').reduce((t, l) => t + (Number(l.amount) || 0), 0);
+        billInterest[d.id] = i;
+        if (i > 0) (billedMonths[b.unitId] ??= new Set()).add(b.month);
+      });
+      const covered = {};
+      adjSnap.docs.forEach((d) => {
+        const a = d.data();
+        if (a.status === 'cancelled') return;
+        for (const m of a.months || []) (covered[a.unitId] ??= new Set()).add(m.month);
+      });
+      const rows = [], periods = interestPeriodsOf(billing);
+      for (const u of scope) {
+        const entries = (ledgers[u.id] || []).map((x) => ({ date: x.date, debit: x.debit, credit: x.credit, interest: x.kind === 'bill' && x.ref ? billInterest[x.ref] || 0 : 0 }));
+        const skip = new Set([...(billedMonths[u.id] || []), ...(covered[u.id] || [])]);
+        const r = pastInterest(entries, billing, { fromMonth: from, toMonth: to, skip });
+        if (r.total >= Math.max(min, 1)) rows.push({ u, ...r, high: Math.max(...r.months.map((x) => x.base)) });
+      }
+      rows.sort((a, b) => b.total - a.total);
+      const rates = [...new Set(periods.map((p) => p.rate))].filter((x) => x > 0).sort((a, b) => b - a);
+      piResult = { from, to, billMonth, rows, rates, periods, skippedCovered: Object.keys(covered).length };
+      $('#pi-progress').textContent = '';
+      renderPi();
+    } catch (err) { $('#pi-progress').textContent = ''; setMsg(f, esc(errorText(err))); }
+  });
+}
+
+function piDetail(r, runNo = '') {
+  const parts = piResult.periods.filter((p) => r.byRate[p.rate]).map((p) => `₹${fmt(r.byRate[p.rate])} at ${p.rate}% p.a.${p.to ? ` up to ${dd(p.to)}` : ` from ${dd(p.from)}`}`);
+  return `Interest on arrears ${monthLabel(piResult.from)} to ${monthLabel(piResult.to)}${runNo ? ` (${runNo})` : ''}: ${parts.join(', ')}`;
+}
+
+function renderPi() {
+  const { rows, rates } = piResult;
+  const total = rows.reduce((t, r) => t + r.total, 0);
+  $('#pi-result').hidden = false;
+  $('#pi-h1').textContent = rates[0] != null ? `At ${rates[0]}% (₹)` : '';
+  $('#pi-h2').textContent = rates[1] != null ? `At ${rates[1]}% (₹)` : '';
+  $('#pi-cards').innerHTML = `<div><dt>Units with interest</dt><dd>${rows.length}</dd></div>
+    ${rates.map((r) => `<div><dt>At ${r}% p.a.</dt><dd>₹ ${fmt(rows.reduce((t, x) => t + (x.byRate[r] || 0), 0))}</dd></div>`).join('')}
+    <div><dt>Total interest</dt><dd>₹ ${fmt(total)}</dd></div>`;
+  $('#pi-rows').innerHTML = rows.map((r, i) => `<tr><td>${esc(r.u.unit)}</td><td>${esc(r.u.name || '')}</td><td class="num">${r.months.length}</td><td class="num">${fmt(r.high)}</td>
+      <td class="num">${rates[0] != null ? fmt(r.byRate[rates[0]] || 0) : ''}</td><td class="num">${rates[1] != null ? fmt(r.byRate[rates[1]] || 0) : ''}</td><td class="num"><strong>${fmt(r.total)}</strong></td>
+      <td><button class="btn btn-small" type="button" data-pi-months="${i}" aria-expanded="false">Months</button></td></tr>`).join('')
+    || '<tr><td colspan="8" class="empty">No unit had overdue dues in these months (or the interest is below the minimum).</td></tr>';
+  $('#pi-add').hidden = !rows.length;
+  $('#pi-add').textContent = `Add ₹ ${fmt(total)} to the ${monthLabel(piResult.billMonth)} bills`;
+}
+
+function piCsv(months) {
+  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const { rows, rates } = piResult;
+  const lines = months
+    ? [['Unit', 'Name', 'Month', 'Arrears at start of month (₹)', 'Rate', 'Interest (₹)'], ...rows.flatMap((r) => r.months.map((m) => [r.u.unit, r.u.name || '', monthLabel(m.month), m.base, m.text, m.amount.toFixed(2)]))]
+    : [['Unit', 'Name', 'Months', 'Highest arrears (₹)', ...rates.map((x) => `At ${x}% (₹)`), 'Interest (₹)'], ...rows.map((r) => [r.u.unit, r.u.name || '', r.months.length, r.high, ...rates.map((x) => r.byRate[x] || 0), r.total])];
+  return '\ufeff' + [`Interest on arrears ${monthLabel(piResult.from)} to ${monthLabel(piResult.to)}; rates: ${piResult.periods.map((p) => `${p.rate}% from ${dd(p.from)}${p.to ? ` to ${dd(p.to)}` : ''}`).join(', ')}`, '', ...lines.map((l) => (Array.isArray(l) ? l.map(q).join(',') : l))].join('\r\n');
+}
+
+async function addPastInterest(btn) {
+  const { rows, from, to, billMonth } = piResult;
+  if (billMonth <= (lastBilled() || '')) return alert(`Bills for ${monthLabel(billMonth)} are already made. Choose a later month.`);
+  const total = rows.reduce((t, r) => t + r.total, 0);
+  if (!confirm(`Add ₹ ${fmt(total)} interest on arrears to ${rows.length} units’ bills for ${monthLabel(billMonth)}?\n\nIt is charged when that month’s bills are made, and can be cancelled until then. Members see the calculation for their unit.`)) return;
+  const { F, db } = fb;
+  await busy(btn, async () => {
+    try {
+      const fy = fyOfMonth(billMonth), runRef = F.doc(F.collection(db, 'interestRuns'));
+      const no = await F.runTransaction(db, async (tx) => {
+        const cRef = F.doc(db, 'counters', `interest-${fy}`), c = await tx.get(cRef);
+        const n = c.exists() ? Number(c.data().next) || 1 : 1;
+        tx.set(cRef, { next: n + 1 });
+        return `INT/${fy}/${String(n).padStart(3, '0')}`;
+      });
+      const batch = F.writeBatch(db);
+      batch.set(runRef, { no, fromMonth: from, toMonth: to, billMonth, periods: piResult.periods, units: rows.length, total, status: 'pending',
+        createdAt: F.serverTimestamp(), createdBy: uid, createdByName: me?.name || '' });
+      for (const r of rows) {
+        batch.set(F.doc(F.collection(db, 'billAdjustments')), {
+          runId: runRef.id, runNo: no, unitId: r.u.id, unit: r.u.unit, month: billMonth, code: 'interest', amount: r.total, detail: piDetail(r, no),
+          byRate: Object.fromEntries(Object.entries(r.byRate).map(([k, v]) => [String(k), v])), months: r.months, fromMonth: from, toMonth: to,
+          status: 'pending', createdAt: F.serverTimestamp(), createdBy: uid
+        });
+      }
+      await batch.commit();
+      // A copy of the calculation in the Society's Drive, next to the reference documents.
+      const copy = btoa(unescape(encodeURIComponent(`${no}\r\n${piCsv(true)}`)));
+      loadDriveCfg(fb).then(() => driveReady() && driveCall(fb, 'upload', { kind: 'reference', topic: 'Interest on arrears',
+        name: `${no.replace(/\//g, '-')} interest on arrears ${from} to ${to} (bills of ${billMonth}).csv`, mimeType: 'text/csv', data: copy }))
+        .catch((err) => console.warn('interest copy', err));
+      const m = $('#pi-runs-msg'); m.className = 'form-msg ok';
+      m.textContent = `${no}: ₹ ${fmt(total)} for ${rows.length} units will be charged on the ${monthLabel(billMonth)} bills.`;
+      $('#pi-result').hidden = true; piResult = null;
+      await renderPiRuns();
+    } catch (err) { alert(errorText(err)); }
+  });
+}
+
+async function renderPiRuns() {
+  const { F, db } = fb;
+  const [runs, adj] = await Promise.all([F.getDocs(F.collection(db, 'interestRuns')).catch(() => ({ docs: [] })), F.getDocs(F.collection(db, 'billAdjustments')).catch(() => ({ docs: [] }))]);
+  const byRun = {};
+  adj.docs.forEach((d) => { const a = d.data(); (byRun[a.runId] ??= { pending: 0, billed: 0, cancelled: 0 })[a.status] = ((byRun[a.runId] ??= { pending: 0, billed: 0, cancelled: 0 })[a.status] || 0) + 1; });
+  const list = runs.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.no).localeCompare(String(a.no)));
+  $('#pi-runs').innerHTML = list.map((r) => {
+    const c = byRun[r.id] || {};
+    const st = r.status === 'cancelled' ? 'Cancelled' : c.billed && !c.pending ? 'Billed' : c.billed ? `Billed ${c.billed}, waiting ${c.pending}` : `Waiting for the ${monthLabel(r.billMonth)} bills`;
+    return `<tr><td>${esc(r.no)}</td><td>${monthLabel(r.fromMonth)} to ${monthLabel(r.toMonth)}</td><td>${monthLabel(r.billMonth)}</td><td class="num">${r.units}</td><td class="num">${fmt(r.total)}</td>
+      <td>${esc(st)}</td><td>${r.status !== 'cancelled' && c.pending ? `<button class="btn btn-small" type="button" data-pi-cancel="${esc(r.id)}">Cancel what isn’t billed</button>` : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">None yet.</td></tr>';
+}
+
+async function cancelPiRun(id, btn) {
+  if (!confirm('Cancel this calculation for the units whose bills haven’t been made yet?')) return;
+  const { F, db } = fb;
+  await busy(btn, async () => {
+    try {
+      const snap = await F.getDocs(F.query(F.collection(db, 'billAdjustments'), F.where('runId', '==', id)));
+      const batch = F.writeBatch(db);
+      let n = 0, billed = 0;
+      snap.docs.forEach((d) => { if (d.data().status === 'pending') { batch.update(d.ref, { status: 'cancelled', cancelledAt: F.serverTimestamp(), cancelledBy: uid }); n++; } else if (d.data().status === 'billed') billed++; });
+      if (!billed) batch.update(F.doc(db, 'interestRuns', id), { status: 'cancelled', cancelledAt: F.serverTimestamp(), cancelledBy: uid });
+      await batch.commit();
+      const m = $('#pi-runs-msg'); m.className = 'form-msg ok'; m.textContent = `${n} unit${n === 1 ? '' : 's'} cancelled.${billed ? ` ${billed} already billed stay as billed.` : ''}`;
+      await renderPiRuns();
+    } catch (err) { alert(errorText(err)); }
+  });
+}
+
+function wirePastInterest() {
+  $('#pi-form').addEventListener('submit', (e) => calcPastInterest(e));
+  $('#pi-add').addEventListener('click', (e) => addPastInterest(e.currentTarget));
+  $('#pi-csv').addEventListener('click', () => saveBlob(new Blob([piCsv(false)], { type: 'text/csv' }), `Interest on arrears ${piResult.from} to ${piResult.to}.csv`));
+  $('#pi-csv-months').addEventListener('click', () => saveBlob(new Blob([piCsv(true)], { type: 'text/csv' }), `Interest on arrears ${piResult.from} to ${piResult.to} by month.csv`));
+  $('#pi-runs').addEventListener('click', (e) => { const b = e.target.closest('[data-pi-cancel]'); if (b) cancelPiRun(b.dataset.piCancel, b); });
+  $('#pi-rows').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pi-months]');
+    if (!b) return;
+    const tr = b.closest('tr'), open = tr.nextElementSibling?.classList.contains('pi-months');
+    if (open) { tr.nextElementSibling.remove(); b.setAttribute('aria-expanded', 'false'); return; }
+    const r = piResult.rows[Number(b.dataset.piMonths)];
+    tr.insertAdjacentHTML('afterend', `<tr class="pi-months"><td colspan="8"><table><thead><tr><th>Month</th><th class="num">Arrears at start (₹)</th><th>Rate</th><th class="num">Interest (₹)</th></tr></thead><tbody>
+      ${r.months.map((m) => `<tr><td>${monthLabel(m.month)}</td><td class="num">${fmt(m.base)}</td><td>${esc(m.text)}</td><td class="num">${m.amount.toFixed(2)}</td></tr>`).join('')}</tbody></table></td></tr>`);
+    b.setAttribute('aria-expanded', 'true');
+  });
 }
 
 async function listBills(month) {
@@ -1309,6 +1507,72 @@ async function loadWebsite() {
   cf.hours.value = site.contact?.hours || '';
 }
 
+/* Penal interest rate periods (3.15) */
+let ipDraft = [];
+function readIp() {
+  return $$('#ip-rows tr[data-i]').map((tr) => ({ from: $('[data-f=from]', tr).value, rate: Number($('[data-f=rate]', tr).value), ref: $('[data-f=ref]', tr).value.trim() }));
+}
+function renderIp() {
+  $('#ip-rows').innerHTML = ipDraft.map((p, i) => `<tr data-i="${i}">
+    <td><input type="date" data-f="from" value="${esc(p.from || '')}" aria-label="Rate period ${i + 1} starts"></td>
+    <td><input type="number" data-f="rate" min="0" max="21" step="0.5" value="${esc(p.rate ?? '')}" aria-label="Rate period ${i + 1}, % per year"></td>
+    <td><input type="text" data-f="ref" maxlength="200" value="${esc(p.ref || '')}" aria-label="Rate period ${i + 1} reference"></td>
+    <td><button class="btn btn-small" type="button" data-ip-del="${i}">Remove</button></td></tr>`).join('')
+    || '<tr><td colspan="4" class="empty">No penal interest is charged.</td></tr>';
+  const list = interestPeriodsOf({ interestPeriods: ipDraft.filter((p) => p.from) });
+  const problems = checkInterestPeriods(ipDraft.filter((p) => p.from));
+  $('#ip-summary').innerHTML = list.length ? `${list.map((p) => `<strong>${p.rate}%</strong> from ${dd(p.from)}${p.to ? ` to ${dd(p.to)}` : ' onwards'}`).join('; ')}.${problems.length ? ` <span class="cr-overdue">${esc(problems.join(' '))}</span>` : ''}` : '';
+}
+function renderInterestRefs() {
+  const refs = site.interestRefs || [];
+  $('#ir-list').innerHTML = refs.map((r, i) => `<li><span>📎 ${esc(r.title || r.name)}</span>
+      <button class="btn-link" type="button" data-ir-open="${i}">Open</button> <button class="btn-link" type="button" data-ir-del="${i}">Remove from the website</button></li>`).join('')
+    || '<li class="muted">None yet.</li>';
+}
+function wireInterestPeriods() {
+  $('#ir-upload').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    const file = $('#ir-file').files[0], title = $('#ir-title').value.trim(), msg = $('#ir-msg');
+    if (!file || !title) { msg.textContent = 'Choose the file and write its title.'; return; }
+    if (!/^image\/|^application\/pdf$/.test(file.type)) { msg.textContent = 'Only PDF files and photos.'; return; }
+    try {
+      await loadDriveCfg(fb);
+      if (!driveReady()) { msg.textContent = 'Connect the Society’s Google Drive first (Expenses → Set-up).'; return; }
+      msg.textContent = 'Uploading…';
+      const f = await prepareFile(file);
+      const r = await driveCall(fb, 'upload', { kind: 'reference', topic: 'Interest on arrears', name: `${title.replace(/[\\/:*?"<>|#%]+/g, ' ').slice(0, 100)}.${(f.name.match(/\.(\w+)$/)?.[1] || 'pdf').toLowerCase()}`,
+        mimeType: f.type, data: await toBase64(f), note: title });
+      const refs = [...(site.interestRefs || []), { id: r.file.id, name: r.file.name, mime: r.file.mime, title, addedOn: todayIST() }];
+      await saveSite({ interestRefs: refs });
+      site.interestRefs = refs;
+      $('#ir-file').value = ''; $('#ir-title').value = '';
+      msg.textContent = 'Uploaded. Members now see it beside the interest explanation.';
+      renderInterestRefs();
+    } catch (err) { msg.textContent = errorText(err); }
+  }));
+  $('#ir-list').addEventListener('click', async (e) => {
+    const o = e.target.closest('[data-ir-open]'), d = e.target.closest('[data-ir-del]'), refs = site.interestRefs || [];
+    if (o) {
+      const r = refs[Number(o.dataset.irOpen)];
+      try { const url = await driveFileUrl(fb, { referenceId: r.id, fileId: r.id }); await saveBlob(await (await fetch(url)).blob(), r.name); } catch (err) { alert(errorText(err)); }
+    }
+    if (d && confirm('Stop showing this document to members? The file stays in the Drive.')) {
+      const next = refs.filter((_, i) => i !== Number(d.dataset.irDel));
+      await saveSite({ interestRefs: next }); site.interestRefs = next; renderInterestRefs();
+    }
+  });
+  $('#ip-add').addEventListener('click', () => { ipDraft = readIp(); ipDraft.push({ from: '', rate: '', ref: '' }); renderIp(); });
+  $('#ip-suggest').addEventListener('click', () => {
+    ipDraft = readIp();
+    const first = ipDraft.find((p) => Number(p.rate) === 21)?.from || '';
+    ipDraft = [{ from: first, rate: 21, ref: 'Annual General Body resolution dated __ (21% simple p.a. on defaulted dues)' },
+      { from: '2026-07-01', rate: 12, ref: 'MCS (Amendment) Rules, 2026, Rule 106C-12(4)-6 (notified 18/07/2026): maximum 12% simple p.a.; General Body resolution dated __' }];
+    renderIp();
+    $('#ip-rows [data-f=from]')?.focus();
+  });
+  $('#ip-rows').addEventListener('click', (e) => { const b = e.target.closest('[data-ip-del]'); if (b) { ipDraft = readIp(); ipDraft.splice(Number(b.dataset.ipDel), 1); renderIp(); } });
+  $('#ip-rows').addEventListener('change', () => { ipDraft = readIp(); renderIp(); });
+}
+
 /* Committee list (3.14): add, remove and reorder people; the unit is shown after the name on the website. */
 let committeeDraft = [];
 function readCommitteeRows() {
@@ -1332,6 +1596,7 @@ function renderCommitteeRows() {
 }
 
 function wireWebsite() {
+  wireInterestPeriods();
   $('#committee-add').addEventListener('click', () => {
     committeeDraft = readCommitteeRows();
     committeeDraft.push({ role: 'Member', name: '', unit: '', phone: '' });
@@ -1502,7 +1767,10 @@ async function loadSettings() {
   bf.sinkingPct.value = billing.sinkingPct ?? 0.25;
   bf.repairsPct.value = billing.repairsPct ?? 0.75;
   bf.nonOccupancyPct.value = billing.nonOccupancyPct ?? 10;
-  bf.interestRatePA.value = billing.interestRatePA ?? 0;
+  ipDraft = (billing.interestPeriods || []).map((p) => ({ ...p }));
+  if (!ipDraft.length && Number(billing.interestRatePA) > 0) ipDraft = [{ from: '2000-01-01', rate: Number(billing.interestRatePA), ref: 'General Body resolution' }];
+  renderIp();
+  renderInterestRefs();
   bf.dueDays.value = billing.dueDays ?? 15;
   bf.chargesBasis.value = site.chargesBasis ?? DEFAULT_SITE.chargesBasis;
   $('#society-fields').innerHTML = SOCIETY_FIELDS.map(([k, label]) => {
@@ -1702,18 +1970,22 @@ function wireSettings() {
     const fd = new FormData(bf);
     readCategories(fd);
     const num = (k, d) => (fd.get(k) === '' ? d : Number(fd.get(k)));
-    const interestRatePA = num('interestRatePA', 0);
-    if (interestRatePA > MAX_INTEREST_PA) return setMsg(bf, `Penal interest can’t be more than ${MAX_INTEREST_PA}% simple per year.`);
+    ipDraft = readIp();
+    if (ipDraft.some((p) => !p.from || !(p.rate >= 0))) return setMsg(bf, 'Each rate period needs a start date and a rate (0 for no interest).');
+    const ipProblems = checkInterestPeriods(ipDraft);
+    if (ipProblems.length) return setMsg(bf, esc(ipProblems.join(' ')));
+    const interestPeriods = ipDraft.sort((a, b) => a.from.localeCompare(b.from));
+    const interestRatePA = monthInterestRate({ interestPeriods }, monthOf(todayIST())).rate; // today's rate, printed on bills
     if (num('nonOccupancyPct', 10) > 10) return setMsg(bf, 'Non-occupancy charges can’t be more than 10% of service charges.');
     const patch = {
-      categories: draftCats, interestRatePA, dueDays: round(num('dueDays', 15)) || 15,
+      categories: draftCats, interestRatePA, interestPeriods, dueDays: round(num('dueDays', 15)) || 15,
       liftBilling: fd.get('liftBilling'), liftBillMonth: Number(fd.get('liftBillMonth')),
       sinkingPct: num('sinkingPct', 0.25), repairsPct: num('repairsPct', 0.75), nonOccupancyPct: num('nonOccupancyPct', 10)
     };
     await busy($('button[type=submit]', bf), async () => {
       try {
         await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'billing'), patch, { merge: true });
-        await saveSite({ interestRatePA, chargesBasis: String(fd.get('chargesBasis')).trim() }); // printed on bills for members too
+        await saveSite({ interestRatePA, interestPeriods: interestPeriodsOf({ interestPeriods }), chargesBasis: String(fd.get('chargesBasis')).trim() }); // printed on bills and shown to members
         billing = await loadBilling(fb);
         renderCategories();
         setMsg(bf, 'Saved. New bills use these charges.', true);
