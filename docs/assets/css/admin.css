@@ -259,3 +259,9 @@ table.pr-table td:last-child .btn { white-space: nowrap; }
 .exd-sheet ul { list-style: none; padding: 0; margin: 0 0 .6rem; display: grid; gap: .3rem; font-size: .92rem; }
 .exd-sheet li.current { font-weight: 600; }
 .exd-lift { border: 1px dashed var(--stamp); border-radius: var(--radius); padding: .5rem .8rem .8rem; margin: 1rem 0; }
+/* 3.11: duplicate receipts in the unit file */
+.dup-table td:first-child, .dup-table th:first-child { width: 2.2rem; text-align: center; }
+.dup-table input[type="checkbox"] { width: 1.15rem; height: 1.15rem; }
+.dup-table tr.picked td { background: var(--stamp-soft); }
+.dup-form { margin-top: 1rem; max-width: 760px; }
+.dup-form .form-actions { align-items: center; gap: 1rem; }

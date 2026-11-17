@@ -234,6 +234,18 @@ service cloud.firestore {
       allow delete: if false;             // receipts are never deleted
     }
 
+    // Duplicate receipts issued from the unit file (3.11): a permanent record of every copy printed.
+    match /receiptCopies/{id} {
+      allow read: if perm('view') || approvedFor(resource.data.unitId);
+      allow create: if perm('recordPayments')
+        && request.resource.data.issuedBy == request.auth.uid
+        && request.resource.data.unitId is string
+        && request.resource.data.receipts is list
+        && request.resource.data.receipts.size() > 0 && request.resource.data.receipts.size() <= 60
+        && request.resource.data.reason is string && request.resource.data.reason.size() > 0;
+      allow update, delete: if false;
+    }
+
     match /counters/{docId} {
       allow read, write: if perm('recordPayments')
         || (docId.matches('expenses-.*') && perm('approveExpenses'))

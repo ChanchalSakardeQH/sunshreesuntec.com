@@ -6,6 +6,27 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.11.0] – 2026-11-17 – Duplicate receipts for any past payment; receipts worded for any purpose
+
+### Changed
+- **Receipt wording:** *towards maintenance charges against Bill No. …* is now *on the Shop / Flat / Office Unit’s account*, because members also pay for conveyance deed, AMC and other charges. The bill number, when there is one, moves to the details box as **Bill No.**; the purpose stays in **Note**. Applies to every receipt, old and new.
+
+### Added
+- **Duplicate receipts** (Unit file → *Duplicate receipts*), for when a member asks for a copy:
+  - lists every payment recorded for the unit: receipts from these accounts, receipt vouchers in the Society’s Tally books (2018–2026) and the past committee’s receipts (2011–2016; cancelled and duplicate lines left out), filtered by financial year and by where they are recorded;
+  - tick the payments, check the name and choose the reason (member’s request, original lost, for a bank or loan, for sale or transfer, for the member’s records, other) and press **Print duplicate receipts**;
+  - each copy is headed **DUPLICATE RECEIPT** and keeps the original date, number and amount; Tally copies show the Tally balance before and after; copies from the past committee show what the payment was towards and no balance; below each copy: date issued, by whom, the reason and a reference **DUP/2026-27/0001**;
+  - every issue is kept permanently under *Duplicates issued for this unit* and can be opened and printed again; it cannot be changed or deleted.
+- Who: committee members and staff with the *record payments* permission (Accountant by default); others with access to the unit file see the list but not the print form.
+
+### Security rules
+- New `receiptCopies`: created by those who record payments (with their own user id, a reason and 1–60 receipts); read by the accounts team and the unit’s approved member; never changed or deleted. Counter `duplicates-<year>`.
+
+### Tested
+- 18 checks: every payment listed from all three sources with the cancelled old receipt left out; filters; select all with count and total; the DUP number and its record (who, when, why, each receipt); four copies oldest first, each a DUPLICATE RECEIPT; the old receipt with what it was towards and no balance; the Tally copy with voucher No. and Tally balances; the website copy with its bill and note; the note under each copy; the new wording everywhere; the issued list; a normal receipt with the new wording and its Bill No.; staff without the payments permission see no print form. Earlier suites (3.4–3.10) pass: 175 checks in all.
+
+---
+
 ## [3.10.1] – 2026-11-17 – Disclaimer on receipts
 
 ### Added

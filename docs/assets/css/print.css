@@ -56,6 +56,7 @@ table.parts { width: 100%; border-collapse: collapse; }
 .sign .line { border-top: 1px solid var(--line); padding-top: 1mm; margin-top: 9mm; }
 .digital { text-align: center; font-size: 10.5px; color: var(--muted); margin: 2mm 0 0; }
 .disclaimer { text-align: center; font-size: 10.5px; color: var(--muted); margin: 1mm auto 0; max-width: 170mm; line-height: 1.4; }
+.dup-note { text-align: center; font-size: 11.5px; margin: 2mm auto 0; max-width: 175mm; color: var(--ink, #222); }
 .flag { color: #8A5A00; font-size: 11px; font-weight: 700; }
 
 /* Receipt */

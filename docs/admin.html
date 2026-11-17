@@ -356,6 +356,7 @@
         <button type="button" data-pane="tenants" aria-pressed="false">Tenants and rental history</button>
         <button type="button" data-pane="comms" aria-pressed="false">Communication</button>
         <button type="button" data-pane="oldrcpt" aria-pressed="false">Old receipts 2011–2016</button>
+        <button type="button" data-pane="dup" aria-pressed="false">Duplicate receipts</button>
       </div>
 
       <div class="uf-pane" data-pane="account">
@@ -414,6 +415,35 @@
         <div class="table-scroll"><table class="pr-table"><thead><tr><th>Date</th><th>Receipt</th><th>For</th><th>Mode / remark</th><th class="num">Amount (₹)</th><th>Status</th><th></th></tr></thead><tbody id="pr-rows"></tbody></table></div>
         <div id="pr-years"></div>
         <details class="glossary mt-sm"><summary>Change log for this unit’s old receipts</summary><div id="pr-log"></div></details>
+      </div>
+
+      <div class="uf-pane" data-pane="dup" hidden>
+        <h2>Duplicate receipts</h2>
+        <p class="muted">When a member asks for a copy of an earlier receipt, tick the payments here and print them. Every payment recorded for this unit is listed: receipts from these accounts, receipts in the Society’s Tally books (2018–2026) and the past committee’s receipts (2011–2016). Each copy is headed <strong>DUPLICATE RECEIPT</strong>, keeps the original date and number, and is recorded below with who issued it and why.</p>
+        <div class="grid-tools">
+          <label class="inline-label">Financial year<select id="dup-fy"><option value="">All years</option></select></label>
+          <label class="inline-label">Recorded in<select id="dup-src">
+            <option value="">Everywhere</option><option value="web">These accounts</option><option value="tally">Tally (2018–2026)</option><option value="old">Past committee (2011–2016)</option>
+          </select></label>
+        </div>
+        <div class="table-scroll"><table class="dup-table"><thead><tr>
+          <th><input type="checkbox" id="dup-all" aria-label="Select all payments shown"></th><th>Date</th><th>Receipt no.</th><th>Recorded in</th><th>Paid by</th><th>Towards</th><th class="num">Amount (₹)</th>
+        </tr></thead><tbody id="dup-rows"></tbody></table></div>
+        <form id="dup-form" class="form dup-form" novalidate data-perm="recordPayments">
+          <div class="form-row">
+            <label>Name on the receipts<input type="text" name="name" id="dup-name" autocomplete="off" aria-describedby="dup-name-hint"></label>
+            <label>Reason<select name="reason">
+              <option>Requested by the member</option><option>Original receipt lost</option><option>For a bank or loan</option>
+              <option>For sale or transfer of the unit</option><option>For the member’s records</option><option value="other">Other (write below)</option>
+            </select></label>
+          </div>
+          <p class="muted small-note" id="dup-name-hint">Used for receipts from Tally and the past committee. Receipts from these accounts keep the name printed on the original. Change it if an earlier owner made the payment.</p>
+          <label>Details (optional)<input type="text" name="details" maxlength="160" placeholder="e.g. Letter dated 15/11/2026 from the member"></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit" id="dup-print" disabled>Print duplicate receipts</button><span class="muted" id="dup-count">Nothing selected</span></div>
+        </form>
+        <h3 class="mt-sm">Duplicates issued for this unit</h3>
+        <div class="table-scroll"><table><thead><tr><th>Reference</th><th>Issued on</th><th>By</th><th>Receipts</th><th>Reason</th><th></th></tr></thead><tbody id="dup-log"></tbody></table></div>
       </div>
 
       <dialog id="pr-dialog">
@@ -999,7 +1029,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.10.1</p>
+    <p class="muted mt" id="version-note">Software version 3.11.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

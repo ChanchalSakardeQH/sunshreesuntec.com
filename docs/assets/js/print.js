@@ -37,6 +37,15 @@ async function main() {
     const share = $('#tb-share');
     share.href = `https://wa.me/?text=${encodeURIComponent(text)}`;
     share.hidden = false;
+  } else if (params.get('copies')) {
+    // Duplicate receipts issued from the unit file (receiptCopies/<id>), one per page.
+    const s = await F.getDoc(F.doc(db, 'receiptCopies', params.get('copies')));
+    if (!s.exists()) throw new Error('These duplicate receipts were not found.');
+    const c = s.data();
+    const dup = { issuedOn: c.issuedOn, issuedBy: c.issuedByName || '', reason: c.reason || '', ref: c.ref || params.get('copies') };
+    html = (c.receipts || []).map((r) => receiptHTML({ ...r, unit: c.unit }, site, { ...dup, recordedIn: r.recordedIn || '' })).join('');
+    title = `${c.receipts.length} duplicate receipt${c.receipts.length > 1 ? 's' : ''}, ${c.unit}`;
+    document.title = `Duplicate receipts – ${c.unit}`;
   } else if (params.get('bill')) {
     const s = await F.getDoc(F.doc(db, 'bills', params.get('bill')));
     if (!s.exists()) throw new Error('Bill not found.');
@@ -167,13 +176,15 @@ function billHTML(b, site) {
   </section>`;
 }
 
-function receiptHTML(r, site) {
+/* r: a payment. dup (optional): { issuedOn, issuedBy, reason, recordedIn } for a duplicate copy. */
+function receiptHTML(r, site, dup = null) {
   const cancelled = r.status === 'cancelled';
   const chequeNote = /cheque|draft/i.test(r.mode) ? ' (subject to realisation)' : '';
   const after = r.balanceAfter;
-  return `<section class="sheet receipt"><div class="form">
+  const hasBal = typeof r.balanceBefore === 'number' && typeof r.balanceAfter === 'number';
+  return `<section class="sheet receipt${dup ? ' duplicate' : ''}"><div class="form">
     ${head(site)}
-    <div class="title">RECEIPT${cancelled ? '<span class="cancelled">CANCELLED</span>' : ''}</div>
+    <div class="title">${dup ? 'DUPLICATE RECEIPT' : 'RECEIPT'}${cancelled ? '<span class="cancelled">CANCELLED</span>' : ''}</div>
     <div class="meta">
       <div><p><b>Receipt No.:</b><span class="blank fill">${esc(r.receiptNo)}</span></p></div>
       <div class="right"><p><b>Date :</b><span class="blank fill">${ddmmyyyy(r.date)}</span></p></div>
@@ -183,14 +194,17 @@ function receiptHTML(r, site) {
       Flat / Shop / Unit No. <span class="blank fill">${esc(r.unit)}</span>,
       the sum of <span class="blank fill">${amountInWords(r.amount)}</span>
       by <span class="blank fill">${esc(r.mode)}${r.reference ? (/cheque|draft/i.test(r.mode) ? ' No. ' : ' Ref. ') + esc(r.reference) : ''}</span>${r.bank ? `, ${esc(r.bank)}` : ''}${chequeNote}
-      towards maintenance charges${r.billNo ? ` against Bill No. <span class="blank fill">${esc(r.billNo)}</span>` : ''}.
+      on the Shop / Flat / Office Unit’s account.
     </div>
     <div class="r-grid">
       <div class="r-details"><dl>
-        <dt>Balance before</dt><dd>₹ ${money(r.balanceBefore)}</dd>
+        ${hasBal ? `<dt>Balance before</dt><dd>₹ ${money(r.balanceBefore)}</dd>` : ''}
         <dt>Amount received</dt><dd>₹ ${money(r.amount)}</dd>
-        <dt>Balance after</dt><dd>₹ ${after < 0 ? money(after) + ' (advance)' : money(after)}</dd>
+        ${hasBal ? `<dt>Balance after</dt><dd>₹ ${after < 0 ? money(after) + ' (advance)' : money(after)}</dd>` : ''}
+        ${r.billNo ? `<dt>Bill No.</dt><dd>${esc(r.billNo)}</dd>` : ''}
+        ${r.towards ? `<dt>Towards</dt><dd>${esc(r.towards)}</dd>` : ''}
         ${r.note ? `<dt>Note</dt><dd>${esc(r.note)}</dd>` : ''}
+        ${dup ? `<dt>Recorded in</dt><dd>${esc(dup.recordedIn)}</dd>` : ''}
         ${cancelled ? `<dt>Cancelled</dt><dd>${esc(r.cancelReason || 'Yes')}</dd>` : ''}
       </dl></div>
       <div class="r-amount"><span>Amount</span><span class="big">₹ ${money(r.amount)}</span></div>
@@ -200,6 +214,7 @@ function receiptHTML(r, site) {
       ${signBlock(site)}
     </div>
   </div>
+  ${dup ? `<p class="dup-note"><strong>Duplicate copy</strong> of the receipt dated ${ddmmyyyy(r.date)}, issued on ${ddmmyyyy(dup.issuedOn)}${dup.issuedBy ? ` by ${esc(dup.issuedBy)}` : ''}${dup.reason ? ` (${esc(dup.reason)})` : ''}. Reference ${esc(dup.ref)}.</p>` : ''}
   <p class="digital">This is a computer-generated receipt from sunshreesuntec.com and is valid without a signature.</p>
   <p class="disclaimer"><strong>Disclaimer:</strong> Digitally generated receipts are for members’ tracking. Members can obtain a physical copy from the Sunshree Suntec Society’s Accountant. The amount shown is subject to clearance in the Sunshree Suntec Society’s bank account.</p>
   </section>`;

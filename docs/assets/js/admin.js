@@ -2124,6 +2124,8 @@ async function loadUnitFile() {
   $('#uf-bills').innerHTML = billSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.month.localeCompare(a.month))
     .map((b) => `<tr><td>${esc(b.billNo)}</td><td>${monthLabel(b.month)}</td><td class="num">${amt(b.total)}</td><td><a href="print.html?bill=${encodeURIComponent(b.id)}" target="_blank" rel="noopener">View</a></td></tr>`).join('')
     || '<tr><td colspan="4" class="empty">No bills.</td></tr>';
+  dupPays = paySnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  initDupPane(u).catch((err) => console.warn('duplicate receipts', err));
   $('#uf-receipts').innerHTML = paySnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.date.localeCompare(a.date))
     .map((p) => `<tr><td>${esc(p.receiptNo)}${p.status === 'cancelled' ? ' <span class="status-pill cancelled">Cancelled</span>' : ''}</td><td>${dd(p.date)}</td><td>${esc(p.mode)}</td><td class="num">${fmt(p.amount)}</td><td><a href="print.html?receipt=${p.id}" target="_blank" rel="noopener">View</a></td></tr>`).join('')
     || '<tr><td colspan="5" class="empty">No receipts.</td></tr>';
@@ -2201,6 +2203,144 @@ async function loadUnitFile() {
   applyAccess();
 }
 
+/* ---------- Duplicate receipts (3.11): copies of any payment recorded for the unit ---------- */
+let dupPays = [], dupRows = [];
+const DUP_SRC = { web: 'These accounts', tally: 'Tally', old: 'Past committee' };
+const r2 = (n) => Math.round(n * 100) / 100;
+/** Name in a Tally ledger title such as "C 202 Mr Om Prakash Singh". */
+const tallyName = (t) => String(t || '').replace(/^\s*(GF|A|B|C|D)\s*-?\s*\d+\s*[AB]?(?![A-Za-z])\s*/i, '').trim();
+
+function buildDupRows() {
+  const rows = [];
+  for (const p of dupPays) {
+    rows.push({ key: `web:${p.id}`, src: 'web', date: p.date, no: p.receiptNo, amount: p.amount, cancelled: p.status === 'cancelled',
+      paidBy: [p.mode, p.reference].filter(Boolean).join(' '), towards: p.note || '', p });
+  }
+  if (ufHistory) {
+    let bal = ufHistory.opening?.amount || 0;
+    (ufHistory.entries || []).forEach((e, i) => {
+      const before = bal;
+      bal = r2(bal + (e.debit || 0) - (e.credit || 0));
+      if (e.vchType === 'Receipt' && e.credit > 0) {
+        rows.push({ key: `tally:${i}`, src: 'tally', date: e.date, no: `Tally ${e.vchNo}`, amount: e.credit, before: r2(before), after: bal,
+          paidBy: /cash/i.test(e.particulars) ? 'Cash' : `Into ${e.particulars}`, towards: '', e });
+      }
+    });
+  }
+  for (const r of ufOld.filter(prCounts)) {
+    rows.push({ key: `old:${r.id}`, src: 'old', date: r.date, no: r.receiptNo, amount: r.amount, paidBy: r.mode || '',
+      towards: [r.head, r.period].filter(Boolean).join(', '), r });
+  }
+  return rows.filter((x) => x.date).sort((a, b) => b.date.localeCompare(a.date) || String(b.no).localeCompare(String(a.no), undefined, { numeric: true }));
+}
+
+async function initDupPane(u) {
+  dupRows = buildDupRows();
+  const fys = [...new Set(dupRows.map((x) => financialYear(x.date)))].sort().reverse();
+  const keep = $('#dup-fy').value;
+  $('#dup-fy').innerHTML = '<option value="">All years</option>' + fys.map((f) => `<option value="${f}">${f}</option>`).join('');
+  $('#dup-fy').value = fys.includes(keep) ? keep : '';
+  $('#dup-name').value = u.name || tallyName(ufHistory?.title) || '';
+  renderDupRows();
+  await loadDupLog();
+}
+
+function renderDupRows() {
+  const fy = $('#dup-fy').value, src = $('#dup-src').value;
+  const shown = dupRows.filter((x) => (!fy || financialYear(x.date) === fy) && (!src || x.src === src));
+  const picked = new Set($$('#dup-rows input:checked').map((c) => c.value));
+  $('#dup-rows').innerHTML = shown.map((x) => `<tr${picked.has(x.key) ? ' class="picked"' : ''}>
+    <td><input type="checkbox" value="${esc(x.key)}"${picked.has(x.key) ? ' checked' : ''} aria-label="Receipt ${esc(x.no)} of ${dd(x.date)}"></td>
+    <td>${dd(x.date)}</td><td>${esc(x.no)}${x.cancelled ? ' <span class="status-pill cancelled">Cancelled</span>' : ''}</td>
+    <td><span class="pill${x.src === 'web' ? '' : ' past'}">${DUP_SRC[x.src]}</span></td>
+    <td>${esc(x.paidBy)}</td><td>${esc(x.towards)}</td><td class="num">${fmt(x.amount)}</td></tr>`).join('')
+    || '<tr><td colspan="7" class="empty">No payments recorded for this unit in this selection.</td></tr>';
+  dupCount();
+}
+
+function dupCount() {
+  const keys = $$('#dup-rows input:checked').map((c) => c.value);
+  const total = dupRows.filter((x) => keys.includes(x.key)).reduce((t, x) => t + x.amount, 0);
+  $('#dup-count').textContent = keys.length ? `${keys.length} receipt${keys.length > 1 ? 's' : ''} selected, ₹ ${fmt(total)}` : 'Nothing selected';
+  $('#dup-print').disabled = !keys.length;
+  $('#dup-print').textContent = keys.length ? `Print ${keys.length} duplicate receipt${keys.length > 1 ? 's' : ''}` : 'Print duplicate receipts';
+  const boxes = $$('#dup-rows input[type=checkbox]');
+  $('#dup-all').checked = boxes.length > 0 && boxes.every((c) => c.checked);
+  $('#dup-all').indeterminate = keys.length > 0 && !$('#dup-all').checked;
+  $$('#dup-rows tr').forEach((tr) => tr.classList.toggle('picked', !!tr.querySelector('input:checked')));
+}
+
+/** What is printed on each copy; stored with the record of the duplicate so it can be opened again later. */
+function dupReceipt(x, name) {
+  if (x.src === 'web') {
+    const p = x.p, out = { recordedIn: `These accounts, receipt ${p.receiptNo}`, receiptNo: p.receiptNo, date: p.date, name: p.name || name, amount: p.amount, mode: p.mode || '' };
+    for (const k of ['reference', 'bank', 'billNo', 'note', 'balanceBefore', 'balanceAfter', 'status']) if (p[k] !== undefined && p[k] !== null && p[k] !== '') out[k] = p[k];
+    out.paymentId = p.id;
+    return out;
+  }
+  if (x.src === 'tally') {
+    return { recordedIn: `The Society’s Tally books, receipt voucher No. ${x.e.vchNo}`, receiptNo: `${x.e.vchNo} (Tally)`, date: x.date, name, amount: x.amount,
+      mode: x.paidBy, balanceBefore: x.before, balanceAfter: x.after };
+  }
+  return { recordedIn: `The past committee’s receipt book, receipt No. ${x.r.receiptNo}`, receiptNo: `${x.r.receiptNo} (old receipt book)`, date: x.date, name,
+    amount: x.amount, mode: x.paidBy, ...(x.towards ? { towards: x.towards } : {}) };
+}
+
+async function issueDuplicates(e) {
+  e.preventDefault();
+  const form = e.currentTarget, fd = new FormData(form);
+  if (!requireOnline(form)) return;
+  const keys = $$('#dup-rows input:checked').map((c) => c.value);
+  const picked = dupRows.filter((x) => keys.includes(x.key)).sort((a, b) => a.date.localeCompare(b.date));
+  const name = String(fd.get('name') || '').trim();
+  const details = String(fd.get('details') || '').trim();
+  const reason = fd.get('reason') === 'other' ? details : [fd.get('reason'), details].filter(Boolean).join(': ');
+  if (!picked.length) return setMsg(form, 'Tick at least one payment.');
+  if (picked.length > 60) return setMsg(form, 'Please print at most 60 receipts at a time.');
+  if (!name && picked.some((x) => x.src !== 'web')) return setMsg(form, 'Write the name to print on the receipts.');
+  if (!reason) return setMsg(form, 'Write the reason in Details.');
+  const u = units.find((x) => x.id === fileUnit);
+  // Open the window now (browsers only allow it straight after a click), then send it to the receipts.
+  const win = inApp ? null : window.open('', '_blank');
+  const btn = $('#dup-print'); btn.setAttribute('aria-busy', 'true'); btn.disabled = true;
+  try {
+    const { F, db, auth } = fb;
+    const fy = financialYear(todayIST());
+    const ref = F.doc(F.collection(db, 'receiptCopies'));
+    const no = await F.runTransaction(db, async (tx) => {
+      const cRef = F.doc(db, 'counters', `duplicates-${fy}`), c = await tx.get(cRef);
+      const n = c.exists() ? Number(c.data().next) || 1 : 1;
+      const refNo = `DUP/${fy}/${String(n).padStart(4, '0')}`;
+      tx.set(cRef, { next: n + 1 });
+      tx.set(ref, {
+        ref: refNo, unitId: fileUnit, unit: u.unit, issuedOn: todayIST(), reason,
+        issuedBy: auth.currentUser.uid, issuedByName: me?.name || auth.currentUser.email || '', createdAt: F.serverTimestamp(),
+        receipts: picked.map((x) => dupReceipt(x, name)), total: r2(picked.reduce((t, x) => t + x.amount, 0))
+      });
+      return refNo;
+    });
+    const url = `print.html?copies=${ref.id}`;
+    if (win) win.location.href = url;
+    setMsg(form, `${esc(no)}: ${picked.length} duplicate receipt${picked.length > 1 ? 's' : ''} ready. <a href="${url}" target="_blank" rel="noopener">Open the duplicate receipts</a>`, true);
+    $$('#dup-rows input:checked').forEach((c) => (c.checked = false));
+    dupCount();
+    await loadDupLog();
+  } catch (err) {
+    if (win) win.close();
+    setMsg(form, errorText(err));
+  } finally { btn.removeAttribute('aria-busy'); dupCount(); }
+}
+
+async function loadDupLog() {
+  const { F, db } = fb;
+  const snap = await F.getDocs(F.query(F.collection(db, 'receiptCopies'), F.where('unitId', '==', fileUnit))).catch(() => ({ docs: [] }));
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  $('#dup-log').innerHTML = list.map((c) => `<tr><td>${esc(c.ref || '')}</td><td>${dd(c.issuedOn)}</td><td>${esc(c.issuedByName || '')}</td>
+    <td>${(c.receipts || []).map((r) => `${esc(r.receiptNo)} <span class="muted">(${dd(r.date)}, ₹ ${fmt(r.amount)})</span>`).join('<br>')}</td>
+    <td>${esc(c.reason || '')}</td><td><a href="print.html?copies=${c.id}" target="_blank" rel="noopener">Open</a></td></tr>`).join('')
+    || '<tr><td colspan="6" class="empty">No duplicates issued yet.</td></tr>';
+}
+
 let ufOld = [];
 let ufEntries = [];
 let ufHistory = null;
@@ -2256,6 +2396,11 @@ function openRecord(kind, id) {
 
 function wireUnitFile() {
   $('#uf-tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-pane]'); if (b) showUfPane(b.dataset.pane); });
+  $('#dup-fy').addEventListener('change', renderDupRows);
+  $('#dup-src').addEventListener('change', renderDupRows);
+  $('#dup-rows').addEventListener('change', dupCount);
+  $('#dup-all').addEventListener('change', (e) => { $$('#dup-rows input[type=checkbox]').forEach((c) => (c.checked = e.target.checked)); dupCount(); });
+  $('#dup-form').addEventListener('submit', (e) => issueDuplicates(e).catch((err) => setMsg(e.target, errorText(err))));
   $('#uf-pick').addEventListener('change', (e) => { fileUnit = e.target.value; sessionStorage.setItem('fileUnit', fileUnit); loadUnitFile().catch((err) => alert(errorText(err))); });
   $('#uf-print').addEventListener('click', () => window.print());
   $('#uf-fy').addEventListener('change', renderUfLedger);

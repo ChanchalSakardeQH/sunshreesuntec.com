@@ -277,6 +277,14 @@ Payments → choose unit → date, amount, mode (NEFT, IMPS, UPI, Cheque, Cash, 
 
 All four happen together or not at all.
 
+**Receipt wording (3.11):** *Received with thanks from … Flat / Shop / Unit No. … the sum of … by … on the Shop / Flat / Office Unit’s account.* The purpose (maintenance, conveyance deed, AMC …) is in **Note**; the bill number, if any, in **Bill No.**
+
+### 8.1A Duplicate receipts (3.11)
+- **Where:** Unit file → *Duplicate receipts*. Lists every payment for the unit from three sources: `payments` (these accounts), Tally receipt vouchers in `units/{id}/history/tally`, and `units/{id}/pastReceipts` with status *payment*.
+- **Issuing:** tick payments (at most 60), name (used for Tally and past-committee copies; website copies keep the original name), reason. Saved in one transaction as `receiptCopies/{id}` with reference `DUP/<FY>/<nnnn>` (counter `duplicates-<FY>`), issuer, date, reason and a copy of what is printed on each receipt; then `print.html?copies=<id>` opens.
+- **Printed copy:** title *DUPLICATE RECEIPT*, original number and date, *Recorded in* line (these accounts / Tally voucher No. / past committee’s receipt No.); balances for website copies (from the receipt) and Tally copies (running Tally balance from the Tally opening); none for 2011–2016 copies. Under the receipt: *Duplicate copy of the receipt dated …, issued on … by … (reason). Reference DUP/…*.
+- **Who:** `recordPayments` (committee; Accountant by default). Records cannot be changed or deleted; the unit’s approved member can read them.
+
 **Printed receipt (`print.html?receipt=<id>`):** ends with *This is a computer-generated receipt from sunshreesuntec.com and is valid without a signature.* and, since 3.10.1, a disclaimer: digitally generated receipts are for members’ tracking; a physical copy can be obtained from the Society’s Accountant; the amount shown is subject to clearance in the Society’s bank account.
 
 ### 8.2 Cancelling a receipt
