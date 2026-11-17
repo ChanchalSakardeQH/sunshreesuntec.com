@@ -301,6 +301,24 @@ service cloud.firestore {
       allow write: if perm('unitRecords');
     }
 
+    // 3.14: the Society's inward / outward correspondence register. Numbers come from counters inward-<fy> / outward-<fy>.
+    match /correspondence/{id} {
+      function letterOk(d) {
+        return d.dir in ['in', 'out'] && d.fy is string && d.fy.matches('^20[0-9]{2}-[0-9]{2}$')
+          && d.subject is string && d.subject.size() > 0 && d.subject.size() <= 200
+          && d.party is string && d.party.size() > 0 && d.party.size() <= 160
+          && d.status in ['open', 'replied', 'closed', 'noAction']
+          && d.files is list && d.files.size() <= 30;
+      }
+      allow read: if perm('view') || perm('correspondence');
+      allow create: if perm('correspondence') && letterOk(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
+      allow update: if perm('correspondence') && letterOk(request.resource.data)
+        && request.resource.data.no == resource.data.no && request.resource.data.dir == resource.data.dir && request.resource.data.fy == resource.data.fy
+        && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isCommittee();
+    }
+
     // Duplicate receipts issued from the unit file (3.11): a permanent record of every copy printed.
     match /receiptCopies/{id} {
       allow read: if perm('view') || approvedFor(resource.data.unitId);
@@ -317,7 +335,8 @@ service cloud.firestore {
       allow read, write: if perm('recordPayments')
         || (docId.matches('expenses-.*') && perm('approveExpenses'))
         || (docId.matches('(paybacks|advances)-.*') && perm('payExpenses'))
-        || (docId.matches('acks-.*') && perm('unitRecords'));
+        || (docId.matches('acks-.*') && perm('unitRecords'))
+        || (docId.matches('(inward|outward)-.*') && perm('correspondence'));
     }
 
     // ---------- expenses (3.7) ----------

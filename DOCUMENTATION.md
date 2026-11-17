@@ -26,6 +26,8 @@ This document explains what the system does, where the data lives, how every amo
 11A. Unit file
 11B. Unit documents, electricity, property tax and backups
 11C. Member portal agreement and members' documents
+11D. Correspondence register
+11E. Committee list
 12. Member access
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
@@ -378,6 +380,21 @@ Documents are stored as links (e.g. Google Drive), because file uploads would ne
   - **Who does what:** the member edits or withdraws until acknowledged; the accounts team (*maintain unit files*) acknowledges or returns.
   - **Files:** uploaded with the script's `memberUpload` (PDF up to 25 MB, photos up to 15 MB) into `Ownership (sale deeds and Index II)`, `Tenants and agreements`, `Occupants` or `Communication` of the unit's folder.
 - **Legal note:** the default agreement is a draft for the Managing Committee. It is written to sit under the MCS Act 1960 (Chapter XIII-B), the Rules 1961 and the registered bye-laws, which prevail. It does not restrict statutory remedies (Contract Act s.28), and it keeps lawful speech and complaints outside the no-defamation clause. Have it reviewed by the Society's advocate and adopted by resolution before publishing; check bye-law numbers against the Society's registered bye-laws and the 2026 model bye-laws when adopted.
+
+---
+
+## 11D. Correspondence register (3.14)
+
+- **Data:** `correspondence/<id>` `{ no, dir: in|out, fy, date, received?, partyType, party, subject, reference, mode, unitId?, replyTo?{ id, no }, status: open|replied|closed|noAction, dueBy?, notes, files[], createdBy, createdByName, createdAt, updatedAt, updatedBy }`. Module `correspondence.js`; tab `#letters`.
+- **Numbering:** a transaction on `counters/inward-<FY>` or `outward-<FY>` (FY of the letter's date) makes `IN/<FY>/<nnnn>` or `OUT/<FY>/<nnnn>`. An entry can't be moved to another year: it is recorded again.
+- **Scans:** after the entry is saved, files go through the Drive script (`upload`, `kind: correspondence`, `dir`, `fy`) to `Correspondence/FY <FY>/Inward|Outward`, named `IN-2026-27-0001 <date> <party> - <subject> - <file>`. They are then added to the entry. They open with `fetch` `{ correspondenceId, fileId }`.
+- **Backup:** after each save, the year's entries go to `Correspondence/FY <FY>/Correspondence register FY <FY>.json` (`backupRegister`, replaced each time).
+- **Replies:** a sent letter linked with *In reply to* marks the received letter `replied`.
+- **Permission:** `correspondence` (default: Society Manager, Office Assistant); reading also with `view`. Deleting is committee only.
+
+## 11E. Committee list (3.14)
+
+`public/site.committee` = `[{ role, name, unit?, phone }]` in display order. It is edited in Accounts → Website (add, remove, ↑ ↓) and shown on the website's Committee page as *name (unit)*. It is not linked to access: accounts access is given in the Staff tab.
 
 ---
 

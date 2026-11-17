@@ -14,6 +14,8 @@
  *                                            Electricity (MSEB) | Property tax (PMC)
  *           <ROOT_FOLDER>/Units/C Wing/C 202/C 202 unit file backup.json   (everything about the unit, kept up to date)
  *           <ROOT_FOLDER>/Units/C Wing/C 202/Ownership (sale deeds and Index II) | Occupants | Agreements   (3.13)
+ *           <ROOT_FOLDER>/Correspondence/FY 2026-27/Inward | Outward   (3.14, the Society's letters and documents)
+ *           <ROOT_FOLDER>/Correspondence/FY 2026-27/Correspondence register FY 2026-27.json   (backup of the register)
  *
  * Members (3.13) use three actions of their own: memberUpload (documents of their unit), memberFetch (open them)
  * and memberAgreement (their accepted portal agreement → PDF in the unit's Agreements folder, emailed to them
@@ -41,7 +43,7 @@ function config_() {
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 3 });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 4 });
 }
 
 function doPost(e) {
@@ -55,7 +57,8 @@ function doPost(e) {
       out = memberActions[req.action](cfg, req, who, memberRecord_(cfg, who, req.idToken));
     } else {
       var team = teamRecord_(cfg, who, req.idToken);
-      var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_ };
+      var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_,
+        backupRegister: backupRegister_ };
       var fn = actions[req.action];
       if (!fn) throw new Error('Unknown request.');
       out = fn(cfg, req, who, team);
@@ -187,6 +190,7 @@ function ping_(cfg, req, who, team) {
 
 function upload_(cfg, req, who, team) {
   if (req.kind === 'unit') return uploadUnit_(cfg, req, who, team);
+  if (req.kind === 'correspondence') return uploadLetter_(cfg, req, who, team);
   var report = req.kind === 'report', payment = req.kind === 'payment';
   var need = report ? ['view', 'approveExpenses', 'payExpenses'] : payment ? ['payExpenses'] : ['submitExpenses', 'approveExpenses', 'payExpenses'];
   if (!any_(team, need)) throw new Error('You don’t have permission to add ' + (report ? 'reports.' : payment ? 'payment proofs.' : 'expenses.'));
@@ -213,6 +217,11 @@ function fetchFile_(cfg, req, who, team) {
     if (!validUnitId_(req.unitId) || !(UNIT_FOLDER[req.record] || req.record === 'memberDocs') || !/^[A-Za-z0-9_-]{1,60}$/.test(String(req.recordId || ''))) throw new Error('Unknown unit record.');
     rec = readDoc_(cfg, req.idToken, 'units/' + encodeURIComponent(req.unitId) + '/' + req.record + '/' + encodeURIComponent(req.recordId));
     if (!rec) throw new Error('You can’t see this unit record.');
+    list = rec.files || [];
+  } else if (req.correspondenceId) {
+    if (!/^[A-Za-z0-9_-]{1,60}$/.test(String(req.correspondenceId))) throw new Error('Unknown letter.');
+    rec = readDoc_(cfg, req.idToken, 'correspondence/' + encodeURIComponent(req.correspondenceId));
+    if (!rec) throw new Error('You can’t see this letter.');
     list = rec.files || [];
   } else if (req.agreementId) {
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(String(req.agreementId))) throw new Error('Unknown agreement.');
@@ -314,6 +323,40 @@ function readBackup_(cfg, req, who, team) {
   if (!it.hasNext()) throw new Error('There is no backup of this unit in the Drive yet.');
   var file = it.next();
   return { json: file.getBlob().getDataAsString('UTF-8'), updated: file.getLastUpdated().toISOString() };
+}
+
+/* ---------------- Society correspondence (3.14) ---------------- */
+
+function validFy_(fy) { return /^20\d{2}-\d{2}$/.test(String(fy || '')); }
+function letterFolder_(cfg, fy) { return child_(child_(rootFolder_(cfg), 'Correspondence'), 'FY ' + fy); }
+
+function uploadLetter_(cfg, req, who, team) {
+  if (!team.can('correspondence')) throw new Error('You don’t have permission to add Society correspondence.');
+  if (!validFy_(req.fy) || ['in', 'out'].indexOf(req.dir) < 0) throw new Error('Unknown register.');
+  if (['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].indexOf(req.mimeType) < 0) throw new Error('Only photos (JPEG, PNG, WebP) and PDF files can be kept.');
+  var bytes = Utilities.base64Decode(String(req.data || ''));
+  if (!bytes.length) throw new Error('The file is empty.');
+  if (bytes.length > (req.mimeType === 'application/pdf' ? MAX_MEMBER_PDF : MAX_BYTES)) throw new Error('The file is too large (PDF up to 25 MB, photos up to 15 MB).');
+  var folder = child_(letterFolder_(cfg, req.fy), req.dir === 'in' ? 'Inward' : 'Outward');
+  var file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, cleanName_(req.name)));
+  file.setDescription(('Added by ' + team.name + ' <' + who.email + '> (' + team.role + ') on ' +
+    Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm') + (req.note ? '\n' + String(req.note) : '')).slice(0, 1500));
+  return { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: req.mimeType } };
+}
+
+/** "Correspondence register FY 2026-27.json" in that year's folder, replaced on each save. */
+function backupRegister_(cfg, req, who, team) {
+  if (!team.can('correspondence')) throw new Error('You don’t have permission to back up the correspondence register.');
+  if (!validFy_(req.fy)) throw new Error('Unknown year.');
+  var text = String(req.json || '');
+  if (!text || text.length > MAX_BACKUP) throw new Error('The backup is empty or too large.');
+  var parsed;
+  try { parsed = JSON.parse(text); } catch (e) { throw new Error('The backup is not valid.'); }
+  if (!parsed || parsed.format !== 'sunshree-suntec-correspondence' || parsed.fy !== req.fy) throw new Error('The backup is for another year.');
+  var folder = letterFolder_(cfg, req.fy), name = 'Correspondence register FY ' + req.fy + '.json';
+  var it = folder.getFilesByName(name), file;
+  if (it.hasNext()) { file = it.next(); file.setContent(text); } else file = folder.createFile(name, text, 'application/json');
+  return { file: { id: file.getId(), name: name, size: text.length } };
 }
 
 /* ---------------- members (3.13) ---------------- */

@@ -32,18 +32,20 @@ import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING } from './defaults.js';
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall } from './drive.js';
 import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
+import { initCorrespondence, loadCorrespondence, lettersForUnit, statusText as letterStatus } from './correspondence.js';
 import { RECORD_FOLDER, TARIFFS, TAX_USES, commercialSigns, uploadUnitScans, backupUnitToDrive, compareWithBackup, restoreMissing } from './unitfiles.js';
 import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } from './data.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'letters', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { letters: 'letters', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
 const canDo = (p) => (!p ? true : p === 'committee' ? isCommitteeRecord(me)
-  : p === 'expenses' ? ['view', 'submitExpenses', 'approveExpenses', 'payExpenses'].some((k) => can(me, k)) : can(me, p));
+  : p === 'expenses' ? ['view', 'submitExpenses', 'approveExpenses', 'payExpenses'].some((k) => can(me, k))
+  : p === 'letters' ? ['view', 'correspondence'].some((k) => can(me, k)) : can(me, p));
 
 let fb, uid, units = [], billing, site, dues;
 
@@ -259,7 +261,7 @@ function route() {
   $('#admin-nav').classList.remove('open');
   $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website', 'directory', 'expenses'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, letters: loadCorrespondence, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -279,6 +281,7 @@ function wireOnce() {
   wireMembers();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
     reloadBilling: async () => { billing = await loadBilling(fb); return lastBilled(); } });
+  initCorrespondence({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units });
   wireWebsite();
   wireSettings();
 }
@@ -1299,17 +1302,52 @@ function renderNoticeAdmin() {
 
 async function loadWebsite() {
   renderNoticeAdmin();
-  const roles = site.committee?.length ? site.committee : [{ role: 'Chairman' }, { role: 'Secretary' }, { role: 'Treasurer' }];
-  $('#committee-fields').innerHTML = roles.map((c, i) => `<div class="committee-row">
-    <label>Role<input type="text" name="role_${i}" value="${esc(c.role)}"></label>
-    <label>Name<input type="text" name="name_${i}" value="${esc(c.name || '')}"></label>
-    <label>Phone<input type="tel" name="phone_${i}" value="${esc(c.phone || '')}"></label></div>`).join('');
+  committeeDraft = structuredClone(site.committee?.length ? site.committee : [{ role: 'Chairman' }, { role: 'Secretary' }, { role: 'Treasurer' }]);
+  renderCommitteeRows();
   const cf = $('#contact-form');
   cf.contactNo.value = site.society.contactNo || '';
   cf.hours.value = site.contact?.hours || '';
 }
 
+/* Committee list (3.14): add, remove and reorder people; the unit is shown after the name on the website. */
+let committeeDraft = [];
+function readCommitteeRows() {
+  return $$('#committee-fields .committee-row').map((row) => ({
+    role: $('[data-f=role]', row).value.trim(), name: $('[data-f=name]', row).value.trim(),
+    unit: $('[data-f=unit]', row).value.trim(), phone: $('[data-f=phone]', row).value.trim() }));
+}
+function renderCommitteeRows() {
+  const n = committeeDraft.length;
+  $('#committee-fields').innerHTML = committeeDraft.map((c, i) => `<div class="committee-row" data-i="${i}">
+    <label>Role<input type="text" data-f="role" list="committee-roles" value="${esc(c.role || '')}"></label>
+    <label>Name<input type="text" data-f="name" value="${esc(c.name || '')}"></label>
+    <label>Unit (optional)<input type="text" data-f="unit" list="committee-units" value="${esc(c.unit || '')}" placeholder="e.g. C 202"></label>
+    <label>Phone<input type="tel" data-f="phone" value="${esc(c.phone || '')}"></label>
+    <div class="committee-actions">
+      <button class="btn btn-small" type="button" data-cm="up" ${i === 0 ? 'disabled' : ''} aria-label="Move ${esc(c.name || c.role || 'this person')} up">↑</button>
+      <button class="btn btn-small" type="button" data-cm="down" ${i === n - 1 ? 'disabled' : ''} aria-label="Move ${esc(c.name || c.role || 'this person')} down">↓</button>
+      <button class="btn btn-small btn-danger" type="button" data-cm="remove">Remove</button></div></div>`).join('')
+    || '<p class="muted">No one listed. Add the committee members below.</p>';
+  $('#committee-units').innerHTML = units.map((u) => `<option value="${esc(u.unit)}">${esc(u.name || '')}</option>`).join('');
+}
+
 function wireWebsite() {
+  $('#committee-add').addEventListener('click', () => {
+    committeeDraft = readCommitteeRows();
+    committeeDraft.push({ role: 'Member', name: '', unit: '', phone: '' });
+    renderCommitteeRows();
+    $$('#committee-fields [data-f=name]').at(-1)?.focus();
+  });
+  $('#committee-fields').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cm]');
+    if (!b) return;
+    committeeDraft = readCommitteeRows();
+    const i = Number(b.closest('.committee-row').dataset.i);
+    if (b.dataset.cm === 'remove') committeeDraft.splice(i, 1);
+    if (b.dataset.cm === 'up' && i > 0) [committeeDraft[i - 1], committeeDraft[i]] = [committeeDraft[i], committeeDraft[i - 1]];
+    if (b.dataset.cm === 'down' && i < committeeDraft.length - 1) [committeeDraft[i + 1], committeeDraft[i]] = [committeeDraft[i], committeeDraft[i + 1]];
+    renderCommitteeRows();
+  });
   const nf = $('#notice-form');
   nf.date.value = todayIST();
   nf.addEventListener('submit', async (e) => {
@@ -1341,14 +1379,14 @@ function wireWebsite() {
   cf.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(cf);
-    const committee = [];
-    for (let i = 0; fd.has(`role_${i}`); i++) {
-      const role = String(fd.get(`role_${i}`)).trim();
-      if (role) committee.push({ role, name: String(fd.get(`name_${i}`)).trim(), phone: String(fd.get(`phone_${i}`)).trim() });
-    }
+    const committee = readCommitteeRows().filter((c) => c.role || c.name)
+      .map((c) => ({ role: c.role || 'Member', name: c.name, phone: c.phone, ...(c.unit ? { unit: c.unit } : {}) }));
+    if (committee.some((c) => !c.name && !['Chairman', 'Secretary', 'Treasurer'].includes(c.role))) return setMsg(cf, 'Write the name of each person, or remove the empty row.');
     await busy($('button', cf), async () => {
       try {
         await saveSite({ committee, society: { ...site.society, contactNo: String(fd.get('contactNo')).trim() }, contact: { ...site.contact, hours: String(fd.get('hours')).trim() } });
+        committeeDraft = structuredClone(committee);
+        renderCommitteeRows();
         setMsg(cf, 'Saved. The website and new bills use these details.', true);
       } catch (err) { setMsg(cf, esc(errorText(err))); }
     });
@@ -2239,6 +2277,11 @@ async function loadUnitFile() {
     : (ufCache.electricity.length || ufCache.propertyTax.length ? `<p class="ut-ok">No sign of commercial use in the latest electricity and property tax records.</p>` : '');
   showBackupNote().catch(() => {});
   renderMemberDocsPane();
+  lettersForUnit(fb, fileUnit).then((ls) => {
+    $('#uf-letters').innerHTML = ls.map((x) => `<tr><td>${esc(x.no)}</td><td>${dd(x.date)}</td><td>${esc(x.party)}<span class="sub">${esc(x.partyType || '')}</span></td>
+      <td>${esc(x.subject)}${(x.files || []).length ? `<span class="sub">📎 ${x.files.length} scan${x.files.length > 1 ? 's' : ''} (open in Correspondence)</span>` : ''}</td><td>${esc(letterStatus(x.status))}</td></tr>`).join('')
+      || '<tr><td colspan="5" class="empty">No correspondence recorded about this unit.</td></tr>';
+  }).catch(() => {});
 
   // Audited history (2011-12 to 2017-18) and year-end balances.
   if (!auditCache.length) auditCache = await loadAuditYears(fb).catch(() => []);

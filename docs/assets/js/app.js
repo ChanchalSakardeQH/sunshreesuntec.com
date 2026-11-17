@@ -353,7 +353,7 @@ loadSiteContent().then((site) => {
     <a href="#notices">Read the notice</a>` : '<p class="muted">No notices yet.</p>';
 
   $('#committee-list').innerHTML = (site.committee || []).map((c) => `<li><span class="role">${esc(c.role)}</span>
-    <span class="who">${c.name ? esc(c.name) : '<span class="muted">To be added</span>'}${c.phone ? ` <a href="tel:${esc(c.phone.replace(/\s/g, ''))}">${esc(c.phone)}</a>` : ''}</span></li>`).join('');
+    <span class="who">${c.name ? esc(c.name) : '<span class="muted">To be added</span>'}${c.unit && !String(c.name || '').includes(`(${c.unit})`) ? ` <span class="muted">(${esc(c.unit)})</span>` : ''}${c.phone ? ` <a href="tel:${esc(c.phone.replace(/\s/g, ''))}">${esc(c.phone)}</a>` : ''}</span></li>`).join('');
 
   const s = site.society || DEFAULT_SITE.society, b = site.bank || DEFAULT_SITE.bank;
   $('#contact-facts').innerHTML = `

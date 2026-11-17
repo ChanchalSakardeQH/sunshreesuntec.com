@@ -24,7 +24,9 @@ fieldset.charges legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; 
 .notice-admin { display: flex; justify-content: space-between; gap: 1rem; padding: .75rem 0; border-bottom: 1px solid var(--line); }
 .notice-admin p { margin: 0; }
 textarea { font: inherit; padding: .6rem .75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
-.committee-row { display: grid; grid-template-columns: 8rem 1fr 1fr; gap: .75rem; align-items: end; }
+.committee-row { display: grid; grid-template-columns: 9rem 1.4fr .8fr 1fr auto; gap: .75rem; align-items: end; padding: .5rem 0; border-bottom: 1px solid var(--line); }
+.committee-actions { display: flex; gap: .35rem; padding-bottom: .2rem; }
+@media (max-width: 860px) { .committee-row { grid-template-columns: 1fr 1fr; } .committee-actions { grid-column: 1 / -1; } }
 @media (max-width: 560px) { .committee-row { grid-template-columns: 1fr; } }
 .progress-ok { color: var(--credit); font-weight: 600; }
 .entry-form label { min-width: 0; }
@@ -292,3 +294,12 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .count-pill { display: inline-block; min-width: 1.3rem; padding: 0 .35rem; border-radius: 999px; background: var(--due); color: #fff; font-size: .75rem; line-height: 1.3rem; text-align: center; margin-left: .25rem; }
 .ag-ok { color: var(--credit); font-weight: 600; }
 .ag-no { color: var(--due); font-weight: 600; }
+/* 3.14: correspondence register */
+.cr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 1rem; }
+.cr-grid .wide { grid-column: 1 / -1; }
+.cr-table td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cr-dir { display: inline-block; font-size: .72rem; font-weight: 700; border-radius: 4px; padding: 0 .35rem; margin-right: .3rem; }
+.cr-dir.in { background: color-mix(in srgb, var(--credit) 14%, transparent); color: var(--credit); }
+.cr-dir.out { background: color-mix(in srgb, var(--stamp) 14%, transparent); color: var(--stamp); }
+.cr-overdue { color: var(--due); font-weight: 600; }
+.cr-cards { margin: 1rem 0; }

@@ -28,6 +28,7 @@
         <a href="#lift" data-need="view">Lift</a>
         <a href="#reports" data-need="view">Reports</a>
         <a href="#documents" data-need="view">Documents</a>
+        <a href="#letters" data-need="letters">Correspondence</a>
         <a href="#members" data-need="members">Members</a>
         <a href="#website" data-need="website">Website</a>
         <a href="#expenses" data-need="expenses">Expenses</a>
@@ -403,6 +404,9 @@
         <p class="muted">Letters, notices, emails, WhatsApp messages, calls and meetings with this unit’s member or tenant.</p>
         <div class="form-actions"><button class="btn btn-primary" type="button" data-add="comms" data-perm="unitRecords">Add communication</button></div>
         <div class="table-scroll"><table><thead><tr><th>Date</th><th>How</th><th>Direction</th><th>Subject</th><th>Ref. no.</th><th>Follow up</th><th></th></tr></thead><tbody id="uf-comms"></tbody></table></div>
+        <h3 class="mt-sm">In the Society’s correspondence register</h3>
+        <p class="muted small-note">Letters to or from outside offices (DDR, PMC, MSEDCL, police, banks…) recorded in the Correspondence tab as being about this unit.</p>
+        <div class="table-scroll"><table><thead><tr><th>No.</th><th>Date</th><th>From / to</th><th>Subject</th><th>Status</th></tr></thead><tbody id="uf-letters"></tbody></table></div>
       </div>
 
       <div class="uf-pane" data-pane="utility" hidden>
@@ -551,6 +555,64 @@
       </dialog>
     </section>
 
+    <!-- CORRESPONDENCE (3.14): inward / outward register -->
+    <section class="tab" data-tab="letters" hidden>
+      <h1>Correspondence</h1>
+      <p class="muted">The Society’s inward and outward register: letters and documents received from and sent to the DDR / Registrar, PMC, MSEDCL, banks, police, other societies, contractors and AMC vendors, advocates, members and others. Each gets a number (IN/2026-27/0001, OUT/2026-27/0001); scans are kept in the Society’s Google Drive under <em>Correspondence › year › Inward / Outward</em>.</p>
+      <div class="form-actions" data-perm="correspondence">
+        <button class="btn btn-primary" type="button" data-cr-new="in">Record a letter received</button>
+        <button class="btn btn-primary" type="button" data-cr-new="out">Record a letter sent</button>
+      </div>
+      <dl class="dues-summary cr-cards" id="cr-cards"></dl>
+      <div class="grid-tools">
+        <label class="inline-label">Year<select id="cr-fy"></select></label>
+        <label class="inline-label">Register<select id="cr-dir"><option value="">Inward and outward</option><option value="in">Inward (received)</option><option value="out">Outward (sent)</option></select></label>
+        <label class="inline-label">With<select id="cr-party"><option value="">Everyone</option></select></label>
+        <label class="inline-label">Status<select id="cr-status"><option value="">Any</option><option value="open">Waiting for reply / action</option><option value="replied">Replied</option><option value="closed">Closed</option><option value="noAction">No action needed</option></select></label>
+        <label class="inline-label">Search<input type="search" id="cr-q" placeholder="Subject, name, reference…"></label>
+        <button class="btn" type="button" id="cr-csv">Download register (CSV)</button>
+      </div>
+      <div class="table-scroll"><table class="cr-table"><thead><tr><th>No.</th><th>Date</th><th>From / to</th><th>Subject</th><th>Reference</th><th>Scans</th><th>Status</th><th></th></tr></thead><tbody id="cr-rows"></tbody></table></div>
+      <p class="form-msg" id="cr-msg" role="alert"></p>
+
+      <dialog id="cr-dialog">
+        <form id="cr-form" class="form" novalidate>
+          <h2 id="cr-title">Record a letter</h2>
+          <div class="cr-grid">
+            <label>Date of letter / document<input type="date" name="date" required></label>
+            <label id="cr-recd-wrap">Received on<input type="date" name="received"></label>
+            <label>Type of organisation / person<select name="partyType" required></select></label>
+            <label id="cr-party-label">From (name of office or person)<input type="text" name="party" maxlength="160" required list="cr-parties"></label>
+            <label class="wide">Subject<input type="text" name="subject" maxlength="200" required></label>
+            <label>Their / our reference no.<input type="text" name="reference" maxlength="80" placeholder="e.g. DDR/PNA-4/HSG/1234/2026"></label>
+            <label>How<select name="mode"><option>By hand</option><option>Post</option><option>Registered post / AD</option><option>Speed post / courier</option><option>Email</option><option>WhatsApp</option><option>Online portal</option></select></label>
+            <label>About a unit (optional)<select name="unitId"></select></label>
+            <label>In reply to (optional)<select name="replyTo"></select></label>
+            <label>Status<select name="status"><option value="open">Waiting for reply / action</option><option value="replied">Replied</option><option value="closed">Closed</option><option value="noAction">No action needed</option></select></label>
+            <label>Reply / action due by<input type="date" name="dueBy"></label>
+            <label class="wide">Summary and action taken<textarea name="notes" rows="3" maxlength="2000"></textarea></label>
+          </div>
+          <fieldset class="rec-files">
+            <legend>Scans</legend>
+            <ul class="rec-file-list" id="cr-file-list"></ul>
+            <label>Add PDF or photos<input type="file" id="cr-file-input" accept="application/pdf,image/*" multiple></label>
+            <p class="muted small-note" id="cr-files-note"></p>
+          </fieldset>
+          <datalist id="cr-parties"></datalist>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button><button class="btn" type="button" id="cr-cancel">Cancel</button></div>
+        </form>
+      </dialog>
+
+      <dialog id="crdoc-dialog">
+        <div class="form">
+          <h2 id="crdoc-title">Scan</h2>
+          <div id="crdoc-body" class="ufdoc-body">Loading…</div>
+          <div class="form-actions"><button class="btn btn-primary" type="button" id="crdoc-save">Save / open</button><button class="btn" type="button" id="crdoc-close">Close</button></div>
+        </div>
+      </dialog>
+    </section>
+
     <!-- MEMBERS -->
     <section class="tab" data-tab="members" hidden>
       <h1>Member access</h1>
@@ -676,7 +738,11 @@
 
       <h2 class="mt">Committee and contact</h2>
       <form id="contact-form" class="form" novalidate>
+        <p class="muted">Shown on the website’s Committee page in this order. This list is for the website only; to give someone access to the accounts, use the Staff tab.</p>
         <div id="committee-fields"></div>
+        <div class="form-actions"><button class="btn" type="button" id="committee-add">Add a person</button></div>
+        <datalist id="committee-roles"><option value="Chairman"><option value="Vice Chairman"><option value="Secretary"><option value="Joint Secretary"><option value="Treasurer"><option value="Member"><option value="Co-opted member"></datalist>
+        <datalist id="committee-units"></datalist>
         <label>Society contact number (printed on bills)<input type="tel" name="contactNo"></label>
         <label>Office hours<input type="text" name="hours" placeholder="e.g. Sunday 10 am – 12 noon"></label>
         <p class="form-msg" role="alert"></p>
@@ -1128,7 +1194,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.13.0</p>
+    <p class="muted mt" id="version-note">Software version 3.14.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

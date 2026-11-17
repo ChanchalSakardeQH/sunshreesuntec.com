@@ -6,6 +6,44 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.14.0] – 2026-11-17 – Correspondence register; committee list editor
+
+### Added
+- **Correspondence** tab: the Society's inward / outward register for letters and documents received from or sent to:
+  - the DDR / Registrar, PMC, MSEDCL and the police;
+  - banks, other housing societies and the builder;
+  - contractors and AMC vendors, advocates, auditors, members and others.
+  - **Each entry:** a number (**IN/2026-27/0001**, **OUT/2026-27/0001**), the date of the letter and the date received, type and name of the office or person, subject, reference no., how it came or went, the unit it concerns (optional), what it replies to, status (waiting for reply / action, replied, closed, no action needed), a due date and a summary, plus scans.
+  - **Scans** are saved in the Society's Google Drive under *Correspondence › FY 2026-27 › Inward / Outward*. After each save, the year's register is also saved there as *Correspondence register FY 2026-27.json*.
+  - **Record reply** fills in a reply to a received letter and marks that letter *Replied* when it is saved.
+  - **Finding entries:** filters by year, register, type of office, status and a search. Summary figures show the year's letters received and sent, and those still waiting (with overdue ones flagged).
+  - *Download register (CSV)* for printing or filing.
+- **Unit file → Communication** also lists the register's letters about that unit.
+- New staff permission *Society correspondence*: given by default to the Society Manager and Office Assistant roles. Staff already set up need it ticked in the Staff tab. Those with *view accounts* can read the register.
+- **Committee list editor** (Accounts → Website → Committee and contact): *Add a person*, *Remove*, ↑ ↓ to reorder, and an optional unit shown after the name on the website's Committee page. Before, people could not be added or removed.
+
+### Drive script (version 4)
+- `upload` with `kind: correspondence` (needs the new permission), `fetch` by `correspondenceId`, and `backupRegister`. **Deploy a new version of the script.** It needs no new Google permission beyond the 3.13 one.
+
+### Security rules
+- `correspondence/<id>`:
+  - read by *view accounts* or *Society correspondence*;
+  - created and edited with *Society correspondence*; its number, register, year and creator cannot change;
+  - deleted by the committee only.
+- Counters `inward-<year>` and `outward-<year>`.
+
+### Tested
+- 17 browser checks:
+  - the committee editor removes two people, adds four with units and reorders them, and the website shows the new list;
+  - a DDR letter is recorded with its scan as IN/2026-27/0001, the register backup is saved, and the summary and overdue flag show;
+  - a reply is pre-filled, saved as OUT/2026-27/0001 and marks the letter replied;
+  - filters, search, opening a scan and the CSV download work;
+  - the letter shows in the unit file, and the watchman sees no Correspondence tab.
+- 12 Drive-script checks: folders, permissions, bad registers and years, opening through the entry, and the register backup replacing itself and refusing another year.
+- All earlier suites pass: 247 browser checks and 80 script checks.
+
+---
+
 ## [3.13.0] – 2026-11-17 – Member portal agreement; members upload their unit's documents
 
 ### Added

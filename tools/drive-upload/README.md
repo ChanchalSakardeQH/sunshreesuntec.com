@@ -26,6 +26,11 @@ Sunshree Suntec Society Records/
         Ownership (sale deeds and Index II)/   ← uploaded by the member (3.13)
         Occupants/                    ← who lives in the unit, uploaded by the member
         Agreements/                   ← member portal agreements as accepted (PDF), also emailed to the member
+  Correspondence/
+    FY 2026-27/
+      Inward/                         ← letters and documents received (DDR, PMC, MSEDCL, banks, AMC vendors …), IN-2026-27-0001 …
+      Outward/                        ← letters sent, OUT-2026-27-0001 …
+      Correspondence register FY 2026-27.json   ← backup of the year's register
 ```
 
 Unit documents are seen on the accounts page by those who may read the unit's records; they are added by those
