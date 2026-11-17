@@ -260,6 +260,30 @@
 
         <div id="member-status" class="status-card" hidden></div>
 
+        <!-- 3.13: member portal agreement, accepted once per version before using the portal -->
+        <div id="member-agreement" hidden>
+          <div class="callout">
+            <h2>One step before you continue</h2>
+            <p>Please read the Society’s member portal agreement and accept it to continue using the portal. A copy will be emailed to <strong id="ma-email"></strong> and kept in the Society’s records for your unit. If you don’t want to accept it now, you can sign out and get your bills and receipts from the Society’s office as usual.</p>
+          </div>
+          <article class="agreement-doc" id="ma-doc" tabindex="0" aria-label="Member portal agreement"></article>
+          <form id="ma-form" class="form agreement-form" novalidate>
+            <fieldset>
+              <legend>Please confirm</legend>
+              <label class="check"><input type="checkbox" name="c1" value="I have read the whole agreement and I accept it."> I have read the whole agreement and I accept it.</label>
+              <label class="check"><input type="checkbox" name="c2" value="I will pay my dues on time and keep my unit’s records (title documents with Index II, rental agreements, police verification, occupant details) updated on the portal, with physical copies at the Society office against acknowledgment."> I will pay my dues on time and keep my unit’s records updated on the portal (title documents with Index II, rental agreements, police verification, occupants), with physical copies at the Society office against acknowledgment.</label>
+              <label class="check"><input type="checkbox" name="c3" value="I will first write to the Society about any grievance, and will not defame the Society, its committee, staff or service personnel by any means, including social media."> I will first write to the Society about any grievance, and will not defame the Society, its committee, staff or service personnel by any means, including social media.</label>
+              <label class="check"><input type="checkbox" name="c4" value="I consent to the Society keeping and using my personal data and documents as described in the agreement."> I consent to the Society keeping and using my personal data and documents as described in the agreement.</label>
+            </fieldset>
+            <label>Type your full name as your signature<input type="text" name="sign" autocomplete="name" maxlength="120" required></label>
+            <p class="form-msg" role="alert"></p>
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit">I accept</button>
+              <button class="btn" type="button" data-signout>Not now, sign out</button>
+            </div>
+          </form>
+        </div>
+
         <div id="member-account" hidden>
           <div class="account-head">
             <div>
@@ -302,6 +326,47 @@
             </table>
           </div>
           </div>
+
+          <!-- 3.13: documents of the unit, uploaded by the member -->
+          <section class="my-docs" id="my-docs" aria-labelledby="my-docs-title">
+            <h3 class="mt-sm" id="my-docs-title">My unit’s documents</h3>
+            <p class="muted">Upload your unit’s documents here, then hand over a self-attested physical copy at the Society’s office. The committee records the copy it receives and gives you an acknowledgment number, shown below. Files are kept in the Society’s records for your unit.</p>
+            <p id="my-agreement" class="small-note"></p>
+            <div class="doc-add" id="md-add">
+              <button class="btn" type="button" data-md-add="ownership">Sale deed / Index II</button>
+              <button class="btn" type="button" data-md-add="rental">Rental agreement</button>
+              <button class="btn" type="button" data-md-add="police">Police verification</button>
+              <button class="btn" type="button" data-md-add="occupants">Who lives here now</button>
+              <button class="btn" type="button" data-md-add="pastRental">Past tenancy</button>
+              <button class="btn" type="button" data-md-add="other">Application / other</button>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th scope="col">Document</th><th scope="col">Details</th><th scope="col">Files</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+                <tbody id="md-list"></tbody>
+              </table>
+            </div>
+            <p class="form-msg" id="md-msg" role="alert"></p>
+          </section>
+
+          <dialog id="md-dialog">
+            <form id="md-form" class="form" novalidate>
+              <h2 id="md-title">Add a document</h2>
+              <p class="muted" id="md-help"></p>
+              <div id="md-fields" class="md-grid"></div>
+              <fieldset class="md-files">
+                <legend>Files</legend>
+                <ul id="md-file-list" class="md-file-list"></ul>
+                <label>Add PDF or photos<input type="file" id="md-file-input" accept="application/pdf,image/*" multiple></label>
+                <p class="muted small-note">PDF up to 25 MB each (scan at 200 dpi, grey, to keep it small); photos are made smaller before upload.</p>
+              </fieldset>
+              <p class="form-msg" role="alert"></p>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Save</button>
+                <button class="btn" type="button" id="md-cancel">Cancel</button>
+              </div>
+            </form>
+          </dialog>
         </div>
 
         <div id="society-accounts" hidden>

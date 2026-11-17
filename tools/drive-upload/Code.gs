@@ -13,6 +13,11 @@
  *           <ROOT_FOLDER>/Units/C Wing/C 202/Members and shares | Tenants and agreements | Communication |
  *                                            Electricity (MSEB) | Property tax (PMC)
  *           <ROOT_FOLDER>/Units/C Wing/C 202/C 202 unit file backup.json   (everything about the unit, kept up to date)
+ *           <ROOT_FOLDER>/Units/C Wing/C 202/Ownership (sale deeds and Index II) | Occupants | Agreements   (3.13)
+ *
+ * Members (3.13) use three actions of their own: memberUpload (documents of their unit), memberFetch (open them)
+ * and memberAgreement (their accepted portal agreement → PDF in the unit's Agreements folder, emailed to them
+ * with a copy to the Society). Everything else needs a committee or staff account.
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -21,6 +26,10 @@ var STATUS_FOLDER = { submitted: 'Submitted', approved: 'Approved', rejected: 'R
 var UNIT_FOLDER = { members: 'Members and shares', tenants: 'Tenants and agreements', comms: 'Communication',
   electricity: 'Electricity (MSEB)', propertyTax: 'Property tax (PMC)' };
 var MAX_BACKUP = 20 * 1024 * 1024;
+/* Documents members upload (units/<id>/memberDocs) → folder in the unit's folder. */
+var MEMBER_DOC_FOLDER = { ownership: 'Ownership (sale deeds and Index II)', rental: 'Tenants and agreements', police: 'Tenants and agreements',
+  pastRental: 'Tenants and agreements', occupants: 'Occupants', other: 'Communication' };
+var MAX_MEMBER_PDF = 25 * 1024 * 1024;   // a complete sale deed scan can be large
 var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function config_() {
@@ -32,7 +41,7 @@ function config_() {
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 2 });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 3 });
 }
 
 function doPost(e) {
@@ -40,11 +49,17 @@ function doPost(e) {
     var req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     var cfg = config_();
     var who = verifyToken_(cfg, req.idToken);
-    var team = teamRecord_(cfg, who, req.idToken);
-    var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_ };
-    var fn = actions[req.action];
-    if (!fn) throw new Error('Unknown request.');
-    var out = fn(cfg, req, who, team);
+    var memberActions = { memberUpload: memberUpload_, memberFetch: memberFetch_, memberAgreement: memberAgreement_ };
+    var out;
+    if (memberActions[req.action]) {
+      out = memberActions[req.action](cfg, req, who, memberRecord_(cfg, who, req.idToken));
+    } else {
+      var team = teamRecord_(cfg, who, req.idToken);
+      var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_ };
+      var fn = actions[req.action];
+      if (!fn) throw new Error('Unknown request.');
+      out = fn(cfg, req, who, team);
+    }
     out.ok = true;
     return json_(out);
   } catch (err) {
@@ -62,7 +77,7 @@ function verifyToken_(cfg, idToken) {
   if (r.getResponseCode() !== 200) throw new Error('Your sign-in has expired. Please sign in again.');
   var u = (JSON.parse(r.getContentText()).users || [])[0];
   if (!u || !u.localId) throw new Error('Unknown user.');
-  return { uid: u.localId, email: String(u.email || '').toLowerCase() };
+  return { uid: u.localId, email: String(u.email || '').toLowerCase(), verified: u.emailVerified === true };
 }
 
 /** Reads a document as the signed-in person (their token), so the security rules apply. Returns null if not allowed or missing. */
@@ -195,10 +210,15 @@ function fetchFile_(cfg, req, who, team) {
   var rec, list;
   if (req.unitId) {
     // A unit file document: the record it belongs to is read with the person's own sign-in.
-    if (!validUnitId_(req.unitId) || !UNIT_FOLDER[req.record] || !/^[A-Za-z0-9_-]{1,60}$/.test(String(req.recordId || ''))) throw new Error('Unknown unit record.');
+    if (!validUnitId_(req.unitId) || !(UNIT_FOLDER[req.record] || req.record === 'memberDocs') || !/^[A-Za-z0-9_-]{1,60}$/.test(String(req.recordId || ''))) throw new Error('Unknown unit record.');
     rec = readDoc_(cfg, req.idToken, 'units/' + encodeURIComponent(req.unitId) + '/' + req.record + '/' + encodeURIComponent(req.recordId));
     if (!rec) throw new Error('You can’t see this unit record.');
     list = rec.files || [];
+  } else if (req.agreementId) {
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(String(req.agreementId))) throw new Error('Unknown agreement.');
+    rec = readDoc_(cfg, req.idToken, 'memberAgreements/' + encodeURIComponent(req.agreementId));
+    if (!rec) throw new Error('You can’t see this agreement.');
+    list = rec.pdf ? [rec.pdf] : [];
   } else if (req.settlementId) {
     rec = readDoc_(cfg, req.idToken, 'staffSettlements/' + encodeURIComponent(String(req.settlementId)));
     if (!rec) throw new Error('You can’t see this payment.');
@@ -294,6 +314,134 @@ function readBackup_(cfg, req, who, team) {
   if (!it.hasNext()) throw new Error('There is no backup of this unit in the Drive yet.');
   var file = it.next();
   return { json: file.getBlob().getDataAsString('UTF-8'), updated: file.getLastUpdated().toISOString() };
+}
+
+/* ---------------- members (3.13) ---------------- */
+
+/** An approved member (users/<uid>), read with their own sign-in. */
+function memberRecord_(cfg, who, idToken) {
+  var p = readDoc_(cfg, idToken, 'users/' + who.uid);
+  if (!p) throw new Error('This account is not registered for a unit.');
+  if (p.status !== 'approved' || p.removed) throw new Error('Your access to the unit hasn’t been approved.');
+  if (!who.verified) throw new Error('Please verify your email address first.');
+  return { name: p.name || who.email, unit: p.unit, relation: p.relation || '', access: p.access || 'full' };
+}
+
+/** "C 202" must be the same unit as "C-202". */
+function sameUnit_(label, unitId) {
+  return String(label || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase() === String(unitId || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+function memberUnitFolder_(cfg, unitId, label, wing) {
+  if (!validUnitId_(unitId) || !sameUnit_(label, unitId)) throw new Error('Unknown unit.');
+  return child_(child_(child_(rootFolder_(cfg), 'Units'), cleanName_(wing || 'Other')), cleanName_(label));
+}
+
+function memberUpload_(cfg, req, who, m) {
+  if (req.unitId !== m.unit) throw new Error('You can add documents only for your own unit.');
+  if (!MEMBER_DOC_FOLDER[req.record]) throw new Error('Unknown kind of document.');
+  if (['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].indexOf(req.mimeType) < 0) throw new Error('Only photos (JPEG, PNG, WebP) and PDF files can be added.');
+  var bytes = Utilities.base64Decode(String(req.data || ''));
+  if (!bytes.length) throw new Error('The file is empty.');
+  if (bytes.length > (req.mimeType === 'application/pdf' ? MAX_MEMBER_PDF : MAX_BYTES)) throw new Error('The file is too large (PDF up to 25 MB, photos up to 15 MB).');
+  var folder = child_(memberUnitFolder_(cfg, req.unitId, req.unitLabel, req.wing), MEMBER_DOC_FOLDER[req.record]);
+  var file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, cleanName_(req.name)));
+  file.setDescription(('Uploaded by ' + m.name + ' <' + who.email + '> (' + (m.relation || 'member') + ' of ' + req.unitLabel + ') on ' +
+    Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm') + (req.note ? '\n' + String(req.note) : '')).slice(0, 1500));
+  return { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: req.mimeType } };
+}
+
+function memberFetch_(cfg, req, who, m) {
+  var list;
+  if (req.agreementId) {
+    var a = readDoc_(cfg, req.idToken, 'memberAgreements/' + encodeURIComponent(String(req.agreementId)));
+    if (!a || a.uid !== who.uid) throw new Error('You can’t see this agreement.');
+    list = a.pdf ? [a.pdf] : [];
+  } else {
+    if (req.unitId !== m.unit || !/^[A-Za-z0-9_-]{1,60}$/.test(String(req.recordId || ''))) throw new Error('You can open only your own unit’s documents.');
+    var d = readDoc_(cfg, req.idToken, 'units/' + encodeURIComponent(req.unitId) + '/memberDocs/' + encodeURIComponent(req.recordId));
+    if (!d) throw new Error('You can’t see this document.');
+    list = d.files || [];
+  }
+  if (!list.some(function (f) { return f && f.id === req.fileId; })) throw new Error('That file doesn’t belong to this record.');
+  var blob = DriveApp.getFileById(req.fileId).getBlob();
+  return { name: blob.getName(), mime: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) };
+}
+
+/** The member's accepted agreement: PDF in Units/<wing>/<unit>/Agreements, emailed to them with a copy to the Society. Once only. */
+function memberAgreement_(cfg, req, who, m) {
+  var a = readDoc_(cfg, req.idToken, 'memberAgreements/' + encodeURIComponent(String(req.agreementId || '')));
+  if (!a || a.uid !== who.uid) throw new Error('Agreement not found.');
+  return archiveAgreement_(cfg, req.idToken, String(req.agreementId), a, false);
+}
+
+/** Committee (or staff who look after members): make and send the copy again, e.g. if the email bounced. */
+function resendAgreement_(cfg, req, who, team) {
+  if (!team.can('members')) throw new Error('You don’t have permission to send agreements.');
+  var a = readDoc_(cfg, req.idToken, 'memberAgreements/' + encodeURIComponent(String(req.agreementId || '')));
+  if (!a) throw new Error('Agreement not found.');
+  return archiveAgreement_(cfg, req.idToken, String(req.agreementId), a, true);
+}
+
+function archiveAgreement_(cfg, idToken, id, a, again) {
+  var props = PropertiesService.getScriptProperties(), key = 'agreement_' + id, done = props.getProperty(key);
+  if (done && !again) return JSON.parse(done);
+  // The time recorded by the database when the member accepted, shown in India time.
+  var at = a.acceptedAt ? new Date(a.acceptedAt) : new Date();
+  a.acceptedText = Utilities.formatDate(at, 'Asia/Kolkata', 'dd/MM/yyyy HH:mm');
+  a.acceptedOn = Utilities.formatDate(at, 'Asia/Kolkata', 'yyyy-MM-dd');
+  a.ref = id;
+  var ver = readDoc_(cfg, idToken, 'memberAgreementVersions/' + encodeURIComponent(String(a.version)));
+  if (!ver) throw new Error('The agreement text (version ' + a.version + ') was not found.');
+  var name = cleanName_(a.unitLabel + ' Portal agreement v' + a.version + ' - ' + a.signedName + ' - ' + String(a.acceptedOn || '').slice(0, 10) + '.pdf');
+  var folder = child_(memberUnitFolder_(cfg, a.unit, a.unitLabel, a.wing), 'Agreements');
+  var file, it = folder.getFilesByName(name);
+  if (it.hasNext()) file = it.next();
+  else {
+    var pdf = Utilities.newBlob(agreementHtml_(ver, a), 'text/html', 'agreement.html').getAs('application/pdf').setName(name);
+    file = folder.createFile(pdf);
+    file.setDescription('Member portal agreement accepted electronically by ' + a.signedName + ' <' + a.email + '>, ' + a.unitLabel + ', version ' + a.version + '.');
+  }
+  var society = Session.getEffectiveUser().getEmail(), emailed = false, note = '';
+  try {
+    if (MailApp.getRemainingDailyQuota() < 1) throw new Error('Daily email limit reached; send it again tomorrow.');
+    MailApp.sendEmail({
+      to: a.email, cc: society, name: 'Sunshree Suntec CHS', replyTo: society,
+      subject: 'Your member portal agreement – ' + a.unitLabel + ' – Sunshree Suntec CHS',
+      htmlBody: '<p>Dear ' + esc_(a.signedName) + ',</p><p>Thank you for accepting the Member Portal Use Agreement (version ' + a.version + ') for unit ' + esc_(a.unitLabel) +
+        ' on ' + esc_(a.acceptedText || '') + '. A copy is attached for your records and is kept in the Society’s records for your unit.</p>' +
+        '<p>Please visit <a href="https://www.sunshreesuntec.com">www.sunshreesuntec.com</a> regularly for your bills, receipts and the Society’s notices, and upload your unit’s documents under <em>My unit’s documents</em>.</p>' +
+        '<p>Managing Committee<br>Sunshree Suntec Co-operative Housing Society Ltd.<br>' + esc_(society) + '</p>',
+      attachments: [file.getBlob()]
+    });
+    emailed = true;
+  } catch (e) { note = String((e && e.message) || e); }
+  var out = { pdf: { id: file.getId(), name: file.getName(), mime: 'application/pdf', size: file.getSize() }, emailed: emailed, emailedTo: a.email, cc: society, note: note };
+  if (emailed) props.setProperty(key, JSON.stringify(out));
+  return out;
+}
+
+function esc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+/** Same layout as agreementHTML() in docs/assets/js/memberagreement.js, for an A4 PDF. */
+function agreementHtml_(v, a) {
+  var rel = { owner: 'Owner (member)', jointOwner: 'Joint owner / associate member', family: 'Family member of the owner', tenant: 'Tenant / licensee', caretaker: 'Caretaker / authorised person' };
+  var h = '<html><head><meta charset="utf-8"><style>body{font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.45;color:#1b1f24;margin:18mm 16mm}' +
+    'h1{font-size:15pt;margin:0 0 4pt}h2{font-size:11.5pt;margin:12pt 0 4pt}.meta{color:#555;font-size:9pt}.clause{margin:3pt 0}.no{font-weight:bold;margin-right:4pt}' +
+    '.box{border:1px solid #999;padding:6pt 8pt;margin:8pt 0}</style></head><body>';
+  h += '<p class="meta">SUNSHREE SUNTEC CO-OP. HSG. SOC. LTD. · Regd. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30-10-2012 · S. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411 048</p>';
+  h += '<h1>' + esc_(v.title) + '</h1><p class="meta">Version ' + esc_(a.version) + (v.publishedOn ? ', published ' + esc_(v.publishedOn) : '') + '</p>';
+  (v.intro || []).forEach(function (p) { h += '<p>' + esc_(p) + '</p>'; });
+  h += '<div class="box"><strong>User:</strong> ' + esc_(a.name) + (a.relation ? ', ' + esc_(rel[a.relation] || a.relation) : '') + '<br><strong>Unit:</strong> ' + esc_(a.unitLabel) +
+    '<br><strong>Email:</strong> ' + esc_(a.email) + (a.mobile ? ' · <strong>Mobile:</strong> +91 ' + esc_(a.mobile) : '') + '</div>';
+  (v.sections || []).forEach(function (s, i) {
+    h += '<h2>' + (i + 1) + '. ' + esc_(s.heading) + '</h2>';
+    (s.clauses || []).forEach(function (c, j) { h += '<p class="clause"><span class="no">' + (i + 1) + '.' + (j + 1) + '</span>' + esc_(c) + '</p>'; });
+  });
+  h += '<p><strong>' + esc_(v.closing || '') + '</strong></p>';
+  h += '<div class="box"><strong>Accepted electronically</strong> by ' + esc_(a.signedName) + ' (' + esc_(a.email) + '), ' + esc_(a.unitLabel) + ', on ' + esc_(a.acceptedText || a.acceptedOn || '') +
+    ' (India time). Confirmations ticked: ' + esc_((a.confirmations || []).join('; ')) + '. Agreement reference: ' + esc_(a.ref || '') + '.</div>';
+  h += '<p class="meta">This copy was generated by the Society’s records system and is kept in the Society’s records for the unit. Accepted under section 10A of the Information Technology Act, 2000.</p></body></html>';
+  return h;
 }
 
 /* ---------------- helpers ---------------- */

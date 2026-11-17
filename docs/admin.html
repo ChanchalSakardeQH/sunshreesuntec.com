@@ -356,6 +356,7 @@
         <button type="button" data-pane="tenants" aria-pressed="false">Tenants and rental history</button>
         <button type="button" data-pane="comms" aria-pressed="false">Communication</button>
         <button type="button" data-pane="utility" aria-pressed="false">Electricity and property tax</button>
+        <button type="button" data-pane="mdocs" aria-pressed="false">From the member <span class="count-pill" id="mdocs-count" hidden></span></button>
         <button type="button" data-pane="oldrcpt" aria-pressed="false">Old receipts 2011–2016</button>
         <button type="button" data-pane="dup" aria-pressed="false">Duplicate receipts</button>
       </div>
@@ -420,6 +421,32 @@
           <div id="ut-all" class="mt-sm"></div>
         </details>
       </div>
+
+      <div class="uf-pane" data-pane="mdocs" hidden>
+        <h2>Documents from the member</h2>
+        <p class="muted">What the unit’s member uploaded on the portal: title documents with Index II, rental agreements, police verification, occupants, past tenancies and applications. When the member hands over the physical copy, check it against the upload and press <strong>Acknowledge</strong>: an acknowledgment number is given and shown to the member. If something is wrong or missing, <strong>Return</strong> it with the reason; the member can correct it.</p>
+        <div class="table-scroll"><table><thead><tr><th>Uploaded</th><th>Document</th><th>Details</th><th>Files</th><th>Status</th><th></th></tr></thead><tbody id="uf-mdocs"></tbody></table></div>
+        <h3 class="mt-sm">Member portal agreements</h3>
+        <div class="table-scroll"><table><thead><tr><th>Name</th><th>Version</th><th>Accepted</th><th>Copy</th><th></th></tr></thead><tbody id="uf-agreements"></tbody></table></div>
+        <p class="form-msg" id="uf-mdocs-msg" role="alert"></p>
+      </div>
+
+      <dialog id="ack-dialog">
+        <form id="ack-form" class="form" novalidate>
+          <h2 id="ack-title">Acknowledge the physical copy</h2>
+          <p class="muted" id="ack-what"></p>
+          <div id="ack-ack">
+            <label>Physical copy received on<input type="date" name="date" required></label>
+            <label>Remarks (optional)<input type="text" name="note" maxlength="200" placeholder="e.g. Self-attested copy, 42 pages, checked with the original"></label>
+            <p class="muted small-note">An acknowledgment number (ACK/year/number) is given when you save.</p>
+          </div>
+          <div id="ack-return" hidden>
+            <label>What needs to be corrected<textarea name="reason" rows="3" maxlength="400"></textarea></label>
+          </div>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button><button class="btn" type="button" id="ack-cancel">Cancel</button></div>
+        </form>
+      </dialog>
 
       <div class="uf-pane" data-pane="oldrcpt" hidden>
         <h2>Old receipts, 2011–2016</h2>
@@ -528,6 +555,26 @@
     <section class="tab" data-tab="members" hidden>
       <h1>Member access</h1>
       <div class="callout notify-box" id="member-notice" hidden></div>
+      <details class="callout ma-box" id="ma-box">
+        <summary><strong>Member portal agreement</strong> <span id="ma-status" class="muted"></span></summary>
+        <p>Every approved member (new and existing) must accept the current version before using the portal. The accepted copy is saved as a PDF in the unit’s folder in the Society’s Google Drive (<em>Units › wing › unit › Agreements</em>) and emailed to the member with a copy to the Society. Publishing a new version asks everyone to accept again at their next visit.</p>
+        <p class="callout warn-note"><strong>Before publishing:</strong> the text below is a draft prepared with the Maharashtra Co-operative Societies Act, 1960, the Rules and the model bye-laws in mind. Have it checked by the Society’s advocate, adjust it to the Society’s registered bye-laws, and adopt it by a Managing Committee resolution.</p>
+        <form id="ma-edit" class="form" novalidate data-committee>
+          <label>Title<input type="text" name="title" maxlength="140" required></label>
+          <label>Introduction (blank line between paragraphs)<textarea name="intro" rows="5"></textarea></label>
+          <label>Sections: a line starting with ## is a heading; every other line is a clause<textarea name="body" rows="18" class="mono"></textarea></label>
+          <label>Closing statement<textarea name="closing" rows="3"></textarea></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn" type="button" id="ma-preview">Preview</button>
+            <button class="btn btn-primary" type="submit" id="ma-publish">Publish</button>
+            <button class="btn" type="button" id="ma-reset">Start again from the draft</button>
+          </div>
+        </form>
+        <article class="agreement-doc" id="ma-preview-doc" hidden></article>
+        <h3 class="mt-sm">Not accepted yet</h3>
+        <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Name</th><th>Email</th><th>Accepted</th></tr></thead><tbody id="ma-pending"></tbody></table></div>
+      </details>
       <h2>Requests waiting</h2>
       <div class="table-scroll"><table>
         <thead><tr><th>Unit</th><th>Name</th><th>Mobile</th><th>Email</th><th>Requested</th><th></th></tr></thead>
@@ -535,7 +582,7 @@
       </table></div>
       <h2 class="mt">Approved members</h2>
       <div class="table-scroll"><table>
-        <thead><tr><th>Unit</th><th>Name</th><th>Can see</th><th>Mobile</th><th>Email</th><th></th></tr></thead>
+        <thead><tr><th>Unit</th><th>Name</th><th>Can see</th><th>Mobile</th><th>Email</th><th>Agreement</th><th></th></tr></thead>
         <tbody id="approved-rows"></tbody>
       </table></div>
 
@@ -1081,7 +1128,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.12.0</p>
+    <p class="muted mt" id="version-note">Software version 3.13.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

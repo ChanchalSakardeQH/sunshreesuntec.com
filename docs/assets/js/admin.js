@@ -29,7 +29,9 @@ import {
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING } from './defaults.js';
-import { loadDriveCfg, driveReady, driveFileUrl } from './drive.js';
+import { loadDriveCfg, driveReady, driveFileUrl, driveCall } from './drive.js';
+import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
+import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { RECORD_FOLDER, TARIFFS, TAX_USES, commercialSigns, uploadUnitScans, backupUnitToDrive, compareWithBackup, restoreMissing } from './unitfiles.js';
 import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } from './data.js';
 
@@ -922,11 +924,13 @@ async function loadMembers() {
       <button class="btn btn-small" type="button" data-act="edit" data-uid="${esc(p.id)}">Edit</button></div></td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No requests waiting.</td></tr>';
 
+  const agV = await loadMemberAgreementBox(appr).catch((err) => { console.warn('member agreement', err); return 0; });
   $('#approved-rows').innerHTML = appr.map((p) => `<tr><td class="unit">${esc(memberUnitLabel(p.unit))}</td><td>${esc(p.name)}${gpill(p)}</td>
       <td class="access-note">${(p.access || 'full') === 'full' ? 'Unit account + documents' : 'Documents only'}</td>${contact(p)}
+      <td>${agreementCell(p, agV)}</td>
       <td><div class="row-actions"><button class="btn btn-small" type="button" data-act="edit" data-uid="${esc(p.id)}">Edit</button>
       <button class="btn btn-small btn-danger" type="button" data-act="remove" data-uid="${esc(p.id)}">Remove access</button></div></td></tr>`).join('')
-    || '<tr><td colspan="6" class="empty">No approved members yet.</td></tr>';
+    || '<tr><td colspan="7" class="empty">No approved members yet.</td></tr>';
 
   $('#rejected-rows').innerHTML = rej.map((p) => `<tr><td class="unit">${esc(memberUnitLabel(p.unit))}</td><td>${esc(p.name)}${gpill(p)}</td>${contact(p)}
       <td>${whenShort(p.createdAt)}</td>
@@ -2028,7 +2032,7 @@ async function loadProfile() {
 let fileUnit = sessionStorage.getItem('fileUnit') || null;
 let payFor = null;
 let ufPane = 'account';
-const ufCache = { members: [], tenants: [], comms: [], electricity: [], propertyTax: [] };
+const ufCache = { members: [], tenants: [], comms: [], electricity: [], propertyTax: [], memberDocs: [], agreements: [] };
 const fyChoices = () => { const now = Number(financialYear(todayIST()).slice(0, 4)); const out = []; for (let y = now + 1; y >= 2011; y--) out.push(`${y}-${String((y + 1) % 100).padStart(2, '0')}`); return out; };
 
 const opt = (list) => list.map((v) => ({ v, l: v }));
@@ -2119,7 +2123,7 @@ async function loadUnitFile() {
   $('#uf-pick').value = fileUnit;
   const u = units.find((x) => x.id === fileUnit);
   const { F, db } = fb;
-  const [ledgerSnap, billSnap, paySnap, memSnap, tenSnap, comSnap, elecSnap, taxSnap] = await Promise.all([
+  const [ledgerSnap, billSnap, paySnap, memSnap, tenSnap, comSnap, elecSnap, taxSnap, mdocSnap, agSnap] = await Promise.all([
     F.getDocs(F.collection(db, 'units', fileUnit, 'ledger')),
     F.getDocs(F.query(F.collection(db, 'bills'), F.where('unitId', '==', fileUnit))),
     F.getDocs(F.query(F.collection(db, 'payments'), F.where('unitId', '==', fileUnit))),
@@ -2127,7 +2131,9 @@ async function loadUnitFile() {
     F.getDocs(F.collection(db, 'units', fileUnit, 'tenants')).catch(() => ({ docs: [] })),
     F.getDocs(F.collection(db, 'units', fileUnit, 'comms')).catch(() => ({ docs: [] })),
     F.getDocs(F.collection(db, 'units', fileUnit, 'electricity')).catch(() => ({ docs: [] })),
-    F.getDocs(F.collection(db, 'units', fileUnit, 'propertyTax')).catch(() => ({ docs: [] }))
+    F.getDocs(F.collection(db, 'units', fileUnit, 'propertyTax')).catch(() => ({ docs: [] })),
+    F.getDocs(F.collection(db, 'units', fileUnit, 'memberDocs')).catch(() => ({ docs: [] })),
+    F.getDocs(F.query(F.collection(db, 'memberAgreements'), F.where('unit', '==', fileUnit))).catch(() => ({ docs: [] }))
   ]);
   ufCache.members = memSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.admissionDate || '').localeCompare(a.admissionDate || ''));
   ufCache.tenants = tenSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.from || '').localeCompare(a.from || ''));
@@ -2135,6 +2141,10 @@ async function loadUnitFile() {
   ufCache.electricity = elecSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.billMonth || '').localeCompare(a.billMonth || ''));
   ufCache.propertyTax = taxSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.year || '').localeCompare(a.year || ''));
   const signs = commercialSigns(u, ufCache);
+  const kindOrder = Object.keys(MEMBER_DOC_KINDS);
+  ufCache.memberDocs = mdocSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind) || (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  ufCache.agreements = agSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.acceptedAt?.seconds || 0) - (a.acceptedAt?.seconds || 0));
 
   const currentTenants = ufCache.tenants.filter((t) => !t.to);
   $('#uf-title').textContent = `${u.unit}, ${blockName(u.block)}`;
@@ -2228,6 +2238,7 @@ async function loadUnitFile() {
        <p>The Society’s records show <strong>${esc(u.type || 'Residential Flat')}</strong>. Check with the member. If the flat is used for business, record a notice under Communication and change the type to <em>Residential, using as Commercial</em> in <strong>Edit unit details</strong>, so the right charges apply from the next bill.</p></div>`
     : (ufCache.electricity.length || ufCache.propertyTax.length ? `<p class="ut-ok">No sign of commercial use in the latest electricity and property tax records.</p>` : '');
   showBackupNote().catch(() => {});
+  renderMemberDocsPane();
 
   // Audited history (2011-12 to 2017-18) and year-end balances.
   if (!auditCache.length) auditCache = await loadAuditYears(fb).catch(() => []);
@@ -2460,12 +2471,160 @@ function openRecord(kind, id) {
   $('#rec-dialog').showModal();
 }
 
+/* ---------- documents from the member and portal agreements (3.13) ---------- */
+let ackDoc = null, ackMode = 'ack';
+function renderMemberDocsPane() {
+  const waiting = ufCache.memberDocs.filter((d) => d.status === 'submitted').length;
+  $('#mdocs-count').hidden = !waiting;
+  $('#mdocs-count').textContent = waiting;
+  const can = canDo('unitRecords');
+  $('#uf-mdocs').innerHTML = ufCache.memberDocs.map((d) => {
+    const st = DOC_STATUS[d.status] || DOC_STATUS.submitted;
+    return `<tr><td>${whenShort(d.submittedAt)}<span class="sub">${esc(d.submittedByName || '')}${d.relation ? `, ${esc(relationLabel(d.relation))}` : ''}</span></td>
+      <td><strong>${esc(MEMBER_DOC_KINDS[d.kind]?.short || d.kind)}</strong><span class="sub">${esc(d.title || '')}</span></td>
+      <td>${detailLines(d.kind, d.details).map((l) => esc(l).replace(/\n/g, '<br>')).join('<br>')}</td>
+      <td>${docChips('memberDocs', d) || '—'}</td>
+      <td><span class="doc-pill ${st.cls}">${d.status === 'submitted' ? 'Waiting for physical copy' : esc(st.text)}</span>
+        ${d.ack ? `<span class="sub">${esc(d.ack.no)}, ${dd(d.ack.date)}${d.ack.byName ? `, ${esc(d.ack.byName)}` : ''}${d.ack.note ? `<br>${esc(d.ack.note)}` : ''}</span>` : ''}
+        ${d.status === 'returned' && d.review?.reason ? `<span class="sub">${esc(d.review.reason)}</span>` : ''}</td>
+      <td>${can && d.status !== 'acknowledged' ? `<div class="row-actions"><button class="btn btn-small btn-primary" type="button" data-ack="${esc(d.id)}">Acknowledge</button>
+        <button class="btn btn-small" type="button" data-return="${esc(d.id)}">Return</button></div>` : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">Nothing uploaded by the member yet.</td></tr>';
+  $('#uf-agreements').innerHTML = ufCache.agreements.map((a) => `<tr><td>${esc(a.signedName)}<span class="sub">${esc(a.email)}${a.relation ? `, ${esc(relationLabel(a.relation))}` : ''}</span></td>
+      <td>${esc(a.version)}</td><td>${whenShort(a.acceptedAt)}</td>
+      <td>${a.pdf ? `<button class="doc-chip" type="button" data-doc="agreements" data-rid="${esc(a.id)}" data-fid="${esc(a.pdf.id)}">📎 PDF</button>` : '<span class="muted">Not saved yet</span>'}
+        <span class="sub">${a.emailed ? `Emailed to ${esc(a.emailedTo)}` : a.emailNote ? `Not emailed: ${esc(a.emailNote)}` : ''}${a.resentAt ? `; sent again ${whenShort(a.resentAt)}` : ''}</span></td>
+      <td>${canDo('members') ? `<button class="btn btn-small" type="button" data-resend="${esc(a.id)}">Send copy again</button>` : ''}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">No one from this unit has accepted the portal agreement yet.</td></tr>';
+}
+
+function openAck(id, mode) {
+  ackDoc = ufCache.memberDocs.find((d) => d.id === id);
+  if (!ackDoc) return;
+  ackMode = mode;
+  const f = $('#ack-form');
+  f.reset();
+  f.date.value = todayIST();
+  $('#ack-title').textContent = mode === 'ack' ? 'Acknowledge the physical copy' : 'Return to the member for correction';
+  $('#ack-what').textContent = `${MEMBER_DOC_KINDS[ackDoc.kind]?.label || ''}: ${ackDoc.title || ''}`;
+  $('#ack-ack').hidden = mode !== 'ack';
+  $('#ack-return').hidden = mode === 'ack';
+  setMsg(f, '');
+  $('#ack-dialog').showModal();
+}
+
+async function saveAck(e) {
+  e.preventDefault();
+  const f = e.currentTarget, { F, db } = fb;
+  const ref = F.doc(db, 'units', fileUnit, 'memberDocs', ackDoc.id), byName = me?.name || fb.auth.currentUser.email || '';
+  await busy($('button[type=submit]', f), async () => {
+    try {
+      if (ackMode === 'ack') {
+        if (!f.date.value) return setMsg(f, 'Enter the date the physical copy was received.');
+        const fy = financialYear(f.date.value);
+        await F.runTransaction(db, async (tx) => {
+          const cRef = F.doc(db, 'counters', `acks-${fy}`), c = await tx.get(cRef);
+          const n = c.exists() ? Number(c.data().next) || 1 : 1;
+          tx.set(cRef, { next: n + 1 });
+          tx.update(ref, { status: 'acknowledged', ack: { no: `ACK/${fy}/${String(n).padStart(4, '0')}`, date: f.date.value, note: f.note.value.trim(), by: uid, byName, at: F.serverTimestamp() },
+            updatedAt: F.serverTimestamp(), updatedBy: uid });
+        });
+      } else {
+        const reason = f.reason.value.trim();
+        if (reason.length < 5) return setMsg(f, 'Write what needs to be corrected; the member sees it.');
+        await F.updateDoc(ref, { status: 'returned', review: { reason, by: uid, byName, at: F.serverTimestamp() }, updatedAt: F.serverTimestamp(), updatedBy: uid });
+      }
+      $('#ack-dialog').close();
+      await loadUnitFile();
+      showUfPane('mdocs');
+      backupThisUnit(fileUnit);
+    } catch (err) { setMsg(f, esc(errorText(err))); }
+  });
+}
+
+async function resendAgreement(id, btn) {
+  const msg = $('#uf-mdocs-msg');
+  await busy(btn, async () => {
+    try {
+      const r = await driveCall(fb, 'resendAgreement', { agreementId: id });
+      const { F, db } = fb;
+      await F.updateDoc(F.doc(db, 'memberAgreements', id), { pdf: r.pdf, emailed: Boolean(r.emailed), emailedTo: r.emailedTo || '', cc: r.cc || '', emailNote: r.note || '', resentAt: F.serverTimestamp(), resentBy: uid });
+      msg.className = 'form-msg ok';
+      msg.textContent = r.emailed ? `Copy emailed again to ${r.emailedTo}, with a copy to ${r.cc}.` : `Saved, but not emailed: ${r.note}`;
+      await loadUnitFile(); showUfPane('mdocs');
+    } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+  });
+}
+
+/* ---------- Members tab: the member portal agreement (3.13) ---------- */
+let maCurrent = null, maFilled = false;
+async function loadMemberAgreementBox(appr) {
+  const { F, db } = fb;
+  const s = await F.getDoc(F.doc(db, 'settings', 'memberAgreement')).catch(() => null);
+  const v = s?.exists() ? Number(s.data().version) || 0 : 0;
+  maCurrent = null;
+  if (v) {
+    const t = await F.getDoc(F.doc(db, 'memberAgreementVersions', String(v))).catch(() => null);
+    maCurrent = t?.exists() ? { ...t.data(), version: v } : { version: v };
+  }
+  const done = appr.filter((p) => v && Number(p.agreementVersion) === v);
+  $('#ma-status').textContent = v ? `· version ${v} published${maCurrent?.publishedOn ? ` on ${dd(maCurrent.publishedOn)}` : ''} · accepted by ${done.length} of ${appr.length} approved members`
+    : '· not published yet: members are not asked to accept anything';
+  $('#ma-pending').innerHTML = !v ? '<tr><td colspan="4" class="empty">Publish the agreement first.</td></tr>'
+    : appr.filter((p) => Number(p.agreementVersion) !== v).map((p) => `<tr><td>${esc(memberUnitLabel(p.unit))}</td><td>${esc(p.name)}</td><td>${esc(p.email)}</td>
+      <td>${p.agreementVersion ? `Version ${esc(p.agreementVersion)} only` : 'Not yet'}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Every approved member has accepted the current version.</td></tr>';
+  const f = $('#ma-edit');
+  if (!maFilled) { fillMaForm(maCurrent?.sections ? maCurrent : DEFAULT_MEMBER_AGREEMENT); maFilled = true; }
+  const committee = canDo('committee');
+  $$('input, textarea', f).forEach((x) => (x.readOnly = !committee));
+  $('#ma-publish').hidden = !committee; $('#ma-reset').hidden = !committee;
+  $('#ma-publish').textContent = `Publish as version ${v + 1}`;
+  return v;
+}
+function fillMaForm(ag) {
+  const f = $('#ma-edit');
+  f.title.value = ag.title || '';
+  f.intro.value = (ag.intro || []).join('\n\n');
+  f.body.value = sectionsToText(ag.sections);
+  f.closing.value = ag.closing || '';
+}
+function readMaForm() {
+  const f = $('#ma-edit');
+  return { title: f.title.value.trim(), intro: f.intro.value.split(/\n\s*\n/).map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean),
+    sections: textToSections(f.body.value), closing: f.closing.value.trim() };
+}
+async function publishMemberAgreement(e) {
+  e.preventDefault();
+  const f = e.currentTarget, ag = readMaForm();
+  if (ag.title.length < 5 || !ag.sections.length || !ag.closing) return setMsg(f, 'The title, at least one section with clauses, and the closing statement are needed.');
+  const v = (maCurrent?.version || 0) + 1;
+  if (!confirm(`Publish version ${v}? Every approved member will be asked to accept it at their next visit, and a copy of each acceptance will be saved and emailed.`)) return;
+  const { F, db } = fb;
+  await busy($('#ma-publish'), async () => {
+    try {
+      const batch = F.writeBatch(db);
+      batch.set(F.doc(db, 'memberAgreementVersions', String(v)), { ...ag, version: v, publishedOn: todayIST(), publishedAt: F.serverTimestamp(), publishedBy: uid, publishedByName: me?.name || '' });
+      batch.set(F.doc(db, 'settings', 'memberAgreement'), { version: v, title: ag.title, publishedAt: F.serverTimestamp(), publishedBy: uid });
+      await batch.commit();
+      maFilled = false;
+      setMsg(f, `Version ${v} published.`, true);
+      await loadMembers();
+    } catch (err) { setMsg(f, esc(errorText(err))); }
+  });
+}
+function agreementCell(p, v) {
+  if (!v) return '<span class="muted">—</span>';
+  return Number(p.agreementVersion) === v ? `<span class="ag-ok">✓ Accepted</span><span class="sub">v${v}${p.agreementAcceptedAt ? `, ${whenShort(p.agreementAcceptedAt)}` : ''}</span>`
+    : `<span class="ag-no">Not yet</span>${p.agreementVersion ? `<span class="sub">accepted v${esc(p.agreementVersion)}</span>` : ''}`;
+}
+
 /* ---------- scans on unit file records (3.12) ---------- */
 let recFiles = [], recNew = [];
 const wingName = () => { const u = units.find((x) => x.id === fileUnit); return u ? blockName(u.block) : ''; };
 function docChips(kind, r) {
   const label = `${units.find((u) => u.id === fileUnit)?.unit || ''} `;
-  return (r.files || []).map((f) => `<button class="doc-chip" type="button" data-doc="${kind}" data-rid="${esc(r.id)}" data-fid="${esc(f.id)}" title="${esc(f.name)}">📎 ${esc(f.name.startsWith(label) ? f.name.slice(label.length) : f.name)}</button>`).join('');
+  const short = (n) => { if (kind === 'memberDocs') { const i = n.lastIndexOf(' - '); if (i > 0) return n.slice(i + 3); } return n.startsWith(label) ? n.slice(label.length) : n; };
+  return (r.files || []).map((f) => `<button class="doc-chip" type="button" data-doc="${kind}" data-rid="${esc(r.id)}" data-fid="${esc(f.id)}" title="${esc(f.name)}">📎 ${esc(short(f.name))}</button>`).join('');
 }
 function renderRecFiles() {
   $('#rec-file-list').innerHTML = recFiles.map((f, i) => `<li class="${f.keep ? '' : 'removing'}"><span>📎 ${esc(f.name)}</span>
@@ -2474,7 +2633,7 @@ function renderRecFiles() {
     || '<li class="muted">No scans yet.</li>';
 }
 async function openUnitDoc(kind, rid, fid) {
-  const rec = ufCache[kind].find((r) => r.id === rid), f = rec?.files?.find((x) => x.id === fid);
+  const rec = ufCache[kind].find((r) => r.id === rid), f = (kind === 'agreements' ? [rec?.pdf] : rec?.files || []).find((x) => x?.id === fid);
   if (!f) return;
   const d = $('#ufdoc-dialog');
   $('#ufdoc-title').textContent = f.name;
@@ -2482,7 +2641,7 @@ async function openUnitDoc(kind, rid, fid) {
   $('#ufdoc-save').disabled = true;
   d.showModal();
   try {
-    const url = await driveFileUrl(fb, { unitId: fileUnit, record: kind, recordId: rid, fileId: fid });
+    const url = await driveFileUrl(fb, kind === 'agreements' ? { agreementId: rid, fileId: fid } : { unitId: fileUnit, record: kind, recordId: rid, fileId: fid });
     $('#ufdoc-body').innerHTML = f.mime?.startsWith('image/') ? `<img alt="${esc(f.name)}" src="${url}">` : `<p>PDF document. Use <strong>Save / open</strong> to see it.</p>`;
     $('#ufdoc-save').disabled = false;
     $('#ufdoc-save').onclick = async () => { try { await saveBlob(await (await fetch(url)).blob(), f.name); } catch (err) { alert(errorText(err)); } };
@@ -2553,6 +2712,22 @@ function wireUnitFile() {
     if (dr) { recNew.splice(Number(dr.dataset.drop), 1); renderRecFiles(); }
   });
   $('#ufdoc-close').addEventListener('click', () => $('#ufdoc-dialog').close());
+  $('#ack-form').addEventListener('submit', (e) => saveAck(e));
+  $('#ack-cancel').addEventListener('click', () => $('#ack-dialog').close());
+  $('[data-pane="mdocs"].uf-pane').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-ack]'), r = e.target.closest('[data-return]'), s = e.target.closest('[data-resend]');
+    if (a) openAck(a.dataset.ack, 'ack');
+    if (r) openAck(r.dataset.return, 'return');
+    if (s) resendAgreement(s.dataset.resend, s);
+  });
+  $('#ma-edit').addEventListener('submit', (e) => publishMemberAgreement(e));
+  $('#ma-preview').addEventListener('click', () => {
+    const d = $('#ma-preview-doc');
+    d.innerHTML = memberAgreementHTML({ ...readMaForm(), version: (maCurrent?.version || 0) + 1 }, { name: 'Member’s name', unit: 'C 202 (C Wing)', relation: 'owner', email: 'member@example.com' });
+    d.hidden = false;
+    d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  $('#ma-reset').addEventListener('click', () => { if (confirm('Replace the text in the editor with the draft? Nothing is published until you press Publish.')) fillMaForm(DEFAULT_MEMBER_AGREEMENT); });
   $('#uf-backup-now').addEventListener('click', (e) => busy(e.currentTarget, async () => {
     $('#uf-backup').textContent = 'Google Drive backup: saving…';
     try { await backupThisUnit(fileUnit, { loud: true }); } catch (err) { $('#uf-backup').textContent = `Google Drive backup: ${errorText(err)}`; }

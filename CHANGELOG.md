@@ -6,6 +6,70 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.13.0] – 2026-11-17 – Member portal agreement; members upload their unit's documents
+
+### Added
+- **Member portal agreement** (Members → *Member portal agreement*):
+  - A draft *Member Portal Use Agreement and Undertaking* covering:
+    - the Act (including Chapter XIII-B), the Rules and the registered bye-laws, which prevail; members' statutory rights are not affected;
+    - using the portal and checking it regularly; receipts are subject to realisation, and the books are the final record;
+    - paying dues on time and sharing payment details at once;
+    - the unit's records: the full title chain with Index II, leave and licence agreements, police intimation, occupants and past tenants, each uploaded and handed over as a physical copy against acknowledgment; telling the Society before letting the unit or changing its use;
+    - writing to the committee first, with 30 days for a reply, without limiting recourse to the Registrar, the Co-operative Court, the police or the courts;
+    - not defaming the Society, its committee, staff, watchmen, housekeeping, garbage collection or cleaning personnel, or members, by any means including social media; true statements in good faith, fair comment and complaints to authorities stay free;
+    - consent for the use of personal data;
+    - electronic acceptance (IT Act section 10A), revisions, severability and jurisdiction.
+  - Members who do not accept still get their bills and receipts from the office.
+  - The text is Version 1.0 as reviewed on 17/11/2026 (15 sections, the same as the Society's Agreement document). Among its clauses, the user:
+    - agrees to visit regularly (2.5);
+    - provides the full title chain with Index II from the builder to the latest owner, plus past tenants with their police intimation (4.1);
+    - uploads and hands over a self-attested physical copy against a numbered acknowledgment (4.3);
+    - writes to the Committee as a first step, with 5.4–5.6 keeping the Registrar and the courts open (5.1);
+    - names watchmen, housekeeping, garbage-collection and cleaning staff among those not to be targeted (6.2), and not to defame them by any means, including WhatsApp and social media, with the good-faith exceptions in 6.6 (6.3);
+    - gets a copy emailed with a copy to the Society (11.4).
+  - The committee edits the text, previews it and publishes it as a numbered version. Published versions are kept unchanged. The draft carries a note to have it checked by the Society's advocate and adopted by a Managing Committee resolution.
+  - **Every approved member, new or existing, accepts the current version before using the portal.** They tick four confirmations and type their name. Their name, email, unit, version, confirmations and the server's time are recorded.
+  - **The copy is saved as a PDF** in the unit's Drive folder (*Units › wing › unit › Agreements*) and **emailed to the member with a copy to sunshreesuntec@gmail.com**, once. If emailing fails, it is tried again at the member's next visit; the committee can also *Send copy again* from the unit file.
+  - The members list shows who has accepted; the agreement box lists who hasn't. A new version asks everyone again.
+- **My unit's documents** (member's account page): members upload, with details:
+  - sale deed / agreement and Index II (each document of the chain from the builder to the latest owner);
+  - leave and licence agreement;
+  - police intimation / verification;
+  - who lives in the unit now;
+  - past tenancies;
+  - applications and other documents.
+
+  PDFs up to 25 MB and photos are filed in the unit's Drive folder (*Ownership (sale deeds and Index II)*, *Tenants and agreements*, *Occupants*, *Communication*). Members see each upload's status and can edit or withdraw it until it is acknowledged, and download their agreement copy.
+- **Unit file → From the member:** the uploads with their files, a count of those waiting, and two actions:
+  - **Acknowledge** when the physical copy is received: date, remarks and a number **ACK/2026-27/0001**, which the member sees;
+  - **Return** with what to correct.
+
+  This tab also lists the unit's portal agreements with the PDF and the email status.
+- Unit file backups now include the member's uploads and agreements.
+
+### Drive script (version 3)
+- Members' own actions: `memberUpload` (only their unit, approved and verified), `memberFetch` (their uploads and their agreement) and `memberAgreement` (PDF and email, once). Committee: `resendAgreement`; `fetch` also opens member uploads and agreements.
+- New permission to send email: **replace appsscript.json, run setup again to allow it, and deploy a new version** (README → *Updating the script later*).
+
+### Security rules
+- `memberAgreementVersions` (committee creates; never changed), `memberAgreements/<uid>_v<version>` (created only by the member for the current version, with the server's time; afterwards only the PDF and email details may be added), the member's own `agreementVersion` on their record (only together with that acceptance), `units/<id>/memberDocs` (the unit's approved member adds, edits and withdraws until acknowledged; the accounts team acknowledges or returns), counter `acks-<year>`, and `settings/files` readable by approved members for uploads.
+
+### Tested
+- 36 browser checks across the whole flow:
+  - nothing is asked before publishing;
+  - the draft's key clauses, the preview and publishing version 1;
+  - members who haven't accepted are listed;
+  - the member sees the agreement with their details, and all four boxes are needed;
+  - the acceptance record, the member's version, one copy saved and emailed, and the account opening afterwards;
+  - uploads to the right unit and folder, with required details checked;
+  - the committee's count, acknowledgment number and return with a reason, opening a scan and sending the copy again;
+  - the member sees the acknowledgment, can't change an acknowledged upload, corrects a returned one and downloads the agreement;
+  - version 2 asks again while version 1 stays unchanged.
+- 25 new Drive-script checks: member folders, permissions, other units, unapproved or unverified accounts, size limits, the PDF content, email once with CC, resend, and the email quota.
+- All earlier suites pass: 230 browser checks and 68 script checks.
+
+---
+
 ## [3.12.0] – 2026-11-17 – Electricity and property tax in the unit file; unit documents and backups in Google Drive
 
 ### Added

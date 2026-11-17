@@ -25,6 +25,7 @@ This document explains what the system does, where the data lives, how every amo
 11-1. Notices page
 11A. Unit file
 11B. Unit documents, electricity, property tax and backups
+11C. Member portal agreement and members' documents
 12. Member access
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
@@ -360,6 +361,23 @@ Documents are stored as links (e.g. Google Drive), because file uploads would ne
 - **Scans:** any unit record (`members`, `tenants`, `comms`, `electricity`, `propertyTax`) may carry `files: [{ id, name, mime, size }]`, stored by the Drive script in `Units/<wing>/<unit>/<folder>` (folders: Members and shares, Tenants and agreements, Communication, Electricity (MSEB), Property tax (PMC)). Files are opened through the script, which reads the record with the person's own sign-in first. Photos are reduced to 2000 px JPEG before upload; PDFs up to 15 MB.
 - **Backup:** `unitBackup()` builds `{ format: 'sunshree-suntec-unit-file', formatVersion: 1, unit, records, ledger, bills, payments, receiptCopies, pastReceipts, tallyHistory }` (times as `{ "$time": ISO }`); the script writes it as `<unit> unit file backup.json` in the unit's folder, replacing the previous one. Saved after every unit record is saved, with *Back up now*, and for all units in Settings. `driveBackups/{unitId}` notes when and by whom.
 - **Restore:** Settings → *Restore a unit's records from its backup* (committee): compares record ids and recreates missing ones with `setDoc` and their original id (`restoredAt`, `restoredBy` added). Bills, payments and the ledger are permanent in the database and are not rewritten; their copies in the backup are for reference and for rebuilding the database if it were ever lost.
+
+---
+
+## 11C. Member portal agreement and members' documents (3.13)
+
+- **Agreement:** `settings/memberAgreement { version }` points to `memberAgreementVersions/<n>` `{ title, intro[], sections[{ heading, clauses[] }], closing, publishedOn, publishedBy }` (never changed). Default text and rendering: `memberagreement.js`. The Drive script renders the same layout (`agreementHtml_`) for the PDF.
+- **Acceptance:** on the member page, an approved, verified member whose `users.agreementVersion` differs from the current version sees the agreement first. Accepting writes in one batch:
+  - `memberAgreements/<uid>_v<n>` `{ uid, email, name, mobile, relation, unit, unitLabel, wing, version, signedName, confirmations[4], acceptedAt (server time), device }`;
+  - `users/<uid>.{ agreementVersion, agreementAcceptedAt, agreementId }`. The rules allow this only together with that record.
+
+  The page then calls the script's `memberAgreement`: a PDF goes to `Units/<wing>/<unit>/Agreements`, emailed to the member with CC to the script's account (once; remembered in Script properties). The page then stores `pdf`, `emailed`, `emailedTo`, `cc` and `emailNote` on the record. If the copy wasn't made, it is tried again at the next visit. Committee: Unit file → *From the member → Send copy again* (`resendAgreement`).
+- **Members' documents:** `units/<id>/memberDocs/<id>` `{ kind, title, details, files[], status, submittedBy, submittedByName, submittedAt, relation, ack?, review? }`.
+  - **Kinds** (`memberdocs.js`): ownership, rental, police, occupants, pastRental, other.
+  - **Statuses:** submitted (waiting for the physical copy), acknowledged (`ack { no: ACK/<FY>/<nnnn>, date, note, by, byName }`, counter `acks-<FY>`) or returned (`review { reason }`).
+  - **Who does what:** the member edits or withdraws until acknowledged; the accounts team (*maintain unit files*) acknowledges or returns.
+  - **Files:** uploaded with the script's `memberUpload` (PDF up to 25 MB, photos up to 15 MB) into `Ownership (sale deeds and Index II)`, `Tenants and agreements`, `Occupants` or `Communication` of the unit's folder.
+- **Legal note:** the default agreement is a draft for the Managing Committee. It is written to sit under the MCS Act 1960 (Chapter XIII-B), the Rules 1961 and the registered bye-laws, which prevail. It does not restrict statutory remedies (Contract Act s.28), and it keeps lawful speech and complaints outside the no-defamation clause. Have it reviewed by the Society's advocate and adopted by resolution before publishing; check bye-law numbers against the Society's registered bye-laws and the 2026 model bye-laws when adopted.
 
 ---
 

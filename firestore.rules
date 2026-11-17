@@ -58,6 +58,14 @@ service cloud.firestore {
         && profile().unit == unitId;
     }
     function fullAccess() { return profile().get('access', 'full') == 'full'; }
+    // 3.13: an approved member of the unit with any access (full or basic), for the unit's documents.
+    function approvedMember() {
+      return signedIn() && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().status == 'approved' && profile().get('removed', false) != true;
+    }
+    function memberOf(unitId) { return approvedMember() && profile().unit == unitId; }
+    function memberAgreementVersion() { return get(/databases/$(database)/documents/settings/memberAgreement).data.version; }
     function changes() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
     // Books closed up to this date (end of the last closed financial year); '' = nothing closed.
@@ -151,8 +159,39 @@ service cloud.firestore {
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.createdAt == request.time;
       allow read: if (signedIn() && request.auth.uid == uid) || perm('members') || perm('directory');
-      allow update: if perm('members');
+      allow update: if perm('members')
+        // 3.13: the member records their acceptance of the current portal agreement (written in the same batch).
+        || (signedIn() && request.auth.uid == uid && resource.data.status == 'approved'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['agreementVersion', 'agreementAcceptedAt', 'agreementId'])
+            && request.resource.data.agreementVersion == memberAgreementVersion()
+            && request.resource.data.agreementAcceptedAt == request.time
+            && request.resource.data.agreementId == uid + '_v' + string(memberAgreementVersion())
+            && existsAfter(/databases/$(database)/documents/memberAgreements/$(request.resource.data.agreementId)));
       allow delete: if isCommittee();
+    }
+
+    // 3.13: member portal agreement. Versions are permanent; each acceptance is a permanent record (id <uid>_v<version>).
+    match /memberAgreementVersions/{v} {
+      allow read: if signedIn();
+      allow create: if isCommittee() && request.resource.data.version is int && v == string(request.resource.data.version)
+        && request.resource.data.sections is list && request.resource.data.sections.size() > 0;
+      allow update, delete: if false;
+    }
+    match /memberAgreements/{id} {
+      allow read: if (signedIn() && resource.data.uid == request.auth.uid) || perm('members') || perm('view');
+      allow create: if approvedMember()
+        && id == request.auth.uid + '_v' + string(memberAgreementVersion())
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.unit == profile().unit
+        && request.resource.data.version == memberAgreementVersion()
+        && request.resource.data.acceptedAt == request.time
+        && request.resource.data.signedName is string && request.resource.data.signedName.size() >= 3 && request.resource.data.signedName.size() <= 120
+        && request.resource.data.confirmations is list && request.resource.data.confirmations.size() >= 3;
+      // Only the details of the archived PDF and the email may be added later.
+      allow update: if ((signedIn() && resource.data.uid == request.auth.uid) || perm('members'))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pdf', 'emailed', 'emailedTo', 'cc', 'emailNote', 'archivedAt', 'resentAt', 'resentBy']);
+      allow delete: if false;
     }
 
     // Decisions on member requests (approve, reject, remove, restore, edit): a permanent history.
@@ -211,6 +250,27 @@ service cloud.firestore {
         allow read: if perm('view') || approvedFor(unitId);
         allow write: if isCommittee();
       }
+      // 3.13: documents uploaded by the unit's member (sale deeds and Index II, rental agreements, police verification,
+      // occupants, past tenancies, other). The member edits or withdraws them until the committee acknowledges the
+      // physical copy; the accounts team acknowledges or returns them.
+      match /memberDocs/{docId} {
+        allow read: if perm('view') || perm('unitRecords') || memberOf(unitId);
+        allow create: if memberOf(unitId)
+          && request.resource.data.keys().hasOnly(['kind', 'title', 'details', 'files', 'submittedBy', 'submittedByName', 'submittedAt', 'status', 'relation'])
+          && request.resource.data.kind in ['ownership', 'rental', 'police', 'occupants', 'pastRental', 'other']
+          && request.resource.data.submittedBy == request.auth.uid
+          && request.resource.data.submittedAt == request.time
+          && request.resource.data.status == 'submitted'
+          && request.resource.data.files is list && request.resource.data.files.size() <= 20;
+        allow update: if (memberOf(unitId) && resource.data.submittedBy == request.auth.uid && resource.data.status in ['submitted', 'returned']
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'details', 'files', 'updatedAt', 'status'])
+              && request.resource.data.status == 'submitted' && request.resource.data.files.size() <= 20)
+          || (perm('unitRecords') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'ack', 'review', 'updatedAt', 'updatedBy'])
+              && request.resource.data.status in ['submitted', 'acknowledged', 'returned']);
+        allow delete: if (memberOf(unitId) && resource.data.submittedBy == request.auth.uid && resource.data.status in ['submitted', 'returned'])
+          || isCommittee();
+      }
+
       // Unit file: member register (I & J), tenants / rental history, communication,
       // electricity (MSEB) and property tax (PMC) records (3.12). Scans are in the Society's Google Drive.
       match /{record}/{recordId} {
@@ -256,7 +316,8 @@ service cloud.firestore {
     match /counters/{docId} {
       allow read, write: if perm('recordPayments')
         || (docId.matches('expenses-.*') && perm('approveExpenses'))
-        || (docId.matches('(paybacks|advances)-.*') && perm('payExpenses'));
+        || (docId.matches('(paybacks|advances)-.*') && perm('payExpenses'))
+        || (docId.matches('acks-.*') && perm('unitRecords'));
     }
 
     // ---------- expenses (3.7) ----------
@@ -358,7 +419,9 @@ service cloud.firestore {
     }
 
     match /settings/{docId} {
-      allow read: if perm('view') || ((docId == 'staffAgreement' || docId == 'files') && isTeam());
+      allow read: if perm('view') || ((docId == 'staffAgreement' || docId == 'files') && isTeam())
+        || (docId == 'memberAgreement' && signedIn())
+        || (docId == 'files' && approvedMember());
       allow write: if isCommittee()
         || (docId == 'billing' && perm('generateBills') && changes().hasOnly(['lastRun', 'lastBilledMonth']));
     }

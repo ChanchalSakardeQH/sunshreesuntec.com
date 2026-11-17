@@ -23,6 +23,9 @@ Sunshree Suntec Society Records/
         Communication/                ← members' applications, the Society's replies, notices to the unit
         Electricity (MSEB)/           ← electricity bills
         Property tax (PMC)/           ← property tax bills and receipts
+        Ownership (sale deeds and Index II)/   ← uploaded by the member (3.13)
+        Occupants/                    ← who lives in the unit, uploaded by the member
+        Agreements/                   ← member portal agreements as accepted (PDF), also emailed to the member
 ```
 
 Unit documents are seen on the accounts page by those who may read the unit's records; they are added by those
@@ -61,6 +64,17 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
    folder name and the account. Done.
 
 ## Updating the script later
+
+**3.13 needs this once, with one extra step:** the script now also emails members their portal agreement, so it needs
+permission to send email from the Society's account. After pasting the new `Code.gs`:
+1. open `appsscript.json` in the editor and replace it with the new [`appsscript.json`](appsscript.json) (it adds the
+   `script.send_mail` permission); save;
+2. choose the function **setup** and press **Run**; Google asks for permission again: *Review permissions* →
+   sunshreesuntec@gmail.com → *Advanced* → *Go to Sunshree Suntec records* → **Allow** (it now lists *Send email as you*);
+3. deploy a new version as below.
+Agreements are emailed from sunshreesuntec@gmail.com with a copy to the same address. A free Gmail account can send
+about 100 such emails a day; if the limit is reached the copy is still saved in Drive and can be sent again the next
+day from the unit file (*From the member → Send copy again*).
 
 **3.12 needs this once:** the script gained unit documents and backups (`version: 2`). Until the new version is
 deployed, adding a scan to a unit record says *Unknown request* or files it wrongly, and backups fail.

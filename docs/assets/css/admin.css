@@ -284,3 +284,11 @@ table.pr-table td:last-child .btn { white-space: nowrap; }
 .uf-backup-line .btn-link { padding: 0; font-size: inherit; }
 .rec-files input[type="file"] { max-width: 100%; width: 100%; }
 .rec-file-list li span { overflow-wrap: anywhere; }
+/* 3.13: member portal agreement and member documents */
+.ma-box summary { cursor: pointer; }
+.ma-box[open] summary { margin-bottom: .6rem; }
+.warn-note { border-left: 4px solid #b7791f; background: color-mix(in srgb, #b7791f 8%, var(--surface)); }
+textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .86rem; line-height: 1.45; }
+.count-pill { display: inline-block; min-width: 1.3rem; padding: 0 .35rem; border-radius: 999px; background: var(--due); color: #fff; font-size: .75rem; line-height: 1.3rem; text-align: center; margin-left: .25rem; }
+.ag-ok { color: var(--credit); font-weight: 600; }
+.ag-no { color: var(--due); font-weight: 600; }

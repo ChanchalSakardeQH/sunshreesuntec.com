@@ -374,3 +374,28 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 }
 .notice { scroll-margin-top: 6rem; }
 .notice:focus { outline: none; }
+/* 3.13: member portal agreement and the unit's documents */
+.agreement-doc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem 1.4rem; max-height: 60vh; overflow-y: auto; margin: 1rem 0; line-height: 1.55; }
+.agreement-doc h1 { font-size: 1.3rem; margin-top: 0; }
+.agreement-doc h2 { font-size: 1.02rem; margin: 1.2rem 0 .4rem; }
+.agreement-doc .clause { margin: .35rem 0; }
+.agreement-doc .clause-no { font-weight: 700; margin-right: .3rem; }
+.agreement-doc .meta-line { color: var(--muted); font-size: .88rem; }
+.agreement-form fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem 1rem .8rem; display: grid; gap: .6rem; }
+.agreement-form .check { display: flex; gap: .6rem; align-items: flex-start; font-weight: 400; }
+.agreement-form .check input { width: 1.2rem; height: 1.2rem; margin-top: .15rem; flex: none; }
+.doc-add { display: flex; flex-wrap: wrap; gap: .5rem; margin: .6rem 0 1rem; }
+.md-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 1rem; }
+.md-grid .wide { grid-column: 1 / -1; }
+.md-files { border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem 1rem .8rem; margin: 1rem 0 0; min-width: 0; }
+.md-files input[type="file"] { max-width: 100%; width: 100%; }
+.md-file-list { list-style: none; margin: 0 0 .5rem; padding: 0; display: grid; gap: .3rem; }
+.md-file-list li { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+.md-file-list li span { overflow-wrap: anywhere; }
+.md-file-list li.removing span { text-decoration: line-through; color: var(--muted); }
+.doc-pill { display: inline-block; border-radius: 999px; padding: .1rem .6rem; font-size: .8rem; font-weight: 600; }
+.doc-pill.ok { background: color-mix(in srgb, var(--credit) 14%, transparent); color: var(--credit); }
+.doc-pill.warn { background: color-mix(in srgb, #b7791f 16%, transparent); color: #7a5300; }
+.doc-pill.due { background: color-mix(in srgb, var(--due) 12%, transparent); color: var(--due); }
+.file-link { font: inherit; font-size: .86rem; color: var(--stamp); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-align: left; overflow-wrap: anywhere; }
+#my-docs .sub { display: block; font-size: .84rem; color: var(--muted); margin-top: .15rem; }

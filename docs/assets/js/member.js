@@ -9,6 +9,9 @@ import { mergeLedger } from './accounts.js';
 import { SELF_REGISTER_ROLES, rolePolicy, PERM_LABEL } from './staff.js';
 import { loadPastReceipts, preLedger } from './pastreceipts.js';
 import { loadAuditYears, listArchive, openArchiveDoc, archiveBlob, yearEndRows } from './archive.js';
+import { agreementHTML } from './memberagreement.js';
+import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
+import { loadDriveCfg, driveReady, driveCall, prepareFile, toBase64, safeName } from './drive.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -43,7 +46,7 @@ function fillUnitSelect() {
 }
 
 function setMsg(el, text, ok = false) {
-  const p = $('.form-msg', el);
+  const p = el.matches('.form-msg') ? el : $('.form-msg', el);
   p.textContent = text;
   p.classList.toggle('ok', ok);
 }
@@ -63,6 +66,7 @@ function showPanel(which) {
   $('#auth-panels').hidden = which !== 'auth';
   $('#member-status').hidden = which !== 'status';
   $('#member-account').hidden = which !== 'account';
+  $('#member-agreement').hidden = which !== 'agreement';
 }
 
 function setSignedInUI(user) {
@@ -205,6 +209,9 @@ async function onUser(user) {
   }
 
   if (profile.status === 'approved' && user.emailVerified) {
+    // 3.13: the current member portal agreement must be accepted first (new and existing members alike).
+    currentAg = await loadMemberAgreement().catch(() => null);
+    if (currentAg && Number(profile.agreementVersion || 0) !== currentAg.version) { showAgreement(user); return; }
     showPanel('account');
     await loadAccount();
     // In the app: note when this was loaded, and keep the Society documents on the phone too.
@@ -247,6 +254,7 @@ function renderStatus(user) {
 /* ---------- forms ---------- */
 
 function wireForms() {
+  wireMemberDocs();
   const { A, F, auth, db } = fb;
   $('#auth-panels').hidden = false;
   const sayGoogle = (text, kind, details) => showMsg($('#google-box'), text, kind, details);
@@ -363,9 +371,221 @@ function wireForms() {
 
 /* ---------- member account ---------- */
 
+/* ---------- member portal agreement (3.13) ---------- */
+let currentAg = null;
+
+async function loadMemberAgreement() {
+  const { F, db } = fb;
+  const s = await F.getDoc(F.doc(db, 'settings', 'memberAgreement'));
+  if (!s.exists() || !s.data().version) return null;
+  const v = Number(s.data().version);
+  const t = await F.getDoc(F.doc(db, 'memberAgreementVersions', String(v)));
+  return t.exists() ? { ...t.data(), version: v } : null;
+}
+
+const wingOf = (unitId) => { const u = dues.units.find((x) => x.id === unitId); return dues.blocks.find((b) => b.id === u?.block)?.name || u?.block || ''; };
+const plainUnit = (unitId) => dues.units.find((x) => x.id === unitId)?.unit || unitId;
+const person = (user) => ({ name: profile.name, email: user.email, unit: unitLabel(profile.unit), relation: profile.relation, mobile: profile.mobile });
+
+function showAgreement(user) {
+  $('#ma-doc').innerHTML = agreementHTML(currentAg, person(user));
+  $('#ma-email').textContent = user.email;
+  const f = $('#ma-form');
+  f.reset();
+  f.sign.value = profile.name || '';
+  setMsg(f, '');
+  showPanel('agreement');
+}
+
+async function acceptAgreement(e) {
+  e.preventDefault();
+  const f = e.currentTarget, user = fb.auth.currentUser;
+  const boxes = $$('input[type=checkbox]', f);
+  const signed = f.sign.value.trim().replace(/\s+/g, ' ');
+  if (boxes.some((b) => !b.checked)) return setMsg(f, 'Please tick all four boxes to accept the agreement.');
+  if (signed.length < 3) return setMsg(f, 'Type your full name as your signature.');
+  const { F, db } = fb;
+  const v = currentAg.version, id = `${user.uid}_v${v}`;
+  await busy($('button[type=submit]', f), async () => {
+    try {
+      const batch = F.writeBatch(db);
+      batch.set(F.doc(db, 'memberAgreements', id), {
+        uid: user.uid, email: user.email, name: profile.name || '', mobile: profile.mobile || '', relation: profile.relation || '',
+        unit: profile.unit, unitLabel: plainUnit(profile.unit), wing: wingOf(profile.unit),
+        version: v, title: currentAg.title, signedName: signed, confirmations: boxes.map((b) => b.value),
+        acceptedAt: F.serverTimestamp(), device: navigator.userAgent.slice(0, 180)
+      });
+      batch.update(F.doc(db, 'users', user.uid), { agreementVersion: v, agreementAcceptedAt: F.serverTimestamp(), agreementId: id });
+      await batch.commit();
+      profile.agreementVersion = v; profile.agreementId = id;
+      setMsg(f, 'Accepted. Saving your copy and emailing it to you…', true);
+      const sent = await archiveAgreement(id);
+      showPanel('account');
+      await loadAccount();
+      setMsg($('#md-msg'), sent?.emailed ? `Thank you. Your copy of the agreement has been emailed to ${user.email}.` : 'Thank you. Your acceptance is recorded; your copy will be emailed to you shortly.', true);
+      if (navigator.onLine) { markSaved(); saveForOffline(fb).catch(() => {}); }
+    } catch (err) { setMsg(f, errorText(err)); }
+  });
+}
+
+/** PDF in the unit's Drive folder and email (with a copy to the Society). Quiet on failure; tried again on the next visit. */
+async function archiveAgreement(id) {
+  try {
+    await loadDriveCfg(fb);
+    if (!driveReady()) return null;
+    const r = await driveCall(fb, 'memberAgreement', { agreementId: id });
+    const { F, db } = fb;
+    await F.updateDoc(F.doc(db, 'memberAgreements', id), { pdf: r.pdf, emailed: Boolean(r.emailed), emailedTo: r.emailedTo || '', cc: r.cc || '', emailNote: r.note || '', archivedAt: F.serverTimestamp() });
+    return r;
+  } catch (err) { console.warn('agreement copy', err); return null; }
+}
+
+/* ---------- my unit's documents (3.13) ---------- */
+/** "C 202 Agreement for sale … - agreement-2012.pdf" → "agreement-2012.pdf" */
+const shortName = (n) => { const i = String(n).lastIndexOf(' - '); return i > 0 ? n.slice(i + 3) : n; };
+let myDocs = [], mdKind = null, mdId = null, mdFiles = [], mdNew = [];
+
+async function loadMyDocs() {
+  const { F, db } = fb;
+  const snap = await F.getDocs(F.collection(db, 'units', profile.unit, 'memberDocs')).catch(() => ({ docs: [] }));
+  myDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  const order = Object.keys(MEMBER_DOC_KINDS);
+  myDocs.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+  $('#md-list').innerHTML = myDocs.map((d) => {
+    const st = DOC_STATUS[d.status] || DOC_STATUS.submitted, mine = d.submittedBy === fb.auth.currentUser.uid, open = d.status !== 'acknowledged';
+    return `<tr><td><strong>${esc(MEMBER_DOC_KINDS[d.kind]?.short || d.kind)}</strong><span class="sub">${esc(d.title || '')}</span></td>
+      <td>${detailLines(d.kind, d.details).map((l) => esc(l).replace(/\n/g, '<br>')).join('<br>')}</td>
+      <td>${(d.files || []).map((x) => `<button class="file-link" type="button" data-md-file="${esc(d.id)}" data-fid="${esc(x.id)}" title="${esc(x.name)}">📎 ${esc(shortName(x.name))}</button>`).join('<br>') || '—'}</td>
+      <td><span class="doc-pill ${st.cls}">${esc(st.text)}</span>${d.ack ? `<span class="sub">Ack. ${esc(d.ack.no)}, ${ddmmyyyy(d.ack.date)}</span>` : ''}${d.review?.reason && d.status === 'returned' ? `<span class="sub">${esc(d.review.reason)}</span>` : ''}</td>
+      <td>${mine && open ? `<button class="btn btn-small" type="button" data-md-edit="${esc(d.id)}">Edit</button> <button class="btn btn-small" type="button" data-md-del="${esc(d.id)}">Withdraw</button>` : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty">No documents uploaded yet. Start with your sale deed or agreement and its Index II.</td></tr>';
+  // The agreement accepted, with a copy to download; send the copy now if it didn't go earlier.
+  const id = profile.agreementId;
+  if (id) {
+    const a = await F.getDoc(F.doc(db, 'memberAgreements', id)).catch(() => null);
+    const rec = a?.exists() ? a.data() : null;
+    if (rec && !rec.pdf) archiveAgreement(id).then((r) => r && loadMyDocs()).catch(() => {});
+    $('#my-agreement').innerHTML = rec ? `Member portal agreement: version ${esc(rec.version)} accepted by ${esc(rec.signedName)}${rec.acceptedAt?.toDate ? ` on ${rec.acceptedAt.toDate().toLocaleDateString('en-IN')}` : ''}.
+      ${rec.pdf ? `<button class="file-link" type="button" data-agreement="${esc(id)}">Download your copy</button>` : '<span class="muted">Your copy is being prepared.</span>'}` : '';
+  }
+  const ready = driveReady();
+  $$('#md-add [data-md-add]').forEach((b) => (b.disabled = !ready));
+  if (!ready) setMsg($('#md-msg'), 'Uploading documents will be available once the committee connects the Society’s records storage.');
+}
+
+function openMd(kind, doc = null) {
+  const k = MEMBER_DOC_KINDS[kind];
+  mdKind = kind; mdId = doc?.id || null;
+  mdFiles = (doc?.files || []).map((f) => ({ ...f, keep: true })); mdNew = [];
+  $('#md-title').textContent = `${doc ? 'Edit' : 'Add'}: ${k.label}`;
+  $('#md-help').textContent = k.help;
+  const d = doc?.details || {};
+  $('#md-fields').innerHTML = k.fields.map(([key, label, type, opt]) => {
+    const req = opt === true ? ' required' : '', star = opt === true ? ' *' : '', val = d[key] ?? '';
+    if (type === 'select') return `<label>${esc(label)}<select name="${key}"><option value=""></option>${opt.map((o) => `<option${o === val ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`;
+    if (type === 'textarea') return `<label class="wide">${esc(label)}${star}<textarea name="${key}" rows="${key === 'people' ? 5 : 3}"${req}>${esc(val)}</textarea></label>`;
+    return `<label>${esc(label)}${star}<input type="${type}" name="${key}" value="${esc(val)}"${req}${type === 'number' ? ' min="0" step="1"' : ''}></label>`;
+  }).join('');
+  renderMdFiles();
+  setMsg($('#md-form'), '');
+  $('#md-dialog').showModal();
+}
+
+function renderMdFiles() {
+  $('#md-file-list').innerHTML = mdFiles.map((f, i) => `<li class="${f.keep ? '' : 'removing'}"><span>${esc(f.name)}</span> <button class="btn-link" type="button" data-md-keep="${i}">${f.keep ? 'Remove' : 'Keep'}</button></li>`).join('')
+    + mdNew.map((f, i) => `<li><span>${esc(f.name)}</span> <span class="muted">new</span> <button class="btn-link" type="button" data-md-drop="${i}">Remove</button></li>`).join('')
+    || '<li class="muted">No files yet.</li>';
+}
+
+async function saveMd(e) {
+  e.preventDefault();
+  const f = e.currentTarget, k = MEMBER_DOC_KINDS[mdKind];
+  const details = {};
+  for (const [key, label, type, opt] of k.fields) {
+    let v = f[key].value.trim();
+    if (opt === true && !v) return setMsg(f, `Please fill in “${label}”.`);
+    if (type === 'number' && v !== '') v = Number(v);
+    if (v !== '') details[key] = v;
+  }
+  const kept = mdFiles.filter((x) => x.keep).map(({ keep, ...x }) => x);
+  if (!kept.length && !mdNew.length && mdKind !== 'occupants') return setMsg(f, 'Add the scanned PDF or photos of the document.');
+  const { F, db } = fb;
+  await busy($('button[type=submit]', f), async () => {
+    try {
+      const added = [];
+      const unitLabelPlain = plainUnit(profile.unit), title = k.title(details);
+      for (let i = 0; i < mdNew.length; i++) {
+        setMsg(f, `Uploading file ${i + 1} of ${mdNew.length}… Please keep this page open.`, true);
+        const file = await prepareFile(mdNew[i]);
+        const ext = (file.name.match(/\.(\w+)$/)?.[1] || (file.type === 'application/pdf' ? 'pdf' : 'jpg')).toLowerCase();
+        const r = await driveCall(fb, 'memberUpload', { unitId: profile.unit, unitLabel: unitLabelPlain, wing: wingOf(profile.unit), record: mdKind,
+          name: `${unitLabelPlain} ${safeName(title.replace(/→/g, "to"), 80)} - ${safeName(file.name.replace(/\.\w+$/, ''), 40)}.${ext}`,
+          mimeType: file.type, data: await toBase64(file), note: `${k.label} uploaded by ${profile.name}` });
+        added.push(r.file);
+      }
+      const files = [...kept, ...added];
+      if (mdId) await F.updateDoc(F.doc(db, 'units', profile.unit, 'memberDocs', mdId), { title, details, files, status: 'submitted', updatedAt: F.serverTimestamp() });
+      else await F.addDoc(F.collection(db, 'units', profile.unit, 'memberDocs'), { kind: mdKind, title, details, files, status: 'submitted', relation: profile.relation || '',
+        submittedBy: fb.auth.currentUser.uid, submittedByName: profile.name || '', submittedAt: F.serverTimestamp() });
+      $('#md-dialog').close();
+      await loadMyDocs();
+      setMsg($('#md-msg'), `Saved. Please hand over a self-attested physical copy at the Society’s office; the committee will record it and give you an acknowledgment number.`, true);
+    } catch (err) { setMsg(f, errorText(err)); }
+  });
+}
+
+async function openMemberFile(payload, name) {
+  const msg = $('#md-msg');
+  setMsg(msg, 'Opening…', true);
+  try {
+    const r = await driveCall(fb, 'memberFetch', payload);
+    const bin = atob(r.data), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    await saveBlob(new Blob([u8], { type: r.mime }), r.name || name);
+    setMsg(msg, '');
+  } catch (err) { setMsg(msg, errorText(err)); }
+}
+
+function wireMemberDocs() {
+  $('#ma-form').addEventListener('submit', (e) => acceptAgreement(e));
+  $('#md-add').addEventListener('click', (e) => { const b = e.target.closest('[data-md-add]'); if (b) openMd(b.dataset.mdAdd); });
+  $('#md-cancel').addEventListener('click', () => $('#md-dialog').close());
+  $('#md-form').addEventListener('submit', (e) => saveMd(e));
+  $('#md-file-input').addEventListener('change', (e) => {
+    for (const file of e.target.files) {
+      if (!/^image\/|^application\/pdf$/.test(file.type)) { setMsg($('#md-form'), `${file.name}: only PDF files and photos can be added.`); continue; }
+      if (file.type === 'application/pdf' && file.size > 25 * 1024 * 1024) { setMsg($('#md-form'), `${file.name} is larger than 25 MB. Scan it at 200 dpi in grey, or split it into parts.`); continue; }
+      mdNew.push(file);
+    }
+    e.target.value = '';
+    renderMdFiles();
+  });
+  $('#md-file-list').addEventListener('click', (e) => {
+    const k = e.target.closest('[data-md-keep]'), d = e.target.closest('[data-md-drop]');
+    if (k) { const x = mdFiles[Number(k.dataset.mdKeep)]; x.keep = !x.keep; renderMdFiles(); }
+    if (d) { mdNew.splice(Number(d.dataset.mdDrop), 1); renderMdFiles(); }
+  });
+  $('#my-docs').addEventListener('click', async (e) => {
+    const ed = e.target.closest('[data-md-edit]'), del = e.target.closest('[data-md-del]'), fl = e.target.closest('[data-md-file]'), ag = e.target.closest('[data-agreement]');
+    if (ed) { const d = myDocs.find((x) => x.id === ed.dataset.mdEdit); if (d) openMd(d.kind, d); }
+    if (fl) openMemberFile({ unitId: profile.unit, recordId: fl.dataset.mdFile, fileId: fl.dataset.fid }, fl.textContent);
+    if (ag) {
+      const { F, db } = fb;
+      const a = await F.getDoc(F.doc(db, 'memberAgreements', ag.dataset.agreement));
+      if (a.exists() && a.data().pdf) openMemberFile({ agreementId: ag.dataset.agreement, fileId: a.data().pdf.id }, a.data().pdf.name);
+    }
+    if (del && confirm('Withdraw this document? The upload is removed from your list (the committee keeps the files already received).')) {
+      const { F, db } = fb;
+      try { await F.deleteDoc(F.doc(db, 'units', profile.unit, 'memberDocs', del.dataset.mdDel)); await loadMyDocs(); } catch (err) { setMsg($('#md-msg'), errorText(err)); }
+    }
+  });
+}
+
 async function loadAccount() {
   const { F, db } = fb;
   const unitId = profile.unit;
+  await loadDriveCfg(fb).catch(() => null);
+  loadMyDocs().catch((err) => console.warn('unit documents', err));
   $('#account-unit').textContent = unitLabel(unitId);
   $('#account-name').textContent = `${profile.name} · ${relationLabel(profile.relation)}`;
   // Access 'basic' (set by the committee, e.g. for a caretaker): Society accounts and documents only.

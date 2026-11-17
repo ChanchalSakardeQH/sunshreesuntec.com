@@ -79,15 +79,18 @@ export async function unitBackup(fb, unitId, siteVersion) {
   const rows = (snap) => snap.docs.map((d) => ({ id: d.id, ...toJSONValue(d.data()) }));
   const sub = (name) => F.getDocs(F.collection(db, 'units', unitId, name)).then(rows).catch(() => []);
   const byUnit = (col) => F.getDocs(F.query(F.collection(db, col), F.where('unitId', '==', unitId))).then(rows).catch(() => []);
-  const [unitSnap, records, ledger, pastReceipts, history, bills, payments, receiptCopies] = await Promise.all([
+  const [unitSnap, records, ledger, pastReceipts, history, bills, payments, receiptCopies, memberDocs, agreements] = await Promise.all([
     F.getDoc(F.doc(db, 'units', unitId)),
     Promise.all(RECORD_KINDS.map(sub)).then((lists) => Object.fromEntries(RECORD_KINDS.map((k, i) => [k, lists[i]]))),
-    sub('ledger'), sub('pastReceipts'), sub('history'), byUnit('bills'), byUnit('payments'), byUnit('receiptCopies')
+    sub('ledger'), sub('pastReceipts'), sub('history'), byUnit('bills'), byUnit('payments'), byUnit('receiptCopies'),
+    sub('memberDocs'),
+    F.getDocs(F.query(F.collection(db, 'memberAgreements'), F.where('unit', '==', unitId))).then(rows).catch(() => [])
   ]);
   if (!unitSnap.exists()) throw new Error(`Unit ${unitId} not found.`);
   return {
     format: 'sunshree-suntec-unit-file', formatVersion: 1, softwareVersion: siteVersion, savedAt: new Date().toISOString(),
-    unitId, unit: toJSONValue(unitSnap.data()), records, ledger, bills, payments, receiptCopies, pastReceipts, tallyHistory: history
+    unitId, unit: toJSONValue(unitSnap.data()), records, ledger, bills, payments, receiptCopies, pastReceipts, tallyHistory: history,
+    memberDocs, memberAgreements: agreements
   };
 }
 
