@@ -201,5 +201,6 @@ function receiptHTML(r, site) {
     </div>
   </div>
   <p class="digital">This is a computer-generated receipt from sunshreesuntec.com and is valid without a signature.</p>
+  <p class="disclaimer"><strong>Disclaimer:</strong> Digitally generated receipts are for members’ tracking. Members can obtain a physical copy from the Sunshree Suntec Society’s Accountant. The amount shown is subject to clearance in the Sunshree Suntec Society’s bank account.</p>
   </section>`;
 }

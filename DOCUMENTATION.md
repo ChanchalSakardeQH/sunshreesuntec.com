@@ -277,6 +277,8 @@ Payments → choose unit → date, amount, mode (NEFT, IMPS, UPI, Cheque, Cash, 
 
 All four happen together or not at all.
 
+**Printed receipt (`print.html?receipt=<id>`):** ends with *This is a computer-generated receipt from sunshreesuntec.com and is valid without a signature.* and, since 3.10.1, a disclaimer: digitally generated receipts are for members’ tracking; a physical copy can be obtained from the Society’s Accountant; the amount shown is subject to clearance in the Society’s bank account.
+
 ### 8.2 Cancelling a receipt
 Payments → Cancel (reason required, e.g. cheque bounced). The receipt stays in the register marked **Cancelled**; a reversal debit is added to the ledger; the balance goes back up. Receipts cannot be deleted.
 

@@ -6,6 +6,16 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.10.1] – 2026-11-17 – Disclaimer on receipts
+
+### Added
+- **Disclaimer under every receipt** (on screen, printed and saved as PDF), below *This is a computer-generated receipt … valid without a signature*: digitally generated receipts are for members’ tracking; members can obtain a physical copy from the Society’s Accountant; the amount shown is subject to clearance in the Society’s bank account.
+
+### Tested
+- A receipt opened by a signed-in member shows both lines; the disclaimer also appears in the print/PDF view and the receipt still fits on one A4 page.
+
+---
+
 ## [3.10.0] – 2026-11-17 – Calendar on the Notices page; notices keep their bullet points
 
 ### Added
