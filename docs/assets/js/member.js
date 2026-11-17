@@ -10,6 +10,7 @@ import { SELF_REGISTER_ROLES, rolePolicy, PERM_LABEL } from './staff.js';
 import { loadPastReceipts, preLedger } from './pastreceipts.js';
 import { loadAuditYears, listArchive, openArchiveDoc, archiveBlob, yearEndRows } from './archive.js';
 import { agreementHTML } from './memberagreement.js';
+import { RATE_HISTORY } from './defaults.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { loadDriveCfg, driveReady, driveCall, prepareFile, toBase64, safeName } from './drive.js';
 
@@ -449,8 +450,12 @@ async function loadInterestInfo() {
   const periods = site.interestPeriods || [], refs = site.interestRefs || [];
   interestRefs = refs;
   const dd = (iso) => (iso ? ddmmyyyy(iso) : '');
-  if (!periods.length && !refs.length) { $('#interest-info').hidden = true; return; }
   $('#interest-info').hidden = false;
+  $('#ii-history').innerHTML = RATE_HISTORY.map((h) => `<details class="ii-calc"${h.to ? '' : ' open'}><summary><strong>${h.to ? `${dd(h.from)} to ${dd(h.to)}` : `From ${dd(h.from)}`}</strong>: ${esc(h.meeting)}</summary>
+      <div class="table-scroll"><table><thead><tr><th>Unit</th><th>Maintenance</th><th>Also</th></tr></thead><tbody>
+      ${h.rows.map((r) => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}</tbody></table></div>
+      ${h.notes.map((n) => `<p class="small-note">${esc(n)}</p>`).join('')}</details>`).join('');
+  if (!periods.length) $('#ii-periods').innerHTML = '';
   $('#ii-periods').innerHTML = periods.map((p) => `<li><strong>${esc(p.rate)}% simple per year</strong> ${p.to ? `from ${dd(p.from)} to ${dd(p.to)}` : `from ${dd(p.from)} onwards`}${p.ref ? `<span class="sub">${esc(p.ref)}</span>` : ''}</li>`).join('');
   $('#ii-refs').innerHTML = refs.length ? `<p class="small-note"><strong>References:</strong> ${refs.map((r, i) => `<button class="file-link" type="button" data-ii-ref="${i}">📎 ${esc(r.title || r.name)}</button>`).join(' · ')}</p>` : '';
   // Interest on past arrears worked out for this unit (full access only).

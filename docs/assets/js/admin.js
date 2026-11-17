@@ -29,7 +29,7 @@ import {
   financialYear, fyBounds, fyList, longDate,
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
-import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING } from './defaults.js';
+import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from './defaults.js';
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64 } from './drive.js';
 import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
@@ -1532,6 +1532,7 @@ function renderInterestRefs() {
     || '<li class="muted">None yet.</li>';
 }
 function wireInterestPeriods() {
+  $('#cat-agm2015').addEventListener('click', useAgm2015Rates);
   $('#ir-upload').addEventListener('click', (e) => busy(e.currentTarget, async () => {
     const file = $('#ir-file').files[0], title = $('#ir-title').value.trim(), msg = $('#ir-msg');
     if (!file || !title) { msg.textContent = 'Choose the file and write its title.'; return; }
@@ -1566,8 +1567,8 @@ function wireInterestPeriods() {
   // As resolved by the members on 13/04/2013 (Ref. RES_PASSED/130413/002, item 9) and confirmed at the AGM of 25/01/2015;
   // 12% from 01/07/2026 under the MCS (Amendment) Rules, 2026.
   $('#ip-suggest').addEventListener('click', () => {
-    ipDraft = [{ from: '2013-04-13', rate: 18, ref: 'Members’ meeting 13/04/2013 (Ref. RES_PASSED/130413/002, item 9): 18% per year on late payment, i.e. beyond the calendar month; penalty on defaulters confirmed at the AGM of 25/01/2015 (Ref. AGM-MOM/20150225)' },
-      { from: '2026-07-01', rate: 12, ref: 'MCS (Amendment) Rules, 2026, Rule 106C-12(4)-6 (notified 18/07/2026): maximum 12% simple p.a.; General Body resolution dated __' }];
+    ipDraft = [{ from: '2013-04-13', rate: 18, ref: 'Members’ meeting 13/04/2013 (Ref. RES_PASSED/130413/002, item 9): 18% per year for late payment, i.e. beyond the calendar month, effective April 2013; continued with the maintenance of the AGM of 25/01/2015 (minutes 25/02/2015, effective 01/04/2015)' },
+      { from: '2026-07-01', rate: 12, ref: 'MCS (Amendment) Rules, 2026, Rule 106C-12(4)-6 (notified 18/07/2026): maximum 12% simple p.a.; maintenance unchanged as per the AGM of 25/01/2015; General Body resolution dated __' }];
     renderIp();
   });
   $('#ip-rows').addEventListener('click', (e) => { const b = e.target.closest('[data-ip-del]'); if (b) { ipDraft = readIp(); ipDraft.splice(Number(b.dataset.ipDel), 1); renderIp(); } });
@@ -1734,15 +1735,21 @@ function previewBills() {
 }
 let lastPreview = null;
 
-const CAT_COLS = [['maintenance', 'Maintenance / service'], ['water', 'Water'], ['liftYearly', 'Lift (per year)'],
+const CAT_COLS = [['maintenance', 'Maintenance / service'], ['maintenancePerSqft', 'Or ₹ per sq ft'], ['water', 'Water'], ['liftYearly', 'Lift (per year)'], ['liftMonthly', 'Or lift per month'],
   ['parking', 'Parking'], ['education', 'Education fund'], ['federation', 'Federation fund'], ['election', 'Election fund']];
 let draftCats = [];
 
+function useAgm2015Rates() {
+  if (!confirm('Replace the rates below with those of the AGM of 25/01/2015 (minutes 25/02/2015)? Nothing changes until you press Save charges.')) return;
+  const keep = Object.fromEntries(draftCats.map((c) => [c.id, c]));
+  draftCats = [...AGM_2015_CATEGORIES.map((c) => ({ ...keep[c.id], ...structuredClone(c) })), ...draftCats.filter((c) => !AGM_2015_CATEGORIES.some((a) => a.id === c.id))];
+  renderCategories();
+}
 function renderCategories() {
   $('#rates-head').innerHTML = `<tr><th>Category</th>${CAT_COLS.map(([, l]) => `<th class="num">${l}</th>`).join('')}<th>Units</th></tr>`;
   $('#rates-body').innerHTML = draftCats.map((c, i) => `<tr>
     <td><input type="text" class="cat-name" name="c_${i}_name" value="${esc(c.name)}" aria-label="Category name"></td>
-    ${CAT_COLS.map(([k, l]) => `<td class="num"><input type="number" min="0" step="1" name="c_${i}_${k}" value="${c[k] ?? 0}" aria-label="${esc(c.name)} ${l}"></td>`).join('')}
+    ${CAT_COLS.map(([k, l]) => `<td class="num"><input type="number" min="0" step="${k === 'maintenancePerSqft' ? '0.01' : '1'}" name="c_${i}_${k}" value="${c[k] ?? 0}" aria-label="${esc(c.name)} ${l}"></td>`).join('')}
     <td class="num">${units.filter((u) => categoryIdFor(u) === c.id).length}</td></tr>`).join('');
 }
 
@@ -1783,7 +1790,7 @@ async function loadSettings() {
 function readCategories(fd) {
   draftCats = draftCats.map((c, i) => {
     const out = { ...c, name: String(fd.get(`c_${i}_name`) ?? c.name).trim() || c.name };
-    for (const [k] of CAT_COLS) out[k] = round(fd.get(`c_${i}_${k}`) ?? c[k]);
+    for (const [k] of CAT_COLS) out[k] = k === 'maintenancePerSqft' ? Math.round(Number(fd.get(`c_${i}_${k}`) ?? c[k] ?? 0) * 100) / 100 : round(fd.get(`c_${i}_${k}`) ?? c[k]);
     return out;
   });
 }

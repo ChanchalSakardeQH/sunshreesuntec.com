@@ -6,6 +6,30 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.15.2] – 2026-11-17 – Maintenance exactly as the AGM of 25/01/2015; rate history for members
+
+### Changed
+- **Charges follow the AGM held on 25/01/2015 (minutes Ref. AGM-MOM/20150225 dated 25/02/2015), effective 01/04/2015**, as the Society's basis from then until today. Before, they followed an amendment of 07/07/2015.
+  - Residential A & C: ₹1,300 + lift (C wing) ₹1,000 a year (unchanged).
+  - **Residential used as commercial:** ₹2,000 + water pump ₹500 + lift (C wing) **₹500 a month**.
+  - **D wing gym (D 201):** **₹3 per sq ft** + water ₹2,000. **D wing clinic (D 101 A & B):** **₹3 per sq ft** + water ₹1,000.
+  - Shops: ₹1,000; with water tap + **₹500**; beauty parlour / pet shop / clinic / food shop / chicken centre + **₹900**.
+- New in the categories: **₹ per sq ft** (maintenance = rate × carpet area; the fixed amount until the unit's carpet area is recorded) and **lift per month**.
+- Settings: **Use the rates of the AGM of 25/01/2015** puts these rates in the table; nothing changes until *Save charges*. The default *Basis of charges* text names the AGM and the interest rates.
+- Suggested interest periods: **18% from 13/04/2013** (members' meeting, effective April 2013), continued under the 2015 maintenance **to 30/06/2026**; **12% from 01/07/2026** with the same maintenance.
+
+### Added
+- **Members' page → Maintenance and interest as passed by the General Body:**
+  - the rates of 01/04/2013 to 31/03/2015 (members' meeting of 13/04/2013: residential ₹1,000, used as commercial ₹1,500, commercial ₹600 / ₹700 with water tap, restaurants and others ₹900, 10% extra on rented properties, 18% per year beyond the calendar month);
+  - the rates from 01/04/2015 (AGM 25/01/2015);
+  - then the interest periods and references.
+
+### Tested
+- Per sq ft (D 201 with 650 sq ft → ₹1,950), the fixed amount without an area, lift ₹500 a month in C wing only, and yearly lift in April.
+- 2 new browser checks: the AGM 2015 rates saved through Settings, and members see both rate tables. All suites pass: 273 browser checks.
+
+---
+
 ## [3.15.1] – 2026-11-17 – Penal interest at 18% as resolved by the members (13/04/2013), 12% from 01/07/2026
 
 ### Changed

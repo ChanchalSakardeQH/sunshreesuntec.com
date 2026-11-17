@@ -40,7 +40,7 @@ export const OPTIONAL = new Set(PARTICULARS.filter((p) => p[2]).map((p) => p[0])
 /** Monthly amounts set per charge category in Settings (and overridable per unit). */
 export const CATEGORY_MONTHLY = ['maintenance', 'water', 'parking', 'education', 'federation', 'election'];
 /** Lift is fixed per year by the AGM and charged only to units in a building with a lift. */
-export const CATEGORY_FIELDS = [...CATEGORY_MONTHLY, 'liftYearly'];
+export const CATEGORY_FIELDS = [...CATEGORY_MONTHLY, 'liftYearly', 'liftMonthly', 'maintenancePerSqft'];
 
 /** One-off charges the committee can add to a month's bills. */
 export const ONE_OFF = ['majorRepairs', 'penalty', 'others', 'water', 'lift', 'liftRepairs', 'transferPremium', 'transferFee',
@@ -300,8 +300,17 @@ export function chargesFor(unit, settings, monthKey, ctx = { units: 0, lift: {},
   } else {
     const cat = (settings?.categories || []).find((c) => c.id === categoryIdFor(unit)) || {};
     for (const code of CATEGORY_MONTHLY) out[code] = round(own[code] ?? cat[code] ?? 0);
-    // Lift: yearly amount, billed in the chosen month (April by default) or spread monthly.
-    const liftYearly = g ? round(own.liftYearly ?? cat.liftYearly ?? 0) : 0;
+    // Maintenance per sq ft of carpet area (AGM 2015: D wing Rs 3 per sq ft); the fixed amount if no area is recorded.
+    const psf = Number(cat.maintenancePerSqft) || 0, area = Number(unit.carpetArea) || 0;
+    if (own.maintenance == null && psf > 0) {
+      if (area > 0) { out.maintenance = round(psf * area); details.maintenance = `₹${psf} per sq ft × ${area} sq ft`; }
+      else details.maintenance = 'Fixed amount: carpet area not recorded for the per sq ft rate';
+    }
+    // Lift: a monthly amount (AGM 2015: Rs 500 per month for flats used as commercial) …
+    const liftMonthly = g ? round(own.liftMonthly ?? cat.liftMonthly ?? 0) : 0;
+    // … or a yearly amount, billed in the chosen month (April by default) or spread monthly.
+    const liftYearly = g && !liftMonthly ? round(own.liftYearly ?? cat.liftYearly ?? 0) : 0;
+    if (liftMonthly) out.lift = liftMonthly;
     if (liftYearly) {
       if (settings?.liftBilling === 'monthly') out.lift = round(liftYearly / 12);
       else if (monthKey && Number(monthKey.slice(5, 7)) === Number(settings?.liftBillMonth || 4)) out.lift = liftYearly;
