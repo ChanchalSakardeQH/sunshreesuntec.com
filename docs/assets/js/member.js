@@ -431,14 +431,21 @@ async function acceptAgreement(e) {
 
 /** PDF in the unit's Drive folder and email (with a copy to the Society). Quiet on failure; tried again on the next visit. */
 async function archiveAgreement(id) {
+  const { F, db } = fb;
+  // The reason is kept on the record so the committee can see why a copy didn't go (Members tab).
+  const note = (text) => F.updateDoc(F.doc(db, 'memberAgreements', id), { emailed: false, emailNote: String(text).slice(0, 300) }).catch(() => {});
   try {
     await loadDriveCfg(fb);
-    if (!driveReady()) return null;
+    if (!driveReady()) { await note('The Society’s Google Drive isn’t connected yet.'); return null; }
     const r = await driveCall(fb, 'memberAgreement', { agreementId: id });
-    const { F, db } = fb;
     await F.updateDoc(F.doc(db, 'memberAgreements', id), { pdf: r.pdf, emailed: Boolean(r.emailed), emailedTo: r.emailedTo || '', cc: r.cc || '', emailNote: r.note || '', archivedAt: F.serverTimestamp() });
     return r;
-  } catch (err) { console.warn('agreement copy', err); return null; }
+  } catch (err) {
+    console.warn('agreement copy', err);
+    const m = errorText(err);
+    await note(/unknown request|no access to the society/i.test(m) ? `The Drive script is an older version (${m}). Deploy version 5 or later.` : m);
+    return null;
+  }
 }
 
 /* ---------- interest on late payment (3.15) ---------- */
@@ -472,6 +479,7 @@ async function loadInterestInfo() {
 /* ---------- my unit's documents (3.13) ---------- */
 /** "C 202 Agreement for sale … - agreement-2012.pdf" → "agreement-2012.pdf" */
 const shortName = (n) => { const i = String(n).lastIndexOf(' - '); return i > 0 ? n.slice(i + 3) : n; };
+let agreementRetried = null;
 let myDocs = [], mdKind = null, mdId = null, mdFiles = [], mdNew = [];
 
 async function loadMyDocs() {
@@ -493,7 +501,8 @@ async function loadMyDocs() {
   if (id) {
     const a = await F.getDoc(F.doc(db, 'memberAgreements', id)).catch(() => null);
     const rec = a?.exists() ? a.data() : null;
-    if (rec && !rec.pdf) archiveAgreement(id).then((r) => r && loadMyDocs()).catch(() => {});
+    // Not saved or not emailed yet: try again once per visit (the script sends each copy only once).
+    if (rec && !rec.emailed && agreementRetried !== id) { agreementRetried = id; archiveAgreement(id).then((r) => r && loadMyDocs()).catch(() => {}); }
     $('#my-agreement').innerHTML = rec ? `Member portal agreement: version ${esc(rec.version)} accepted by ${esc(rec.signedName)}${rec.acceptedAt?.toDate ? ` on ${rec.acceptedAt.toDate().toLocaleDateString('en-IN')}` : ''}.
       ${rec.pdf ? `<button class="file-link" type="button" data-agreement="${esc(id)}">Download your copy</button>` : '<span class="muted">Your copy is being prepared.</span>'}` : '';
   }

@@ -30,7 +30,7 @@ import {
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from './defaults.js';
-import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64 } from './drive.js';
+import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
 import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { initCorrespondence, loadCorrespondence, lettersForUnit, statusText as letterStatus } from './correspondence.js';
@@ -1128,9 +1128,13 @@ async function loadMembers() {
   }).join('') || '<tr><td colspan="6" class="empty">No requests waiting.</td></tr>';
 
   const agV = await loadMemberAgreementBox(appr).catch((err) => { console.warn('member agreement', err); return 0; });
+  // The accepted agreements, to show whether each member's copy was saved and emailed (3.15.3).
+  const agSnap = agV ? await F.getDocs(F.collection(db, 'memberAgreements')).catch(() => ({ docs: [] })) : { docs: [] };
+  memberAgreementRecs = new Map(agSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+  checkAgreementMail(appr, agV).catch((err) => console.warn('agreement mail check', err));
   $('#approved-rows').innerHTML = appr.map((p) => `<tr><td class="unit">${esc(memberUnitLabel(p.unit))}</td><td>${esc(p.name)}${gpill(p)}</td>
       <td class="access-note">${(p.access || 'full') === 'full' ? 'Unit account + documents' : 'Documents only'}</td>${contact(p)}
-      <td>${agreementCell(p, agV)}</td>
+      <td>${agreementCell(p, agV, memberAgreementRecs.get(p.agreementId))}</td>
       <td><div class="row-actions"><button class="btn btn-small" type="button" data-act="edit" data-uid="${esc(p.id)}">Edit</button>
       <button class="btn btn-small btn-danger" type="button" data-act="remove" data-uid="${esc(p.id)}">Remove access</button></div></td></tr>`).join('')
     || '<tr><td colspan="7" class="empty">No approved members yet.</td></tr>';
@@ -1421,6 +1425,10 @@ function wireMembers() {
     if (act === 'edit') return openMemberDialog(m, 'edit');
     if (act === 'reject') return openMemberDialog(m, 'reject');
     if (act === 'remove') return openMemberDialog(m, 'remove');
+    if (act === 'resend') {
+      const msg = $('#ma-send-msg');
+      return resendAgreement(m.agreementId, btn, msg, async () => { const t = msg.textContent, c = msg.className; await loadMembers(); msg.textContent = t; msg.className = c; });
+    }
     if (act === 'restore' && !confirm(`Move ${m.name}'s request back to Requests waiting?`)) return;
     await busy(btn, async () => {
       try {
@@ -2865,16 +2873,16 @@ async function saveAck(e) {
   });
 }
 
-async function resendAgreement(id, btn) {
-  const msg = $('#uf-mdocs-msg');
+async function resendAgreement(id, btn, msg = $('#uf-mdocs-msg'), after = async () => { await loadUnitFile(); showUfPane('mdocs'); }) {
   await busy(btn, async () => {
     try {
       const r = await driveCall(fb, 'resendAgreement', { agreementId: id });
       const { F, db } = fb;
       await F.updateDoc(F.doc(db, 'memberAgreements', id), { pdf: r.pdf, emailed: Boolean(r.emailed), emailedTo: r.emailedTo || '', cc: r.cc || '', emailNote: r.note || '', resentAt: F.serverTimestamp(), resentBy: uid });
       msg.className = 'form-msg ok';
-      msg.textContent = r.emailed ? `Copy emailed again to ${r.emailedTo}, with a copy to ${r.cc}.` : `Saved, but not emailed: ${r.note}`;
-      await loadUnitFile(); showUfPane('mdocs');
+      msg.textContent = r.emailed ? `Copy emailed to ${r.emailedTo}, with a copy to ${r.cc}.` : `Saved in the unit’s Agreements folder, but not emailed: ${r.note}`;
+      if (!r.emailed) msg.className = 'form-msg';
+      await after();
     } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
   });
 }
@@ -2935,10 +2943,30 @@ async function publishMemberAgreement(e) {
     } catch (err) { setMsg(f, esc(errorText(err))); }
   });
 }
-function agreementCell(p, v) {
+let memberAgreementRecs = new Map();
+function agreementCell(p, v, rec) {
   if (!v) return '<span class="muted">—</span>';
-  return Number(p.agreementVersion) === v ? `<span class="ag-ok">✓ Accepted</span><span class="sub">v${v}${p.agreementAcceptedAt ? `, ${whenShort(p.agreementAcceptedAt)}` : ''}</span>`
-    : `<span class="ag-no">Not yet</span>${p.agreementVersion ? `<span class="sub">accepted v${esc(p.agreementVersion)}</span>` : ''}`;
+  if (Number(p.agreementVersion) !== v) return `<span class="ag-no">Not yet</span>${p.agreementVersion ? `<span class="sub">accepted v${esc(p.agreementVersion)}</span>` : ''}`;
+  const mail = !rec ? '' : rec.emailed ? `<span class="ag-mail ok">✉ Copy emailed${rec.resentAt ? ' again' : ''}</span>`
+    : `<span class="ag-mail no">✉ Copy not emailed${rec.emailNote ? `: ${esc(rec.emailNote)}` : ' yet'}</span>`;
+  const send = rec && canDo('members') ? `<button class="btn btn-small ag-send" type="button" data-act="resend" data-uid="${esc(p.id)}">${rec.emailed ? 'Email copy again' : 'Send copy now'}</button>` : '';
+  return `<span class="ag-ok">✓ Accepted</span><span class="sub">v${v}${p.agreementAcceptedAt ? `, ${whenShort(p.agreementAcceptedAt)}` : ''}</span>${mail}${send}`;
+}
+
+/** Warn when agreement copies aren't going out: the Drive script deployed is older than the website needs, or copies failed. */
+async function checkAgreementMail(appr, v) {
+  const box = $('#ma-mail-note');
+  if (!v) { box.hidden = true; return; }
+  await loadDriveCfg(fb);
+  const failed = appr.filter((p) => Number(p.agreementVersion) === v && memberAgreementRecs.get(p.agreementId) && !memberAgreementRecs.get(p.agreementId).emailed);
+  const ver = driveReady() ? await driveScriptVersion() : -1;
+  const lines = [];
+  if (ver === -1) lines.push('The Society’s Google Drive isn’t connected, so accepted agreements can’t be saved or emailed. Connect it in Expenses → Set-up.');
+  else if (ver === 0) lines.push('Couldn’t check the Google Drive script just now (no internet, or the script address has changed).');
+  else if (ver < DRIVE_SCRIPT_NEEDED) lines.push(`The Google Drive script in use is version ${ver}; saving and emailing agreement copies needs version ${DRIVE_SCRIPT_NEEDED}. Paste the new Code.gs and appsscript.json into the script, run <em>setup</em> once and allow the email permission, then Deploy → Manage deployments → Edit → Version: New version → Deploy (keep the same web app address).`);
+  if (failed.length) lines.push(`${failed.length} accepted agreement${failed.length === 1 ? ' has' : 's have'} not been emailed yet: ${failed.map((p) => `${esc(memberUnitLabel(p.unit))} ${esc(p.name)}`).join(', ')}. ${ver >= DRIVE_SCRIPT_NEEDED ? 'Press <strong>Send copy now</strong> next to each one below.' : 'Once the script is updated, press <strong>Send copy now</strong> next to each one below.'}`);
+  box.innerHTML = lines.map((l) => `<p>${l}</p>`).join('');
+  box.hidden = !lines.length;
 }
 
 /* ---------- scans on unit file records (3.12) ---------- */

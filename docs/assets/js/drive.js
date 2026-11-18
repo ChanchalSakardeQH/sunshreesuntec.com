@@ -12,6 +12,17 @@ export async function loadDriveCfg(fb) {
 }
 export const driveReady = () => Boolean(cfg?.scriptUrl);
 
+/** Version of the Drive script actually deployed (its doGet answer); 0 if it can't be read. Member agreement emails need version 5 or later. */
+export const DRIVE_SCRIPT_NEEDED = 5;
+export async function driveScriptVersion() {
+  if (!cfg?.scriptUrl) return 0;
+  try {
+    const r = await fetch(cfg.scriptUrl, { method: 'GET' });
+    const j = await r.json();
+    return Number(j.version) || 1;
+  } catch { return 0; }
+}
+
 export async function driveCall(fb, action, payload = {}) {
   if (!cfg?.scriptUrl) throw new Error('The Society’s Google Drive isn’t connected yet. The committee connects it in Expenses → Set-up.');
   const idToken = await fb.auth.currentUser.getIdToken();

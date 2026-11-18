@@ -294,6 +294,10 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .count-pill { display: inline-block; min-width: 1.3rem; padding: 0 .35rem; border-radius: 999px; background: var(--due); color: #fff; font-size: .75rem; line-height: 1.3rem; text-align: center; margin-left: .25rem; }
 .ag-ok { color: var(--credit); font-weight: 600; }
 .ag-no { color: var(--due); font-weight: 600; }
+.ag-mail { display: block; font-size: .82rem; margin-top: .15rem; }
+.ag-mail.ok { color: var(--credit); }
+.ag-mail.no { color: var(--due); }
+.ag-send { margin-top: .35rem; }
 /* 3.14: correspondence register */
 .cr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 1rem; }
 .cr-grid .wide { grid-column: 1 / -1; }
