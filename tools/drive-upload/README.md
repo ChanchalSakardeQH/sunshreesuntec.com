@@ -72,6 +72,14 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.16 (script version 6):** adds *memberMail*, used by Members → *Reminders and invitations* → **Email the selected
+from the Society's account**. No new permission is needed (email was allowed for 3.13). Paste the new `Code.gs`, save,
+and deploy a new version as below. Until then the Members tab says *Needs the Google Drive script version 6* and the
+WhatsApp and Email buttons (from your own phone or computer) still work.
+
+If Google's permission screen offers a list of permissions with tick boxes, tick **Select all** (or at least *Send email
+as you*); an unticked permission gives *You do not have permission to call MailApp…*.
+
 **3.13 needs this once, with one extra step:** the script now also emails members their portal agreement, so it needs
 permission to send email from the Society's account. After pasting the new `Code.gs`:
 1. open `appsscript.json` in the editor and replace it with the new [`appsscript.json`](appsscript.json) (it adds the

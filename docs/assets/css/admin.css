@@ -314,3 +314,34 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .pi-box summary { cursor: pointer; }
 .pi-table tr.pi-months td { background: var(--paper, #f6f7f9); font-size: .86rem; }
 .pi-months table { width: auto; }
+
+/* 3.16: reminders and invitations */
+.rm-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+.rm-tab { font: inherit; font-size: .9rem; padding: .45rem .8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.rm-tab[aria-selected="true"] { background: var(--stamp); border-color: var(--stamp); color: #fff; }
+@media (prefers-color-scheme: dark) { .rm-tab[aria-selected="true"] { color: #10162E; } }
+.rm-tab .count { font-weight: 700; margin-left: .2rem; }
+.rm-opts label.check { display: flex; flex-direction: row; align-items: center; gap: .45rem; font-weight: 400; align-self: end; }
+.rm-template { margin: .5rem 0 .75rem; }
+.rm-template summary { cursor: pointer; font-weight: 600; }
+.rm-table td { vertical-align: top; }
+.rm-table .sub { display: block; font-size: .82rem; color: var(--muted); }
+.rm-send-cell { display: flex; flex-wrap: wrap; gap: .35rem; }
+.rm-send-cell a { white-space: nowrap; }
+.rm-contact { word-break: break-word; }
+@media (max-width: 700px) {
+  .rm-table { min-width: 0 !important; }
+  .rm-table thead { display: none; }
+  .rm-table, .rm-table tbody, .rm-table tr, .rm-table td { display: block; width: auto; }
+  .rm-table tr { position: relative; padding: .65rem .75rem .65rem 2.6rem; border-bottom: 1px solid var(--line); }
+  .rm-table td { padding: .1rem 0; border: 0; }
+  .rm-table td:first-child { position: absolute; left: .8rem; top: .75rem; }
+  .rm-table td.empty { padding: .5rem 0; }
+  .rm-table td.unit { font-weight: 700; }
+  .rm-table td[data-l]::before { content: attr(data-l) ": "; color: var(--muted); font-size: .82rem; }
+  .rm-table td[data-l] .sub { display: inline; margin-left: .3rem; }
+  .rm-send-cell { margin-top: .4rem; }
+  .rm-send-cell .btn { flex: 1; text-align: center; }
+}
+.si-who { color: var(--ink); }
+.stray-table td:first-child .muted { white-space: nowrap; }

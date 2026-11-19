@@ -31,6 +31,7 @@ import {
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from './defaults.js';
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
+import { REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
 import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { initCorrespondence, loadCorrespondence, lettersForUnit, statusText as letterStatus } from './correspondence.js';
@@ -280,6 +281,7 @@ function wireOnce() {
   wireReports();
   wireDocuments();
   wireMembers();
+  wireReminders();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
     reloadBilling: async () => { billing = await loadBilling(fb); return lastBilled(); } });
   initCorrespondence({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units });
@@ -1094,7 +1096,7 @@ function wireLift() {
 
 let memberDocs = [];        // every users record loaded for this tab
 let signinLog = [];         // latest sign-in attempts
-let knownEmails = new Set(), knownUids = new Set();
+let knownEmails = new Set(), knownUids = new Set(), knownMobiles = new Set();
 const tsDate = (ts) => (ts?.toDate ? ts.toDate() : null);
 const whenShort = (ts) => (tsDate(ts) ? fmtDate(tsDate(ts), { day: '2-digit', month: 'short', year: 'numeric' }) : '');
 const whenLong = (ts) => (tsDate(ts) ? tsDate(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -1110,6 +1112,8 @@ async function loadMembers() {
   const [sr, ad] = await Promise.all([F.getDocs(F.collection(db, 'staffRequests')).catch(() => ({ docs: [] })), F.getDocs(F.collection(db, 'admins')).catch(() => ({ docs: [] }))]);
   knownEmails = new Set([...memberDocs, ...sr.docs.map((d) => d.data()), ...ad.docs.map((d) => d.data())].map((x) => String(x.email || '').trim().toLowerCase()).filter(Boolean));
   knownUids = new Set([...memberDocs.map((m) => m.id), ...sr.docs.map((d) => d.id), ...ad.docs.map((d) => d.id)]);
+  knownMobiles = new Set([...memberDocs, ...sr.docs.map((d) => d.data()), ...ad.docs.map((d) => d.data())].map((x) => tenDigits(x.mobile)).filter(Boolean));
+  rmLog = await loadReminderLog();
   const pend = memberDocs.filter((m) => m.status === 'pending').sort((a, b) => (tsDate(a.createdAt) || 0) - (tsDate(b.createdAt) || 0));
   const appr = memberDocs.filter((m) => m.status === 'approved').sort((a, b) => memberUnitLabel(a.unit).localeCompare(memberUnitLabel(b.unit), 'en', { numeric: true }));
   const rej = memberDocs.filter((m) => m.status === 'rejected').sort((a, b) => (tsDate(b.decidedAt) || 0) - (tsDate(a.decidedAt) || 0));
@@ -1121,7 +1125,7 @@ async function loadMembers() {
   $('#pending-rows').innerHTML = pend.map((p) => {
     const dup = approvedByUnit[p.unit];
     return `<tr><td class="unit">${esc(memberUnitLabel(p.unit))}${dup ? `<span class="dup-warning">Already approved for this unit: ${esc(dup.join(', '))}</span>` : ''}</td>
-      <td>${esc(p.name)}${gpill(p)}</td>${contact(p)}<td>${whenShort(p.createdAt)}</td>
+      <td>${esc(p.name)}${gpill(p)}${invitedTag(p)}</td>${contact(p)}<td>${whenShort(p.createdAt)}</td>
       <td><div class="row-actions"><button class="btn btn-small btn-primary" type="button" data-act="approve" data-uid="${esc(p.id)}">Approve</button>
       <button class="btn btn-small btn-danger" type="button" data-act="reject" data-uid="${esc(p.id)}">Reject</button>
       <button class="btn btn-small" type="button" data-act="edit" data-uid="${esc(p.id)}">Edit</button></div></td></tr>`;
@@ -1149,6 +1153,189 @@ async function loadMembers() {
     || '<tr><td colspan="8" class="empty">Nothing rejected or removed.</td></tr>';
 
   await loadSigninLog();
+  rmAppr = appr; rmAgV = agV;
+  await renderReminders().catch((err) => console.warn('reminders', err));
+}
+
+/* ----- reminders and invitations (3.16) ----- */
+let rmLog = [], rmAppr = [], rmAgV = 0, rmKind = 'agreement', rmTpl = null, rmSaved = {}, rmContacts = null, rmRows = [], rmScriptVer = null;
+async function loadReminderLog() {
+  if (!canDo('members')) return [];
+  const { F, db } = fb;
+  const snap = await F.getDocs(F.query(F.collection(db, 'memberReminders'), F.orderBy('at', 'desc'), F.limit(2000))).catch(() => ({ docs: [] }));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+const rmKeyOf = (kind, p) => kind === 'invite' ? `inv:${p.unit}:${String(p.email || tenDigits(p.mobile)).toLowerCase()}` : `uid:${p.id}`;
+function invitedTag(p) {
+  const email = String(p.email || '').toLowerCase(), mob = tenDigits(p.mobile);
+  const hit = rmLog.find((r) => r.kind === 'invite' && ((email && String(r.email || '').toLowerCase() === email) || (mob && r.mobile === mob)));
+  return hit ? ` <span class="status-pill">Invited ${whenShort(hit.at)}</span>` : '';
+}
+/** The last visit: the member's own record (3.16 onwards) or their latest successful sign-in in the sign-in history. */
+function lastVisit(p) {
+  const seen = tsDate(p.lastSeenAt), email = String(p.email || '').toLowerCase();
+  const si = signinLog.find((e) => e.result === 'ok' && String(e.email || '').toLowerCase() === email);
+  const s2 = si ? tsDate(si.at) : null;
+  return seen && s2 ? (seen > s2 ? seen : s2) : seen || s2;
+}
+async function loadUnitContacts() {
+  const { F, db } = fb;
+  const list = units.length ? units : dues.units;
+  const out = [];
+  await Promise.all(list.map(async (u) => {
+    const [m, t] = await Promise.all([F.getDocs(F.collection(db, 'units', u.id, 'members')).catch(() => ({ docs: [] })),
+      F.getDocs(F.collection(db, 'units', u.id, 'tenants')).catch(() => ({ docs: [] }))]);
+    m.docs.map((d) => d.data()).filter((x) => !x.cessationDate).forEach((x) => out.push({ unit: u.id, unitLabel: u.unit, name: x.name || '', email: String(x.email || '').trim(), mobile: tenDigits(x.mobile), as: x.role || 'Member' }));
+    t.docs.map((d) => d.data()).filter((x) => !x.to).forEach((x) => out.push({ unit: u.id, unitLabel: u.unit, name: x.name || '', email: String(x.email || '').trim(), mobile: tenDigits(x.mobile), as: 'Tenant' }));
+  }));
+  return out.filter((c) => c.name && (validEmail(c.email) || c.mobile));
+}
+function rmTemplate(kind = rmKind) { return rmSaved[kind] || REMINDER_KINDS[kind]; }
+function rmCandidates(kind) {
+  const days = Number($('#rm-days').value) || 60, now = Date.now();
+  if (kind === 'agreement') {
+    return rmAgV ? rmAppr.filter((p) => Number(p.agreementVersion) !== rmAgV).map((p) => ({ ...p, unitLabel: memberUnitLabel(p.unit),
+      status: p.agreementVersion ? `Accepted version ${p.agreementVersion} only` : 'Not accepted', seen: lastVisit(p) })) : [];
+  }
+  if (kind === 'visit') {
+    return rmAppr.map((p) => ({ ...p, unitLabel: memberUnitLabel(p.unit), seen: lastVisit(p) }))
+      .filter((p) => !p.seen || now - p.seen.getTime() >= days * 864e5).map((p) => ({ ...p, status: p.seen ? `Last visit ${fmtDate(p.seen, { day: '2-digit', month: 'short', year: 'numeric' })}` : 'No visit recorded' }));
+  }
+  // Not registered: contacts in the unit files with no member record (any status) for that email or mobile.
+  const emails = new Set(memberDocs.map((m) => String(m.email || '').toLowerCase()).filter(Boolean));
+  const mobiles = new Set(memberDocs.map((m) => tenDigits(m.mobile)).filter(Boolean));
+  const approvedUnits = new Set(rmAppr.map((p) => p.unit));
+  const skip = $('#rm-skip-registered').checked;
+  const seen = new Set();
+  return (rmContacts || []).filter((c) => !(c.email && emails.has(c.email.toLowerCase())) && !(c.mobile && mobiles.has(c.mobile)) && !(skip && approvedUnits.has(c.unit)))
+    .filter((c) => { const k = rmKeyOf('invite', c); if (seen.has(k)) return false; seen.add(k); return true; })
+    .map((c) => ({ ...c, status: `${c.as} in the unit file${approvedUnits.has(c.unit) ? '; someone else is approved for this unit' : ''}` }));
+}
+function rmLastFor(kind, p) {
+  const key = rmKeyOf(kind, p);
+  return rmLog.filter((r) => r.kind === kind && r.key === key);
+}
+const RM_CHANNEL = { whatsapp: 'WhatsApp', email: 'Email', 'society-email': 'Email from the Society' };
+async function renderReminders() {
+  const box = $('#rm-box');
+  box.hidden = !canDo('members');
+  if (box.hidden) return;
+  if (!rmTpl) {
+    const s = await fb.F.getDoc(fb.F.doc(fb.db, 'settings', 'memberReminders')).catch(() => null);
+    rmSaved = s?.exists() ? s.data() : {};
+    rmTpl = true; fillRmTemplate();
+  }
+  if (rmKind === 'invite' && !rmContacts) {
+    $('#rm-rows').innerHTML = '<tr><td colspan="7" class="empty">Reading the unit files…</td></tr>';
+    rmContacts = await loadUnitContacts();
+  }
+  if (rmScriptVer === null) { await loadDriveCfg(fb); rmScriptVer = driveReady() ? await driveScriptVersion() : -1; }
+  $$('.rm-tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.rm === rmKind)));
+  $('#rm-days-wrap').hidden = rmKind !== 'visit';
+  $('#rm-skip-wrap').hidden = rmKind !== 'invite';
+  const gap = Number($('#rm-gap').value) || 0, now = Date.now();
+  const counts = {};
+  ['agreement', 'visit'].concat(rmContacts ? ['invite'] : []).forEach((k) => (counts[k] = rmCandidates(k).length));
+  $$('[data-rm-count]').forEach((c) => (c.textContent = counts[c.dataset.rmCount] != null ? `(${counts[c.dataset.rmCount]})` : ''));
+  const all = rmCandidates(rmKind);
+  rmRows = all.filter((p) => { const last = rmLastFor(rmKind, p)[0]; return !gap || !last || !tsDate(last.at) || now - tsDate(last.at).getTime() >= gap * 864e5; })
+    .sort((a, b) => String(a.unitLabel).localeCompare(String(b.unitLabel), 'en', { numeric: true }));
+  const hidden = all.length - rmRows.length;
+  $('#rm-note').textContent = [
+    rmKind === 'agreement' && !rmAgV ? 'No agreement is published, so there is nothing to remind about.' : '',
+    rmKind === 'visit' ? 'Visits are recorded from version 3.16; before that only sign-ins in the sign-in history are known.' : '',
+    rmKind === 'invite' ? 'Taken from the Members and Tenants records in each unit file (current ones with a mobile or email). To invite someone not listed, add their mobile or email in their unit file.' : '',
+    hidden ? `${hidden} reminded within the last ${gap} days ${hidden === 1 ? 'is' : 'are'} not shown.` : ''].filter(Boolean).join(' ');
+  const tpl = rmTemplate(), sender = { name: me?.name, role: me?.role };
+  $('#rm-rows').innerHTML = rmRows.map((p, i) => {
+    const msg = fillReminder(tpl, p, sender), wa = waNumber(p.mobile), em = validEmail(p.email);
+    const log = rmLastFor(rmKind, p), last = log[0];
+    return `<tr><td><input type="checkbox" data-rm-pick="${i}" ${em ? '' : 'disabled title="No email address"'} aria-label="Select ${esc(p.name)}"></td>
+      <td class="unit">${esc(p.unitLabel)}</td><td>${esc(p.name)}${p.relation ? `<span class="sub">${esc(relationLabel(p.relation))}</span>` : ''}</td>
+      <td class="rm-contact">${p.mobile ? `+91 ${esc(tenDigits(p.mobile) || p.mobile)}` : '<span class="muted">no mobile</span>'}<span class="sub">${em ? esc(p.email) : 'no email'}</span></td>
+      <td data-l="Status">${esc(p.status)}</td>
+      <td data-l="Last reminded">${last ? `${esc(RM_CHANNEL[last.channel] || last.channel)}<span class="sub">${whenShort(last.at)}${last.byName ? `, ${esc(last.byName)}` : ''}${log.length > 1 ? ` · ${log.length} times` : ''}</span>` : '<span class="muted">Never</span>'}</td>
+      <td><div class="rm-send-cell">${wa ? `<a class="btn btn-small" href="${esc(waLink(p.mobile, msg))}" target="_blank" rel="noopener" data-rm-go="whatsapp" data-i="${i}">WhatsApp</a>` : ''}
+        ${em ? `<a class="btn btn-small" href="${esc(mailLink(p.email, msg))}" data-rm-go="email" data-i="${i}">Email</a>` : ''}</div></td></tr>`;
+  }).join('') || `<tr><td colspan="7" class="empty">${rmKind === 'invite' ? 'Nobody to invite: everyone with a mobile or email in the unit files has registered.' : rmKind === 'visit' ? 'Every approved member has visited in this period.' : 'Nobody waiting: every approved member has accepted the current agreement.'}</td></tr>`;
+  $('#rm-all').checked = false;
+  const ok = rmScriptVer >= REMINDER_SCRIPT_NEEDED;
+  $('#rm-send').disabled = !ok || !rmRows.some((p) => validEmail(p.email));
+  $('#rm-send-note').textContent = rmScriptVer === -1 ? 'The Society’s Google Drive isn’t connected.'
+    : rmScriptVer === 0 ? 'Couldn’t check the Google Drive script just now.'
+    : !ok ? `Needs the Google Drive script version ${REMINDER_SCRIPT_NEEDED} (now ${rmScriptVer}). Until then use the WhatsApp and Email buttons.` : 'Up to 25 at a time; Google allows about 100 emails a day from the Society’s account.';
+}
+function fillRmTemplate() {
+  const f = $('#rm-tpl'), t = rmTemplate();
+  f.subject.value = t.subject; f.body.value = t.body;
+  $$('input, textarea', f).forEach((x) => (x.readOnly = !canDo('committee')));
+  setMsg(f, '');
+}
+async function logReminder(p, channel, kind = rmKind) {
+  const { F, db } = fb;
+  const rec = { kind, key: kind === 'unfinished' ? `try:${p.key}` : rmKeyOf(kind, p), unit: p.unit || '', name: p.name || '', email: String(p.email || '').toLowerCase(), mobile: tenDigits(p.mobile),
+    uid: kind === 'invite' || kind === 'unfinished' ? '' : p.id, channel, by: uid, byName: me?.name || '', at: F.serverTimestamp() };
+  try {
+    const ref = await F.addDoc(F.collection(db, 'memberReminders'), rec);
+    rmLog.unshift({ ...rec, id: ref.id, at: { toDate: () => new Date() } });
+  } catch (err) { console.warn('memberReminders', err); }
+}
+function wireReminders() {
+  $('#rm-box').addEventListener('click', async (e) => {
+    const tab = e.target.closest('.rm-tab');
+    if (tab) { rmKind = tab.dataset.rm; fillRmTemplate(); await renderReminders(); return; }
+    const go = e.target.closest('[data-rm-go]');
+    if (go) {
+      const p = rmRows[Number(go.dataset.i)];
+      if (p) logReminder(p, go.dataset.rmGo).then(() => setTimeout(() => renderReminders(), 400));
+    }
+  });
+  // Follow-ups to people who tried but didn't register (3.17). A phone call is not recorded.
+  $('#stray-rows').addEventListener('click', (e) => {
+    const go = e.target.closest('[data-try-go]');
+    if (!go || go.dataset.tryGo === 'call') return;
+    const x = strayRows[Number(go.dataset.i)];
+    if (x) logReminder(x, go.dataset.tryGo, 'unfinished').then(() => setTimeout(() => renderStrays(), 400));
+  });
+  ['#rm-days', '#rm-gap', '#rm-skip-registered'].forEach((id) => $(id).addEventListener('change', () => renderReminders()));
+  $('#rm-all').addEventListener('change', (e) => $$('[data-rm-pick]:not(:disabled)').forEach((c) => (c.checked = e.target.checked)));
+  // Editing the wording changes the links straight away (not saved until the committee saves it).
+  $('#rm-tpl').addEventListener('input', () => { if (canDo('committee')) { const f = $('#rm-tpl'); rmSaved = { ...rmSaved, [rmKind]: { subject: f.subject.value, body: f.body.value } }; renderReminders(); } });
+  $('#rm-tpl').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.currentTarget;
+    if (!canDo('committee')) return;
+    if (f.subject.value.trim().length < 5 || f.body.value.trim().length < 20) return setMsg(f, 'Write a subject and a message.');
+    try {
+      await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'memberReminders'), { [rmKind]: { subject: f.subject.value.trim(), body: f.body.value.trim() }, updatedAt: fb.F.serverTimestamp(), updatedBy: uid }, { merge: true });
+      setMsg(f, 'Saved. Everyone sending reminders now uses this wording.', true);
+    } catch (err) { setMsg(f, esc(errorText(err))); }
+  });
+  $('#rm-tpl-reset').addEventListener('click', () => { const { [rmKind]: _, ...rest } = rmSaved; rmSaved = rest; fillRmTemplate(); renderReminders(); });
+  $('#rm-copy').addEventListener('click', async () => {
+    const m = fillReminder(rmTemplate(), { name: 'Members', unit: 'your unit', unitLabel: 'your unit' }, { name: me?.name, role: me?.role });
+    const text = `${m.subject.replace(' for your unit', '')}\n\n${m.body}`;
+    try { await navigator.clipboard.writeText(text); setMsg($('#rm-tpl'), 'Copied. Paste it in the Society’s WhatsApp group.', true); }
+    catch { setMsg($('#rm-tpl'), 'Couldn’t copy on this device; select the message and copy it.'); }
+  });
+  $('#rm-send').addEventListener('click', async (e) => {
+    const picked = $$('[data-rm-pick]:checked').map((c) => rmRows[Number(c.dataset.rmPick)]).filter((p) => p && validEmail(p.email));
+    const msg = $('#rm-msg');
+    if (!picked.length) { msg.className = 'form-msg'; msg.textContent = 'Tick the people to email first (only those with an email address).'; return; }
+    if (picked.length > 25) { msg.className = 'form-msg'; msg.textContent = 'Up to 25 at a time, please.'; return; }
+    if (!confirm(`Email ${picked.length} ${picked.length === 1 ? 'person' : 'people'} from the Society’s account? Each gets their own email.`)) return;
+    const tpl = rmTemplate(), sender = { name: me?.name, role: me?.role };
+    await busy(e.currentTarget, async () => {
+      try {
+        const r = await driveCall(fb, 'memberMail', { items: picked.map((p) => ({ to: p.email.trim(), ...fillReminder(tpl, p, sender) })) });
+        const sent = new Set(r.sent.map((x) => x.toLowerCase()));
+        for (const p of picked) if (sent.has(p.email.trim().toLowerCase())) await logReminder(p, 'society-email');
+        msg.className = r.failed.length ? 'form-msg' : 'form-msg ok';
+        msg.textContent = `Emailed ${r.sent.length} from ${r.from}.${r.failed.length ? ` Not sent: ${r.failed.map((x) => `${x.to} (${x.error})`).join('; ')}.` : ''} Emails left today: ${r.left}.`;
+        await renderReminders();
+      } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+    });
+  });
 }
 
 /** Saves a change to a member record and writes it to the member history (memberLog). */
@@ -1341,19 +1528,37 @@ async function loadSigninLog() {
   renderStrays();
 }
 
-/** People in the sign-in history who never sent a request (and have no member or staff record). */
+/** What the person typed in the registration form, if anything (3.17). */
+function whoTyped(e) {
+  if (!e.name && !e.mobile) return '';
+  const unit = e.unit ? (String(e.unit).startsWith('Staff') ? e.unit : memberUnitLabel(e.unit)) : '';
+  return [e.name, unit, e.mobile ? `+91 ${e.mobile}` : ''].filter(Boolean).join(' · ');
+}
+
+/**
+ * People in the sign-in history with no request, member record or staff login: they pressed Sign in before registering,
+ * or (3.17) filled in the registration form and then closed Google sign-in or it failed. Grouped by mobile when the
+ * form was filled in, otherwise by email.
+ */
 function renderStrays() {
   const by = new Map();
   signinLog.forEach((e) => {
-    const email = String(e.email || '').toLowerCase();
-    if (!email || knownEmails.has(email) || (e.uid && knownUids.has(e.uid))) return;
-    if (!by.has(email)) by.set(email, { email, tries: 0, last: null, events: [] });
-    const x = by.get(email);
+    const email = String(e.email || '').toLowerCase(), mob = tenDigits(e.mobile);
+    if (!email && !mob) return;
+    if ((email && knownEmails.has(email)) || (mob && knownMobiles.has(mob)) || (e.uid && knownUids.has(e.uid))) return;
+    const key = mob ? `m:${mob}` : email;
+    if (!by.has(key)) by.set(key, { key, email: '', mobile: mob, name: '', unit: '', tries: 0, last: null, events: [] });
+    const x = by.get(key);
     x.tries++; x.events.push(e);
+    if (email && !x.email) x.email = email;
+    if (e.name && !x.name) { x.name = e.name; x.unit = e.unit || ''; }
     if (!x.last || (tsDate(e.at) || 0) > (tsDate(x.last.at) || 0)) x.last = e;
   });
+  const formFilled = (x) => x.events.some((e) => e.name || e.mobile);
   const what = (x) => {
     const has = (m, r) => x.events.some((e) => e.method === m && (!r || e.result === r));
+    if (formFilled(x) && has('google', 'cancelled') && !has('google', 'ok')) return 'Filled in the registration form, then closed Google sign-in before choosing a Gmail';
+    if (formFilled(x) && has('google', 'failed') && !has('google', 'ok')) return `Filled in the registration form; Google sign-in failed (${x.events.find((e) => e.method === 'google' && e.result === 'failed').code || 'error'})`;
     if (has('google', 'ok')) return 'Signed in with Google but didn’t fill in the registration';
     if (has('password', 'failed')) return `Tried email and password without registering${has('reset') ? ', then asked for a password reset' : ''}`;
     if (has('register', 'failed')) return 'Registration failed';
@@ -1361,14 +1566,26 @@ function renderStrays() {
     return 'Tried to sign in';
   };
   const link = SITE_LINK;
-  const rows = [...by.values()].sort((a, b) => (tsDate(b.last.at) || 0) - (tsDate(a.last.at) || 0));
-  $('#stray-rows').innerHTML = rows.map((x) => {
-    const body = `Dear member,\n\nWe noticed you tried to sign in to the Sunshree Suntec website. To get access, please register first:\n\n1. Open ${link}\n2. Choose “New here? Register”.\n3. Choose who you are (member of a unit, or Society staff), fill in your name, unit and mobile number.\n4. Press “Continue with Google and send request” and choose your Gmail (${x.email}).\n\nThe committee will check and approve your request. After that, open the same page, choose “Sign in” and use the same Gmail.\n\nRegards,\n${me?.name || 'Managing Committee'}\nSunshree Suntec Co-op. Housing Society Ltd.`;
-    const mail = `mailto:${encodeURIComponent(x.email)}?subject=${encodeURIComponent('Sunshree Suntec website: how to register')}&body=${encodeURIComponent(body)}`;
-    return `<tr><td>${esc(x.email)}</td><td class="num">${x.tries}</td><td>${whenLong(x.last.at)}<br><span class="muted">${esc(x.last.where === 'app' ? 'App' : 'Website')} · ${esc(x.last.device || '')}</span></td>
-      <td>${esc(what(x))}</td><td><a class="btn btn-small btn-primary" href="${esc(mail)}">Send the steps by email</a></td></tr>`;
+  strayRows = [...by.values()].sort((a, b) => (tsDate(b.last.at) || 0) - (tsDate(a.last.at) || 0));
+  $('#stray-rows').innerHTML = strayRows.map((x, i) => {
+    const first = String(x.name || '').replace(/^(mr|mrs|ms|dr|shri|smt)\.?\s+/i, '').split(' ')[0];
+    const unit = x.unit && !String(x.unit).startsWith('Staff') ? memberUnitLabel(x.unit) : '';
+    const closed = formFilled(x) && !x.events.some((e) => e.method === 'google' && e.result === 'ok');
+    const body = closed
+      ? `Dear ${first || 'member'},\n\nYou started registering${unit ? ` for ${unit}` : ''} on the Sunshree Suntec website, but Google sign-in didn’t finish, so your request didn’t reach the committee.\n\nTo finish:\n1. Open ${link} in Chrome.\n2. Choose “New here? Register” and fill in your name, unit and mobile number.\n3. Press “Continue with Google and send request”, choose your Gmail in the Google window and wait until it says “Signed in”. Please don’t close the Google window or press Back.\n\nIf it still doesn’t work, reply to this message and we’ll help.\n\nRegards,\n${me?.name || 'Managing Committee'}\nSunshree Suntec Co-op. Housing Society Ltd.`
+      : `Dear ${first || 'member'},\n\nWe noticed you tried to sign in to the Sunshree Suntec website. To get access, please register first:\n\n1. Open ${link}\n2. Choose “New here? Register”.\n3. Choose who you are (member of a unit, or Society staff), fill in your name, unit and mobile number.\n4. Press “Continue with Google and send request” and choose your Gmail${x.email ? ` (${x.email})` : ''}.\n\nThe committee will check and approve your request. After that, open the same page, choose “Sign in” and use the same Gmail.\n\nRegards,\n${me?.name || 'Managing Committee'}\nSunshree Suntec Co-op. Housing Society Ltd.`;
+    const subject = closed ? 'Sunshree Suntec website: finishing your registration' : 'Sunshree Suntec website: how to register';
+    const m = { subject, body };
+    const log = rmLog.filter((r) => r.kind === 'unfinished' && r.key === `try:${x.key}`), last = log[0];
+    const whoCell = `${x.name ? `<strong>${esc(x.name)}</strong>${unit ? ` <span class="muted">${esc(unit)}</span>` : x.unit ? ` <span class="muted">${esc(x.unit)}</span>` : ''}<br>` : ''}${x.mobile ? `+91 ${esc(x.mobile)}<br>` : ''}${x.email ? esc(x.email) : '<span class="muted">Gmail not known</span>'}`;
+    return `<tr><td>${whoCell}</td><td class="num">${x.tries}</td><td>${whenLong(x.last.at)}<br><span class="muted">${esc(x.last.where === 'app' ? 'App' : 'Website')} · ${esc(x.last.device || '')}</span></td>
+      <td>${esc(what(x))}${last ? `<span class="sub">Followed up: ${esc(RM_CHANNEL[last.channel] || last.channel)}, ${whenShort(last.at)}${last.byName ? `, ${esc(last.byName)}` : ''}</span>` : ''}</td>
+      <td><div class="rm-send-cell">${x.mobile && waNumber(x.mobile) ? `<a class="btn btn-small btn-primary" href="${esc(waLink(x.mobile, m))}" target="_blank" rel="noopener" data-try-go="whatsapp" data-i="${i}">WhatsApp the steps</a>
+        <a class="btn btn-small" href="tel:+91${esc(x.mobile)}" data-try-go="call" data-i="${i}">Call</a>` : ''}
+        ${x.email ? `<a class="btn btn-small${x.mobile ? '' : ' btn-primary'}" href="${esc(mailLink(x.email, m))}" data-try-go="email" data-i="${i}">Email the steps</a>` : ''}</div></td></tr>`;
   }).join('') || '<tr><td colspan="5" class="empty">Nobody: everyone who tried has a request or a login.</td></tr>';
 }
+let strayRows = [];
 
 function filteredSignins() {
   const days = Number($('#si-days').value), res = $('#si-result').value, how = $('#si-method').value, where = $('#si-where').value;
@@ -1379,9 +1596,9 @@ function filteredSignins() {
 
 function renderSigninLog() {
   const list = filteredSignins();
-  const people = new Set(list.map((e) => e.email || e.device || e.id));
+  const people = new Set(list.map((e) => e.email || e.mobile || e.device || e.id));
   const n = (r) => list.filter((e) => e.result === r).length;
-  const failedPeople = new Set(list.filter((e) => e.result !== 'ok').map((e) => e.email || e.device));
+  const failedPeople = new Set(list.filter((e) => e.result !== 'ok').map((e) => e.email || e.mobile || e.device));
   const okPeople = new Set(list.filter((e) => e.result === 'ok').map((e) => e.email));
   const stuck = [...failedPeople].filter((p) => p && !okPeople.has(p)).length;
   $('#si-summary').innerHTML = `<span><b>${list.length}</b> attempts</span><span><b>${people.size}</b> people or devices</span>
@@ -1406,7 +1623,7 @@ function renderSigninLog() {
   $('.si-check').hidden = !del; $('#si-delete-bar').hidden = !del;
   $('#signin-rows').innerHTML = list.map((e) => `<tr>${del ? `<td class="si-check"><input type="checkbox" data-si="${esc(e.id)}" aria-label="Select"></td>` : ''}
       <td class="si-when">${whenLong(e.at) || 'just now'}</td>
-      <td>${e.email ? esc(e.email) : '<span class="muted">—</span>'}</td>
+      <td>${e.email ? esc(e.email) : whoTyped(e) ? '' : '<span class="muted">—</span>'}${whoTyped(e) ? `<span class="sub si-who" title="Typed in the registration form">${e.email ? '' : 'Form: '}${esc(whoTyped(e))}</span>` : ''}</td>
       <td>${esc(METHOD_TEXT[e.method] || e.method)}${e.page === 'admin' ? ' <span class="status-pill">Committee page</span>' : ''}</td>
       <td>${e.where === 'app' ? `App${e.appVersion ? ' ' + esc(e.appVersion) : ''}` : 'Website'}</td>
       <td>${RESULT_PILL[e.result] || esc(e.result)}</td>

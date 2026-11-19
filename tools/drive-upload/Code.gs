@@ -22,6 +22,9 @@
  * Members (3.13) use three actions of their own: memberUpload (documents of their unit), memberFetch (open them)
  * and memberAgreement (their accepted portal agreement → PDF in the unit's Agreements folder, emailed to them
  * with a copy to the Society). Everything else needs a committee or staff account.
+ *
+ * Version 6 (3.16): memberMail sends reminders and invitations to members from the Society's account
+ * (committee, or staff allowed to look after members; at most 25 at a time, each email separately).
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -45,7 +48,7 @@ function config_() {
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 5 });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 6 });
 }
 
 function doPost(e) {
@@ -60,7 +63,7 @@ function doPost(e) {
     } else {
       var team = teamRecord_(cfg, who, req.idToken);
       var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_,
-        backupRegister: backupRegister_ };
+        backupRegister: backupRegister_, memberMail: memberMail_ };
       var fn = actions[req.action];
       if (!fn) throw new Error('Unknown request.');
       out = fn(cfg, req, who, team);
@@ -494,6 +497,30 @@ function archiveAgreement_(cfg, idToken, id, a, again) {
   return out;
 }
 
+/** Reminders and invitations to members, from the Society's account (3.16). Each email goes separately; nobody sees the others. */
+function memberMail_(cfg, req, who, team) {
+  if (!team.can('members')) throw new Error('You don’t have permission to send reminders to members.');
+  var items = req.items || [];
+  if (!items.length || items.length > 25) throw new Error('Send between 1 and 25 emails at a time.');
+  var society = Session.getEffectiveUser().getEmail(), sent = [], failed = [];
+  items.forEach(function (it) {
+    var to = String((it && it.to) || '').trim();
+    try {
+      if (!/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[A-Za-z]{2,}$/.test(to)) throw new Error('Not a valid email address.');
+      if (MailApp.getRemainingDailyQuota() < 1) throw new Error('Google’s daily email limit is reached; send the rest tomorrow.');
+      var subject = String(it.subject || '').replace(/[\r\n]+/g, ' ').slice(0, 200);
+      if (subject.indexOf('Sunshree Suntec') < 0) subject = 'Sunshree Suntec: ' + subject;
+      var body = String(it.body || '').slice(0, 6000);
+      var html = esc_(body).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, '<br>');
+      MailApp.sendEmail({ to: to, name: 'Sunshree Suntec CHS', replyTo: society, subject: subject, body: body,
+        htmlBody: '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">' + html +
+          '<p style="color:#777;font-size:12px;margin-top:18px">Sent by ' + esc_(team.name) + ' (' + esc_(team.role) + ') for the Managing Committee of Sunshree Suntec CHS. Reply to this email to reach the Society.</p></div>' });
+      sent.push(to);
+    } catch (e) { failed.push({ to: to, error: String((e && e.message) || e) }); }
+  });
+  return { sent: sent, failed: failed, left: MailApp.getRemainingDailyQuota(), from: society };
+}
+
 function esc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
 /** Same layout as agreementHTML() in docs/assets/js/memberagreement.js, for an A4 PDF. */
@@ -529,5 +556,7 @@ function setup() {
   var cfg = config_();
   var root = rootFolder_(cfg);
   Logger.log('Records folder: ' + root.getName() + ' — ' + root.getUrl());
+  // Also asks for (and checks) the permission to send email, needed for member agreement copies.
+  Logger.log('Email permission: allowed. Emails left today: ' + MailApp.getRemainingDailyQuota() + ' (sent as ' + Session.getEffectiveUser().getEmail() + ').');
   Logger.log('Now: Deploy → New deployment → Web app → Execute as: Me, Who has access: Anyone → Deploy, and copy the Web app URL.');
 }

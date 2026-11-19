@@ -159,7 +159,23 @@ service cloud.firestore {
             && request.resource.data.agreementVersion == memberAgreementVersion()
             && request.resource.data.agreementAcceptedAt == request.time
             && request.resource.data.agreementId == uid + '_v' + string(memberAgreementVersion())
-            && existsAfter(/databases/$(database)/documents/memberAgreements/$(request.resource.data.agreementId)));
+            && existsAfter(/databases/$(database)/documents/memberAgreements/$(request.resource.data.agreementId)))
+        // 3.16: the member's last visit (at most once a day), so the committee can remind those who don't visit.
+        || (signedIn() && request.auth.uid == uid && resource.data.status == 'approved'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeenAt'])
+            && request.resource.data.lastSeenAt == request.time);
+      allow delete: if isCommittee();
+    }
+
+    // 3.16: reminders and invitations sent to members (by WhatsApp, email, or email from the Society account). A permanent log.
+    match /memberReminders/{id} {
+      allow read: if perm('members');
+      allow create: if perm('members')
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.kind in ['agreement', 'visit', 'invite', 'unfinished']
+        && request.resource.data.channel in ['whatsapp', 'email', 'society-email'];
+      allow update: if false;
       allow delete: if isCommittee();
     }
 
@@ -204,7 +220,11 @@ service cloud.firestore {
       function txt(f, n) { return request.resource.data[f] is string && request.resource.data[f].size() <= n; }
       allow read: if perm('members');
       allow delete: if isCommittee();
-      allow create: if request.resource.data.keys().hasOnly(['at', 'method', 'where', 'page', 'result', 'code', 'detail', 'email', 'uid', 'appVersion', 'siteVersion', 'device', 'ms'])
+      // 3.17: optional name, unit and mobile typed in the registration form before Google was opened.
+      allow create: if request.resource.data.keys().hasOnly(['at', 'method', 'where', 'page', 'result', 'code', 'detail', 'email', 'uid', 'appVersion', 'siteVersion', 'device', 'ms', 'name', 'unit', 'mobile'])
+        && (!('name' in request.resource.data) || txt('name', 100))
+        && (!('unit' in request.resource.data) || txt('unit', 40))
+        && (!('mobile' in request.resource.data) || (request.resource.data.mobile is string && request.resource.data.mobile.matches('^[0-9]{0,15}$')))
         && request.resource.data.keys().hasAll(['at', 'method', 'where', 'page', 'result', 'code', 'detail', 'email', 'uid', 'appVersion', 'siteVersion', 'device', 'ms'])
         && request.resource.data.at == request.time
         && request.resource.data.method in ['google', 'password', 'register', 'reset']
@@ -455,7 +475,8 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if perm('view') || ((docId == 'staffAgreement' || docId == 'files') && isTeam())
         || (docId == 'memberAgreement' && signedIn())
-        || (docId == 'files' && approvedMember());
+        || (docId == 'files' && approvedMember())
+        || (docId == 'memberReminders' && perm('members'));
       allow write: if isCommittee()
         || (docId == 'billing' && perm('generateBills') && changes().hasOnly(['lastRun', 'lastBilledMonth']));
     }

@@ -1,7 +1,7 @@
 // Member access: register (mobile + email) → committee approves in admin.html → member sees own unit's
 // balance, bills, receipts and account entries. Enforced by the server's access rules.
 import { initFirebase, errorText, inApp, saveBlob, signOutUser } from './firebase.js';
-import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, logSignIn, showMsg } from './signin.js';
+import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, logSignIn, showMsg, setSignInWho } from './signin.js';
 import { initOfflineUi, markSaved, saveForOffline } from './offline.js';
 import { getDues, fmt, esc, ownerCell, RELATIONS, relationLabel } from './data.js';
 import { ddmmyyyy, monthLabel, money, todayIST } from './billing-core.js';
@@ -210,6 +210,7 @@ async function onUser(user) {
   }
 
   if (profile.status === 'approved' && user.emailVerified) {
+    noteVisit(user);
     // 3.13: the current member portal agreement must be accepted first (new and existing members alike).
     currentAg = await loadMemberAgreement().catch(() => null);
     if (currentAg && Number(profile.agreementVersion || 0) !== currentAg.version) { showAgreement(user); return; }
@@ -326,7 +327,10 @@ function wireForms() {
     if (!completing) {
       // Gmail is the login: open Google; the request is sent when it returns (onUser).
       savePending(details);
-      const ok = await signInWithGoogle(fb, { page: 'member', button: $('#register-submit'), say: (t, k, d) => showMsg(form, t, k, d) });
+      // Kept with the attempt in the sign-in history, so the committee can help if Google is closed or fails.
+      setSignInWho({ name, unit: staff ? `Staff: ${role}` : unit, mobile });
+      const ok = await signInWithGoogle(fb, { page: 'member', button: $('#register-submit'), say: (t, k, d) => showMsg(form, t, k, d) })
+        .finally(() => setSignInWho(null));
       if (!ok && !auth.currentUser) {
         const msg = $('.form-msg', form).textContent;
         if (!msg || /Opening Google/.test(msg)) setMsg(form, 'Google sign-in didn’t finish. Press the button again; your details are kept.');
@@ -427,6 +431,14 @@ async function acceptAgreement(e) {
       if (navigator.onLine) { markSaved(); saveForOffline(fb).catch(() => {}); }
     } catch (err) { setMsg(f, errorText(err)); }
   });
+}
+
+/** 3.16: the member's last visit, at most once a day, so the committee can remind members who don't visit. */
+function noteVisit(user) {
+  const last = profile.lastSeenAt?.toDate ? profile.lastSeenAt.toDate() : null;
+  if (!navigator.onLine || (last && Date.now() - last.getTime() < 20 * 3600 * 1000)) return;
+  const { F, db } = fb;
+  F.updateDoc(F.doc(db, 'users', user.uid), { lastSeenAt: F.serverTimestamp() }).catch((err) => console.warn('last visit', err));
 }
 
 /** PDF in the unit's Drive folder and email (with a copy to the Society). Quiet on failure; tried again on the next visit. */

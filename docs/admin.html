@@ -681,6 +681,41 @@
         <tbody id="approved-rows"></tbody>
       </table></div>
 
+      <section class="rm-box" id="rm-box">
+        <h2 class="mt">Reminders and invitations</h2>
+        <p class="muted">Remind registered members who haven’t accepted the portal agreement or don’t visit, and invite owners and tenants whose mobile or email is in their unit file but who haven’t registered. Each reminder sent is recorded below.</p>
+        <div class="rm-tabs" role="tablist">
+          <button class="rm-tab" type="button" role="tab" data-rm="agreement">Agreement not accepted <span class="count" data-rm-count="agreement"></span></button>
+          <button class="rm-tab" type="button" role="tab" data-rm="visit">Not visiting <span class="count" data-rm-count="visit"></span></button>
+          <button class="rm-tab" type="button" role="tab" data-rm="invite">Not registered <span class="count" data-rm-count="invite"></span></button>
+        </div>
+        <div class="filter-row rm-opts">
+          <label id="rm-days-wrap">Not visited for<select id="rm-days"><option value="30">30 days or more</option><option value="60" selected>60 days or more</option><option value="90">90 days or more</option><option value="180">6 months or more</option></select></label>
+          <label class="check" id="rm-skip-wrap"><input type="checkbox" id="rm-skip-registered" checked> Leave out units where someone is already approved</label>
+          <label id="rm-gap-wrap">Don’t remind again within<select id="rm-gap"><option value="0">(show everyone)</option><option value="7" selected>7 days</option><option value="15">15 days</option><option value="30">30 days</option></select></label>
+        </div>
+        <p class="small-note" id="rm-note"></p>
+        <details class="rm-template">
+          <summary>Message wording</summary>
+          <form id="rm-tpl" class="form" novalidate>
+            <label>Subject<input type="text" name="subject" maxlength="200"></label>
+            <label>Message<textarea name="body" rows="9"></textarea></label>
+            <p class="small-note">Filled in for each person: {name} first name, {fullname}, {unit}, {email}, {mobile}, {link} the portal’s address, {sign} your name and the committee.</p>
+            <p class="form-msg" role="alert"></p>
+            <div class="form-actions"><button class="btn" type="submit" data-committee>Save this wording</button><button class="btn" type="button" id="rm-tpl-reset">Standard wording</button><button class="btn" type="button" id="rm-copy">Copy for a WhatsApp group</button></div>
+          </form>
+        </details>
+        <div class="table-scroll"><table class="rm-table">
+          <thead><tr><th><input type="checkbox" id="rm-all" aria-label="Select all with email"></th><th>Unit</th><th>Name</th><th>Contact</th><th>Status</th><th>Last reminded</th><th>Send</th></tr></thead>
+          <tbody id="rm-rows"></tbody>
+        </table></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="button" id="rm-send">Email the selected from the Society’s account</button>
+          <span class="small-note" id="rm-send-note"></span>
+        </div>
+        <p class="form-msg" id="rm-msg" role="status"></p>
+      </section>
+
       <div class="section-head mt">
         <h2>Rejected and removed</h2>
         <button class="btn btn-small" type="button" id="rejected-csv">Export CSV</button>
@@ -694,9 +729,9 @@
       <div class="section-head mt">
         <h2>Tried but never registered</h2>
       </div>
-      <p class="muted small-note">People in the sign-in history with no request, member record or staff login: usually they pressed <em>Sign in</em> before registering. Send them the steps.</p>
-      <div class="table-scroll"><table>
-        <thead><tr><th>Email</th><th class="num">Tries</th><th>Last try</th><th>What happened</th><th></th></tr></thead>
+      <p class="muted small-note">People in the sign-in history with no request, member record or staff login: they pressed <em>Sign in</em> before registering, or filled in the registration form and then closed Google sign-in (their name, unit and mobile are shown). Send them the steps.</p>
+      <div class="table-scroll"><table class="stray-table">
+        <thead><tr><th>Who</th><th class="num">Tries</th><th>Last try</th><th>What happened</th><th></th></tr></thead>
         <tbody id="stray-rows"></tbody>
       </table></div>
 
@@ -1242,7 +1277,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.15.3</p>
+    <p class="muted mt" id="version-note">Software version 3.17.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

@@ -8,6 +8,13 @@ import { inApp, appCall, errorText, SITE_VERSION } from './firebase.js';
 
 const cut = (v, n) => String(v ?? '').slice(0, n);
 
+// 3.17: what the person typed in the registration form (name, unit, mobile), kept with their Google attempts so the
+// committee can follow up with someone who closed Google sign-in before choosing their Gmail.
+let who = null;
+export function setSignInWho(w) {
+  who = w && (w.name || w.mobile) ? { name: cut(w.name, 100).trim(), unit: cut(w.unit, 40), mobile: cut(String(w.mobile || '').replace(/\D/g, ''), 15) } : null;
+}
+
 /** In the app: version, phone and signing fingerprint (null in a browser or an older app). */
 export function appInfo() {
   try { return inApp && window.SSApp.diagnostics ? JSON.parse(window.SSApp.diagnostics()) : null; } catch { return null; }
@@ -41,6 +48,8 @@ export function logSignIn(fb, entry) {
       appVersion: cut(info?.app, 20), siteVersion: SITE_VERSION, device: cut(deviceText(info), 120),
       ms: Math.max(0, Math.min(3599999, Math.round(entry.ms || 0)))
     };
+    const w = entry.who || who;
+    if (w) { doc.name = w.name || ''; doc.unit = w.unit || ''; doc.mobile = w.mobile || ''; }
     fb.F.addDoc(fb.F.collection(fb.db, 'signInLog'), doc).catch((err) => console.warn('Sign-in history not saved:', err?.code || err));
   } catch (err) { console.warn('Sign-in history not saved:', err); }
 }
@@ -160,7 +169,7 @@ async function webGoogle(fb, page, say, ms) {
     }
     if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-environment') {
       say('Taking you to Google…', 'info');
-      try { sessionStorage.setItem(REDIRECT_KEY, JSON.stringify({ page, t: Date.now() })); } catch { /* private mode */ }
+      try { sessionStorage.setItem(REDIRECT_KEY, JSON.stringify({ page, t: Date.now(), who })); } catch { /* private mode */ }
       await fb.A.signInWithRedirect(fb.auth, provider);
       return false;
     }
@@ -176,6 +185,7 @@ export async function finishGoogleRedirect(fb, say) {
   let started = null;
   try { started = JSON.parse(sessionStorage.getItem(REDIRECT_KEY) || 'null'); sessionStorage.removeItem(REDIRECT_KEY); } catch { /* ignore */ }
   const page = started?.page || 'member', ms = started ? Date.now() - started.t : 0;
+  if (started?.who) setSignInWho(started.who);
   try {
     const res = await fb.A.getRedirectResult(fb.auth);
     if (res?.user) { say(`Signed in as ${res.user.email}. Loading…`, 'ok'); logSignIn(fb, { method: 'google', page, result: 'ok', email: res.user.email, ms }); }
@@ -183,7 +193,7 @@ export async function finishGoogleRedirect(fb, say) {
   } catch (err) {
     say(errorText(err), 'error', `Code: ${err?.code || 'unknown'} · ${new Date().toLocaleString('en-IN')}`);
     logSignIn(fb, { method: 'google', page, result: 'failed', code: err?.code || 'unknown', detail: err?.message, ms });
-  }
+  } finally { if (started?.who) setSignInWho(null); }
 }
 
 /** Email and password sign-in with history. Returns true when signed in. */
