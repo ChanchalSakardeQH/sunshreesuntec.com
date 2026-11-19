@@ -404,3 +404,13 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 .interest-periods .sub, .interest-info .sub { display: block; font-size: .84rem; color: var(--muted); }
 .ii-calc { border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem .9rem; margin: .6rem 0; }
 .ii-calc summary { cursor: pointer; }
+
+/* 3.18: application to view the Society's accounts */
+.sa-request { margin-top: 1.5rem; }
+.sa-request fieldset { border: 0; padding: 0; margin: 0 0 .75rem; display: grid; gap: .35rem; }
+.sa-request legend { font-weight: 600; margin-bottom: .35rem; padding: 0; }
+.sa-request .form { max-width: 40rem; }
+.sa-status { font-weight: 600; }
+.sa-status.ok { color: var(--credit); }
+.sa-status.no { color: var(--due); }
+.sa-status.wait { color: var(--muted); }

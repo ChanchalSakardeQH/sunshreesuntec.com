@@ -58,6 +58,22 @@ service cloud.firestore {
         && profile().unit == unitId;
     }
     function fullAccess() { return profile().get('access', 'full') == 'full'; }
+    // 3.18: what a member may see beyond their own unit, given by the committee (see accessApprover()).
+    // Other units' maintenance amounts; the Society's audited accounts and documents (until a date, if one is set).
+    function seesAllDues() { return approvedMember() && profile().get('seeAllDues', false) == true; }
+    function seesAccounts() {
+      return approvedMember() && profile().get('societyAccounts', false) == true
+        && (profile().get('accountsUntil', null) == null || request.time < profile().get('accountsUntil', null));
+    }
+    // 3.18: who decides members' applications to view the Society's accounts: the Chairman, Secretary or Treasurer
+    // (committee), or the Society's Accountant (staff, after accepting the staff agreement).
+    function accessApprover() {
+      return isTeam() && active()
+        && ((me().get('kind', 'committee') != 'staff' && me().get('role', '') in ['Chairman', 'Secretary', 'Treasurer'])
+            || (me().get('kind', '') == 'staff' && me().get('role', '') == 'Accountant'
+                && (me().get('agreementRequired', true) == false || agreementOk())));
+    }
+    function viewFields() { return ['seeAllDues', 'societyAccounts', 'accountsUntil', 'accessBy', 'accessByName', 'accessAt']; }
     // Any approved member with a confirmed email (any unit, full or basic access), not removed.
     function approvedMember() {
       return signedIn() && request.auth.token.email_verified == true
@@ -85,7 +101,7 @@ service cloud.firestore {
 
     // Real amounts: signed-in approved members and committee / staff with view access.
     match /private/{docId} {
-      allow read: if perm('view') || (approvedMember() && fullAccess());
+      allow read: if perm('view') || seesAllDues();
       allow write: if isCommittee() || (docId == 'dues' && (moneyPerm() || perm('editUnits')));
     }
 
@@ -151,8 +167,12 @@ service cloud.firestore {
         && request.resource.data.mobile is string && request.resource.data.mobile.matches('^[6-9][0-9]{9}$')
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.createdAt == request.time;
-      allow read: if (signedIn() && request.auth.uid == uid) || perm('members') || perm('directory');
-      allow update: if perm('members')
+      allow read: if (signedIn() && request.auth.uid == uid) || perm('members') || perm('directory') || accessApprover();
+      // 3.18: the permissions to see other units' amounts and the Society's accounts are changed only by the approvers.
+      allow update: if (perm('members') && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(viewFields()) || accessApprover()))
+        || (accessApprover() && resource.data.status == 'approved'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(viewFields())
+            && request.resource.data.accessBy == request.auth.uid && request.resource.data.accessAt == request.time)
         // 3.13: the member records their acceptance of the current portal agreement (written in the same batch).
         || (signedIn() && request.auth.uid == uid && resource.data.status == 'approved'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['agreementVersion', 'agreementAcceptedAt', 'agreementId'])
@@ -438,10 +458,10 @@ service cloud.firestore {
     // Society documents (audit reports, AGM minutes …), stored in parts. Approved members and the
     // accounts team can read; only the committee adds or removes them.
     match /archiveDocs/{docId} {
-      allow read: if perm('view') || approvedMember();
+      allow read: if perm('view') || seesAccounts();
       allow write: if isCommittee();
       match /parts/{partId} {
-        allow read: if perm('view') || approvedMember();
+        allow read: if perm('view') || seesAccounts();
         allow write: if isCommittee();
       }
     }
@@ -449,8 +469,37 @@ service cloud.firestore {
     // Audited accounts by financial year (2011-12 onwards): balance sheet, income & expenditure,
     // year-end dues per unit, members, committee. Read by approved members and the accounts team.
     match /auditYears/{fy} {
-      allow read: if perm('view') || approvedMember();
+      allow read: if perm('view') || seesAccounts();
       allow write: if isCommittee();
+    }
+
+    // 3.18: a member's application to view the Society's accounts (MCS Act s.32 / s.154B-8, model bye-law 23).
+    // The member applies; the Chairman, Secretary, Treasurer or Accountant decides. Kept permanently.
+    match /accessRequests/{id} {
+      allow read: if (signedIn() && resource.data.uid == request.auth.uid) || perm('members') || accessApprover();
+      allow create: if approvedMember()
+        && request.resource.data.keys().hasOnly(['uid', 'unit', 'name', 'email', 'mobile', 'relation', 'what', 'purpose', 'status', 'at'])
+        && request.resource.data.uid == request.auth.uid
+        && id.matches('^' + request.auth.uid + '_[0-9]+$')
+        && request.resource.data.unit == profile().unit
+        && request.resource.data.email == profile().email
+        && request.resource.data.status == 'pending'
+        && request.resource.data.at == request.time
+        && request.resource.data.what is list && request.resource.data.what.size() > 0
+        && request.resource.data.what.hasOnly(['accounts', 'allDues'])
+        && request.resource.data.purpose is string && request.resource.data.purpose.size() >= 10 && request.resource.data.purpose.size() <= 1000;
+      allow update: if (accessApprover() && resource.data.status == 'pending'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedBy', 'decidedByName', 'decidedRole', 'decidedAt', 'reason', 'granted', 'until'])
+            && request.resource.data.status in ['approved', 'rejected']
+            && request.resource.data.decidedBy == request.auth.uid && request.resource.data.decidedAt == request.time)
+        // the member withdraws a request still waiting
+        || (signedIn() && resource.data.uid == request.auth.uid && resource.data.status == 'pending'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt'])
+            && request.resource.data.status == 'withdrawn' && request.resource.data.decidedAt == request.time)
+        // the emails about it (sent by the Drive script) are noted on the record
+        || ((accessApprover() || (signedIn() && resource.data.uid == request.auth.uid))
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mailed', 'mailNote']));
+      allow delete: if false;
     }
 
     // Permanent log of every change to the past committee's receipts (who, when, what, why).

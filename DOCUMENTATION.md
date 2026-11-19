@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.3.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.18.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -30,6 +30,9 @@ This document explains what the system does, where the data lives, how every amo
 11E. Committee list
 11F. Penal interest: rate periods and interest on past arrears
 12. Member access
+12-1. Reminders and invitations (3.16)
+12-2. Registrations not finished (3.17)
+12-3. Other units' amounts and the Society's accounts: permissions and applications (3.18)
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
@@ -127,8 +130,13 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `public/dues` | Names and balances shown on the public dues page | Committee, GitHub Action |
 | `public/site` | Society and bank details, committee, contact, notices, basis-of-charges text | Committee |
 | `users/{uid}` | Member access requests: name, unit, mobile, email, `relation` (owner / jointOwner / family / tenant / caretaker), `access` (full / basic, set by the committee), status (pending / approved / rejected), `removed` (true when an approved member's access was removed), `reason` (shown to the member), `decidedAt`, `decidedBy`, `decidedByEmail` | Member (create), Committee (decide) |
+| `users/{uid}` (3.16–3.18) | Also: `lastSeenAt` (the member's last visit, at most once a day); `seeAllDues` (may see other units' maintenance amounts); `societyAccounts` and `accountsUntil` (may see the Society's audited accounts and documents, until that date if set); `accessBy`, `accessByName`, `accessAt` (who last changed these and when) | Member (`lastSeenAt` only); Chairman, Secretary, Treasurer or Accountant (the view permissions) |
+| `accessRequests/{uid}_{time}` (3.18) | Members' applications to view the Society's accounts: member, unit, email, mobile, relation, what (`accounts`, `allDues`), purpose, status (pending / approved / rejected / withdrawn), what was given (`granted`), until, reason, who decided (name, role) and when, whether it was emailed to the Society. Never deleted | Member (create, withdraw); Chairman, Secretary, Treasurer or Accountant (decide) |
+| `memberReminders/{id}` (3.16) | Every reminder or invitation sent: kind (agreement / visit / invite / unfinished), person, unit, email, mobile, channel (WhatsApp / email / email from the Society), who and when. Never changed | Members tab |
+| `settings/memberReminders` (3.16) | The committee's wording of each reminder | Committee |
+| `units/{unitId}/history/audited` (3.18) | That unit's own audited year-end figures (year, date, listed or not, name, amount), taken from the audit file so the member sees their history without the whole file | Committee's page, automatically when the audited years change (`settings/auditHistory`) |
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
-| `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
+| `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time; and (3.17) the name, unit and mobile typed in the registration form when Google was opened from it. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
 | `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, `agreementRequired` (false = no agreement needed, e.g. auditors), `validUntil` (access ends after this date), `org`, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation, or by the committee approving a request. Committee: Staff tab |
 | `expenses/{id}` | Daily expenses: date, month, FY, amount, head, paid to, bill no., description, who paid (`society` with mode and reference / `person` with name / `unpaid`), bill files (Drive file ids and names), status (submitted / approved / rejected), voucher number, reason, who added / decided and when, payment date (vendor paid later), payback link (`settlementId`, `settledOn`) | Staff with *Add expenses* (own), approvers, payers |
 | `expenses/{id}/log/{id}` | Step-by-step history of each expense (added, corrected, approved, rejected, paid, paid back). Never changed | The accounts pages |
@@ -160,7 +168,11 @@ Enforced by `firestore.rules` on Google's servers, not just by the web pages. Co
 | `liftExpenses` | *view* | Added / deleted (before billing) with *lift expenses* |
 | `settings/billing` | *view* | Committee; *generate bills* may update only the last-billed month |
 | `settings/staffAgreement` | Committee and staff | Committee |
-| `users` (member requests) | The member; *approve members* | Member creates own request (pending, valid mobile, own email); *approve members* decides |
+| `private/dues` (real amounts of all units) | *view*; an approved member given *Maintenance amounts of all units* (3.18) | Money operations |
+| `auditYears`, `archiveDocs` (audited accounts, Society documents) | *view*; an approved member given *The Society's audited accounts and documents*, before its end date (3.18) | Committee |
+| `users` (member requests) | The member; *approve members*; the approvers | Member creates own request (pending, valid mobile, own email); *approve members* decides. The two view permissions (`seeAllDues`, `societyAccounts`, `accountsUntil`) only by the Chairman, Secretary, Treasurer or Accountant (3.18) |
+| `accessRequests` (3.18) | The member (own); *approve members*; the approvers | Member creates own (own unit and email, fixed fields) and may withdraw while waiting; approvers decide; never deleted |
+| `memberReminders` (3.16) | *approve members* | *approve members* (stamped); never changed |
 | `admins` | Self; committee | Committee; a staff member may create their own record only from a matching invitation (same role and permissions, confirmed email) and may update only their agreement acceptance and last sign-in |
 | `staffInvites` | Committee; the invited email | Committee |
 | `staffAgreements` | Committee; the staff member's own record | The staff member, once per acceptance; **never changed or deleted** |
@@ -332,7 +344,7 @@ Units → Open → Add a correction: debit (adds to dues) or credit (reduces due
 ## 11. The public dues page
 
 - Shows every unit with member name and premises, grouped by wing and shop floor, with search. **Amounts are masked** for visitors: one x per digit with Indian commas (₹ 1,17,500 shows as x,xx,xxx), totals too.
-- The **eye** button / **Show amounts** reveals the real figures only to a signed-in, approved member with a confirmed email, or to committee / staff. Others are sent to Member login and brought back once signed in.
+- The **eye** button / **Show amounts** reveals the real figures to committee / staff with *view*, and to members the Chairman, Secretary, Treasurer or Accountant have given *Maintenance amounts of all units* (3.18). Any other approved member (full access) sees **their own unit's amount** and masks for the rest, with a pointer to apply. Visitors are sent to Member login and brought back once signed in.
 - Real amounts are stored in `private/dues` (protected by the rules); `public/dues` holds names and masks only.
 - Data comes from `public/dues`, rewritten in the same transaction as every bill, payment, cancellation and correction. If Firebase is unreachable, the page shows the 30 Sep 2026 statement from `data/dues.json`.
 - “Cr” means the member has paid in advance. “Under verification” means the opening balance is still being checked.
@@ -440,15 +452,46 @@ Rejected or removed members lose access immediately. Google sign-in requires **A
 **Rejected and removed (Members tab).** Rejecting a request or removing an approved member opens a short form: *Reason* (the member sees it on their status page) and *Note for the history* (committee only). The person moves to **Rejected and removed**, which keeps everyone ever rejected or removed with the decision date, who decided and the reason. From there: **Open** (correct name, unit or mobile; change the status; see the full history), **Back to waiting**, **Approve**, and **Export CSV**. Every decision and edit is also written to `memberLog`, which can't be changed or deleted.
 
 **Several people for one unit.** Each person registers with their own email and says who they are: *Owner*, *Joint owner*, *Family member of the owner*, *Tenant* or *Caretaker / agent*. Requests show this as a coloured label, and the waiting list warns who is already approved for the unit. On approval each person gets one of two levels (*Can see*):
-- **Unit account and Society documents** (`access: full`): the unit's balance, bills, receipts, ledger, the real amounts on the dues page, and the Society's accounts and documents. Suggested for owners, joint owners and family.
-- **Society accounts and documents only** (`access: basic`): no unit money. Suggested for tenants and caretakers. Change it with **Edit**, e.g. when the owner agrees that the tenant pays maintenance.
-The rules enforce this: `approvedFor()` and `private/dues` need `access` full (records without `access` count as full). One sign-in belongs to one unit; someone with two units registers the second with another email.
+- **Unit account** (`access: full`): the unit's balance, bills, receipts and ledger, and that unit's amount on the dues page. Suggested for owners, joint owners and family.
+- **No unit account** (`access: basic`): no unit money. Suggested for tenants and caretakers. Change it with **Edit**, e.g. when the owner agrees that the tenant pays maintenance.
+The rules enforce this: `approvedFor()` needs `access` full (records without `access` count as full). One sign-in belongs to one unit; someone with two units registers the second with another email. Other units' amounts and the Society's accounts are separate permissions (section 12-3).
 
 **Telling the member.** After *Approve*, *Reject* or *Remove access* a blue box offers **Send email** and **Send WhatsApp**: they open the committee member's own email app or WhatsApp with a ready message (approval with the sign-in link; or the decision with the reason). Nothing is sent automatically: the website has no mail server. Opening one is recorded in the history as *Member told*. The member also sees the reason on their status page when they sign in.
 
 **Deleting test or mistaken records (committee only).** *Open* a record in *Rejected and removed* → **Delete permanently** removes it and its whole history. In *Sign-in history* the committee can tick entries and **Delete selected**. Neither can be undone. The person's sign-in account itself stays in Firebase console → Authentication → Users (delete it there if needed); if they sign in again they are asked to send a new request.
 
 **Sign-in history (Members tab).** Every attempt (Google, email and password, registration, password reset; website and app; including ones that failed or were closed) with filters for period, result, method and website/app, counts (attempts, people or devices, signed in, failed, closed, *still not in* = had a problem and no successful sign-in in the period), **Export CSV**, and a red box for the most frequent failure codes with what to do. Example: *closed-at-once* in the app means Google refused this app copy; the box shows the app's SHA-1 to add in Firebase. The history keeps the latest 1,000 attempts on screen; older ones stay in the database. Writing is allowed before sign-in (so failures are recorded) but only with the fixed fields and lengths in the rules.
+
+## 12-1. Reminders and invitations (3.16)
+
+**Members → Reminders and invitations** (committee and staff with *approve members*):
+- **Agreement not accepted**: approved members who haven't accepted the current portal agreement.
+- **Not visiting**: approved members with no visit for 30, 60 or 90 days or 6 months. A visit is recorded at most once a day (`users.lastSeenAt`, from 3.16); before that only sign-ins in the sign-in history are known.
+- **Not registered**: current owners and tenants with a mobile or email in their unit file (*Unit file → Members* without a cessation date, *Tenants* without an end date) who have no member record with that email or mobile. Units with someone approved can be left out. To invite someone not listed, add their mobile or email in the unit file.
+
+Each row has **WhatsApp** (opens WhatsApp on the committee member's phone with the message for that person) and **Email** (opens their email app). Ticked rows with an email can be sent together with **Email the selected from the Society's account** (up to 25 at a time; Gmail allows about 100 a day; Drive script version 6). **Copy for a WhatsApp group** copies a general version. The wording of each kind is under *Message wording* (placeholders {name}, {fullname}, {unit}, {email}, {mobile}, {link}, {sign}); the committee can save it for everyone. Every reminder is recorded in `memberReminders` and shown as *Last reminded*; *Don't remind again within* hides people reminded recently. A request from someone invited shows *Invited (date)*.
+
+## 12-2. Registrations not finished (3.17)
+
+When someone fills in *New here? Register* and presses *Continue with Google and send request*, the name, unit and mobile they typed are kept with the sign-in attempt, also when they close Google's window or Google fails. *Sign-in history* shows them as *Form: name · unit · +91 mobile*, and **Tried but never registered** lists the person with what happened (e.g. *Filled in the registration form, then closed Google sign-in before choosing a Gmail*) and **WhatsApp the steps**, **Call**, **Email the steps** (when the Gmail is known). Follow-ups are recorded (*Followed up: …*). The person leaves the list once a request with that mobile or email exists. Someone who fills in the form but never presses the button, or presses plain *Sign in*, leaves no details.
+
+## 12-3. Other units' amounts and the Society's accounts: permissions and applications (3.18)
+
+**What every approved member sees:** the Society's notices; with *Unit account*, their own unit's bills, receipts, balance, ledger (including their own audited year-end figures) and their own amount on the dues page.
+
+**Two further permissions, given only by the Chairman, Secretary, Treasurer or Accountant** (enforced by the rules, `accessApprover()`):
+- **Maintenance amounts of all units** (`seeAllDues`): the real amounts of every unit on the dues page (`private/dues`).
+- **The Society's audited accounts and documents** (`societyAccounts`, optionally until `accountsUntil`): the audited accounts year by year (`auditYears`, which include every unit's year-end dues) and the Society documents (`archiveDocs`).
+
+They are given by deciding an application, or in the member window (*Edit* → *Beyond their own unit*; locked for others, and written to the member's history). The approved list shows *+ all units' amounts* and *+ Society accounts till …*.
+
+**Applications (members' page → Society accounts).** The member ticks what they want to see, writes the purpose and accepts confidentiality. The application is saved (`accessRequests`) and the Drive script emails it to the Society with the reply going to the member, and sends the member an acknowledgement. Only one application can wait at a time; the member can withdraw it and sees every decision with who made it and why.
+
+**Deciding (Accounts → Members → Applications to view the Society's accounts).** The Chairman, Secretary, Treasurer and Accountant see **Decide**; others see the list only. The Accountant's Members tab shows only this section. Tick what to give (part of what was asked is possible) and for how long (until withdrawn, until 31 March, 3 months, 30 days or a date), then **Approve**, or write the reason and **Not approve**. The member's record is updated in the same step, and the member is emailed the decision with a copy to the Society.
+
+**The law.** Under Section 32 of the MCS Act 1960 (for housing societies also Section 154B-8) and model bye-law 23, a member may inspect free of cost the Act, Rules and bye-laws, the last audited balance sheet and accounts, the register of members, minutes of general and committee meetings and the books in which their own transactions are recorded, and get copies within one month on paying the fees in the bye-laws. Refuse an application only with a reason, for example that the applicant is a tenant or caretaker and not a member. Other units' dues are not a member's right under Section 32; give them only where the committee has decided to. The portal is a convenience: a refused member may still inspect the records at the office.
+
+**Members' own history without the audit file.** Because the audit file lists every unit's dues, each unit gets its own year-end figures (`units/{id}/history/audited`), prepared automatically by the committee's page when it opens Members or imports the audited accounts.
 
 ## 12A. Staff: roles, access and agreement
 
@@ -671,6 +714,11 @@ See `README.md` for step-by-step instructions. Summary:
 | Staff member: “isn't a committee or staff account” | Signed in with a different Gmail than invited, or invitation cancelled | Sign in with the invited Gmail; check Staff → Invitations |
 | Staff member stuck on the agreement | New version published | Read, tick, sign, accept |
 | Staff member gets “This action isn't allowed” | That permission isn't given, or access suspended | Staff → Edit |
+| Members tab: *Copy not emailed: … older version* | The Drive script in use is older than the website | Paste the new `Code.gs`, run *setup*, Deploy → Manage deployments → Edit → New version |
+| *You do not have permission to call MailApp…* | The script's `appsscript.json` lacks `script.send_mail`, or the permission was left unticked | Show and replace `appsscript.json`, run *setup*, tick *Select all* / *Send email as you*, deploy a new version |
+| A member can't see the Society's accounts or other units' amounts | Not given (3.18), or the end date has passed | They apply on their page; the Chairman, Secretary, Treasurer or Accountant decides, or gives it in the member window |
+| A member's past year-end figures are missing | The unit's own audited history isn't prepared yet | A committee member opens Accounts → Members once |
+| *Email the selected from the Society's account* is greyed out | Drive script older than version 6 | Deploy the new `Code.gs` |
 
 ---
 
@@ -688,6 +736,10 @@ See `README.md` for step-by-step instructions. Summary:
 
 **What is BPM?** Builder Pending Maintenance from the builder period, shown separately and not added to the member's balance.
 
+**Who can see my maintenance amount?** You see your own. Other members see it only if the Chairman, Secretary, Treasurer or Accountant has allowed them to see all units' amounts; visitors see masks (x,xxx). The committee and the accounts staff see all.
+
+**How do I see the Society's accounts?** Members' page → Society accounts → apply. You will get an email when it is decided. You may also inspect the records at the office under Section 32 of the MCS Act.
+
 **Who can see my mobile number and email?** The committee, and staff the committee has allowed to approve member logins, under a written confidentiality agreement. The public page shows names and amounts only.
 
 **Who changed my account?** Every bill, payment, cancellation and correction is stored with the user who made it and the time, and none can be deleted; ask the committee for the entry details.
@@ -698,9 +750,9 @@ See `README.md` for step-by-step instructions. Summary:
 
 ## 19. Legal references
 
-- Maharashtra Co-operative Societies Act, 1960 (Section 154B for housing societies).
+- Maharashtra Co-operative Societies Act, 1960 (Section 154B for housing societies; Section 32 and Section 154B-8: members' right to inspect books and records and get copies).
 - Maharashtra Co-operative Societies Rules, 1961, as amended by the MCS (Amendment) Rules, 2026 (notified 18 June 2026; Gazette 22 June 2026), Chapter XI-B, including Rule 106C-12 on charges.
-- Model Bye-laws of Co-operative Housing Societies (2014): Bye-laws 13 (funds), 43 (non-occupancy), 65–71 (levy of charges, interest), 165 (penalty).
+- Model Bye-laws of Co-operative Housing Societies (2014): Bye-laws 13 (funds), 23 (inspection of records and copies), 43 (non-occupancy), 65–71 (levy of charges, interest), 165 (penalty), 172 (fees for copies).
 - Society resolutions: AGM 25 Jan 2015 (MOM AGM-MOM/20150225), amendment 07 Jul 2015 (AmendmentOfMom/20150707).
 - Notice dated 16 Oct 2026 (payment and account verification).
 

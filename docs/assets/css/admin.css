@@ -345,3 +345,13 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 }
 .si-who { color: var(--ink); }
 .stray-table td:first-child .muted { white-space: nowrap; }
+
+/* 3.18: applications to view the Society's accounts; member view permissions */
+.ar-box h2 { margin-top: 0; }
+.ar-box .count { font-weight: 700; }
+.ar-grant { border: 1px solid var(--line); border-radius: 8px; padding: .6rem .8rem; margin: 0 0 .75rem; display: grid; gap: .35rem; }
+.ar-grant legend { font-weight: 600; padding: 0 .3rem; }
+.ar-grant input[type="date"] { max-width: 12rem; }
+.view-extra { display: block; font-size: .82rem; color: var(--credit); }
+.ar-mail { display: block; font-size: .82rem; color: var(--muted); }
+.tab.only-apps > :not(h1):not(#ar-box):not(dialog) { display: none !important; }

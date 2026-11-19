@@ -73,7 +73,7 @@ function bpmHTML(u) {
 
 /** Totals: real when revealed; otherwise the masks published for the whole society or a block. */
 function totalsFor(rows, blockId) {
-  if (state.revealed && full) {
+  if (state.revealed && full && !full.ownOnly) {
     const t = totals(rows.map((u) => full.units.find((x) => x.id === u.id) || u));
     return { due: fmt(t.due), credit: fmt(t.credit), bpm: fmt(t.bpm), creditN: t.credit };
   }
@@ -134,8 +134,9 @@ function renderDues() {
   $('#dues-tables').innerHTML = html || '<p class="empty">No unit matches that search. Try a unit number like “GF 05” or part of a name.</p>';
   $('#dues-summary').innerHTML = summaryHTML(shown.length, totalsFor(shown, state.block === 'all' ? null : state.block));
   $('#amounts-toggle').innerHTML = `${EYE} ${state.revealed ? 'Hide amounts' : 'Show amounts'}`;
-  $('#amounts-note').textContent = state.revealed ? 'Amounts shown because you are signed in as an approved member.'
-    : 'Amounts are hidden. Members can sign in to see them.';
+  $('#amounts-note').innerHTML = !state.revealed ? 'Amounts are hidden. Members can sign in to see them.'
+    : full?.ownOnly ? `Showing the amount of your own unit (${esc(full.units[0].unit)}). Other units’ amounts are shown only to members the committee allows: apply under <a href="#member">Society accounts</a> on your member page.`
+    : 'Amounts shown because you are signed in and allowed to see all units.';
 }
 
 function renderHomeBlocks() {
@@ -150,6 +151,18 @@ function renderHomeBlocks() {
   }).join('');
 }
 
+/** 3.18: a member who may not see other units still sees their own unit's amount (their own unit record). */
+async function ownUnitOnly(fb, user) {
+  const { F, db } = fb;
+  const p = await F.getDoc(F.doc(db, 'users', user.uid)).catch(() => null);
+  const prof = p?.exists() ? p.data() : null;
+  if (!prof || prof.status !== 'approved' || prof.removed || (prof.access || 'full') !== 'full') return null;
+  const u = await F.getDoc(F.doc(db, 'units', prof.unit)).catch(() => null);
+  if (!u?.exists()) return null;
+  const d = u.data(), row = masked?.units.find((x) => x.id === prof.unit);
+  return { ownOnly: true, units: [{ id: prof.unit, unit: d.unit || row?.unit || prof.unit, owner: d.balance ?? null, bpm: d.bpm ?? null }] };
+}
+
 let watching = false;
 /** After the eye sends someone to log in, show the amounts as soon as an approved member is signed in. */
 function watchForLogin() {
@@ -157,13 +170,15 @@ function watchForLogin() {
   watching = true;
   initFirebase().then((fb) => fb && fb.A.onAuthStateChanged(fb.auth, (u) => {
     if (!u || !sessionStorage.getItem('revealAfterLogin')) return;
-    fb.F.getDoc(fb.F.doc(fb.db, 'private', 'dues')).then((snap) => {
-      if (!snap.exists()) return;
-      sessionStorage.removeItem('revealAfterLogin');
-      full = snap.data(); state.revealed = true;
-      if (masked) { renderDues(); renderHomeBlocks(); }
-      if (location.hash === '#member') location.hash = '#dues';
-    }).catch(() => {});   // not approved yet: stay on the member page, which explains the status
+    fb.F.getDoc(fb.F.doc(fb.db, 'private', 'dues')).then((snap) => (snap.exists() ? snap.data() : null))
+      .catch(() => ownUnitOnly(fb, u))
+      .then((data) => {
+        if (!data) return;   // not approved yet: stay on the member page, which explains the status
+        sessionStorage.removeItem('revealAfterLogin');
+        full = data; state.revealed = true;
+        if (masked) { renderDues(); renderHomeBlocks(); }
+        if (location.hash === '#member') location.hash = '#dues';
+      }).catch(() => {});
   }));
 }
 
@@ -182,9 +197,9 @@ async function toggleAmounts() {
   const user = await currentUser(fb);
   if (!user) return toLogin('Sign in or register to see the maintenance amounts.');
   try {
-    const snap = await fb.F.getDoc(fb.F.doc(fb.db, 'private', 'dues'));
-    if (!snap.exists()) throw new Error('not ready');
-    full = snap.data();
+    const snap = await fb.F.getDoc(fb.F.doc(fb.db, 'private', 'dues')).catch(() => null);
+    full = snap?.exists() ? snap.data() : await ownUnitOnly(fb, user);
+    if (!full) throw new Error('not ready');
     state.revealed = true;
     sessionStorage.removeItem('revealAfterLogin');
     renderDues(); renderHomeBlocks();

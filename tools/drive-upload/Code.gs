@@ -25,6 +25,10 @@
  *
  * Version 6 (3.16): memberMail sends reminders and invitations to members from the Society's account
  * (committee, or staff allowed to look after members; at most 25 at a time, each email separately).
+ *
+ * Version 7 (3.18): accessRequest (member) emails the Society a member's application to view the Society's
+ * accounts, with an acknowledgement to the member; accessDecision (Chairman, Secretary, Treasurer or Accountant)
+ * emails the member the decision. Both read the application from the database, so the wording can't be changed.
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -48,7 +52,7 @@ function config_() {
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 6 });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 7 });
 }
 
 function doPost(e) {
@@ -56,14 +60,14 @@ function doPost(e) {
     var req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     var cfg = config_();
     var who = verifyToken_(cfg, req.idToken);
-    var memberActions = { memberUpload: memberUpload_, memberFetch: memberFetch_, memberAgreement: memberAgreement_ };
+    var memberActions = { memberUpload: memberUpload_, memberFetch: memberFetch_, memberAgreement: memberAgreement_, accessRequest: accessRequest_ };
     var out;
     if (memberActions[req.action]) {
       out = memberActions[req.action](cfg, req, who, memberRecord_(cfg, who, req.idToken));
     } else {
       var team = teamRecord_(cfg, who, req.idToken);
       var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_,
-        backupRegister: backupRegister_, memberMail: memberMail_ };
+        backupRegister: backupRegister_, memberMail: memberMail_, accessDecision: accessDecision_ };
       var fn = actions[req.action];
       if (!fn) throw new Error('Unknown request.');
       out = fn(cfg, req, who, team);
@@ -125,8 +129,11 @@ function teamRecord_(cfg, who, idToken) {
     if (!ag || Number(a.agreementVersion || 0) !== Number(ag.version)) throw new Error('Please accept the staff agreement on the accounts page first.');
   }
   var perms = a.perms || {};
-  return { committee: committee, role: a.role || (committee ? 'Committee' : 'Staff'), name: a.name || who.email,
-    can: function (p) { return committee || perms[p] === true; } };
+  var role = a.role || (committee ? 'Committee' : 'Staff');
+  return { committee: committee, role: role, name: a.name || who.email,
+    can: function (p) { return committee || perms[p] === true; },
+    // 3.18: decides members' applications to view the Society's accounts (same list as the database rules).
+    approver: committee ? ['Chairman', 'Secretary', 'Treasurer'].indexOf(role) >= 0 : role === 'Accountant' };
 }
 
 function any_(team, list) { return list.some(function (p) { return team.can(p); }); }
@@ -519,6 +526,63 @@ function memberMail_(cfg, req, who, team) {
     } catch (e) { failed.push({ to: to, error: String((e && e.message) || e) }); }
   });
   return { sent: sent, failed: failed, left: MailApp.getRemainingDailyQuota(), from: society };
+}
+
+/* ---------------- applications to view the Society's accounts (3.18) ---------------- */
+
+var ACCESS_WHAT = { accounts: 'The Society’s audited accounts and documents', allDues: 'Maintenance amounts of all units' };
+function accessText_(r) { return (r.what || []).map(function (w) { return ACCESS_WHAT[w] || w; }).join('; '); }
+function accessUnit_(u) { return String(u || '').replace('-', ' '); }
+function fmtDay_(iso) { return iso ? Utilities.formatDate(new Date(iso), 'Asia/Kolkata', 'dd/MM/yyyy') : ''; }
+
+/** A member's application: to the Society (reply goes to the member) and an acknowledgement to the member. Once only. */
+function accessRequest_(cfg, req, who, m) {
+  var id = String(req.requestId || '');
+  if (!/^[A-Za-z0-9]+_[0-9]+$/.test(id) || id.split('_')[0] !== who.uid) throw new Error('Unknown application.');
+  var props = PropertiesService.getScriptProperties(), key = 'access_' + id, done = props.getProperty(key);
+  if (done) return JSON.parse(done);
+  var r = readDoc_(cfg, req.idToken, 'accessRequests/' + id);
+  if (!r || r.uid !== who.uid) throw new Error('Unknown application.');
+  var society = Session.getEffectiveUser().getEmail(), unit = accessUnit_(r.unit), when = fmtDay_(r.at);
+  var lines = ['Application to view the Society’s accounts', '', 'Member: ' + r.name + ' (' + unit + ')', 'Relation to the unit: ' + (r.relation || 'not given'),
+    'Email: ' + r.email, 'Mobile: +91 ' + r.mobile, 'Date: ' + when, 'Application no.: ' + id, '', 'Asked to see: ' + accessText_(r), '', 'Purpose:', r.purpose, '',
+    'Decide it on the Society accounts page → Members → Applications to view the Society’s accounts (Chairman, Secretary, Treasurer or Accountant).',
+    'Under Section 32 of the MCS Act 1960 a member may inspect the Society’s records; copies are given on payment of the fees in the bye-laws.'];
+  var body = lines.join('\n');
+  MailApp.sendEmail({ to: society, replyTo: r.email, name: 'Sunshree Suntec CHS portal', subject: 'Application to view the Society’s accounts: ' + unit + ', ' + r.name,
+    body: body, htmlBody: '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">' + esc_(body).replace(/\n/g, '<br>') + '</div>' });
+  var ack = 'Dear ' + r.name + ',\n\nThe Society has received your application (no. ' + id + ', ' + when + ') to see: ' + accessText_(r) + '.\n\n' +
+    'The Chairman, Secretary, Treasurer or Accountant will decide it and you will receive an email. You can also follow it on the portal under “Society accounts”.\n\n' +
+    'Regards,\nManaging Committee, Sunshree Suntec Co-op. Housing Society Ltd.';
+  MailApp.sendEmail({ to: r.email, replyTo: society, name: 'Sunshree Suntec CHS', subject: 'Sunshree Suntec: your application to view the Society’s accounts (' + unit + ')', body: ack });
+  var out = { emailed: true, to: society, ack: r.email };
+  props.setProperty(key, JSON.stringify(out));
+  return out;
+}
+
+/** The decision, emailed to the member by an approver. Once per decision. */
+function accessDecision_(cfg, req, who, team) {
+  if (!team.approver) throw new Error('Only the Chairman, Secretary, Treasurer or Accountant decide these applications.');
+  var id = String(req.requestId || '');
+  if (!/^[A-Za-z0-9]+_[0-9]+$/.test(id)) throw new Error('Unknown application.');
+  var r = readDoc_(cfg, req.idToken, 'accessRequests/' + id);
+  if (!r || ['approved', 'rejected'].indexOf(r.status) < 0) throw new Error('This application hasn’t been decided yet.');
+  var props = PropertiesService.getScriptProperties(), key = 'accessDecision_' + id + '_' + r.status, done = props.getProperty(key);
+  if (done) return JSON.parse(done);
+  var society = Session.getEffectiveUser().getEmail(), unit = accessUnit_(r.unit);
+  var granted = (r.granted && r.granted.length) ? accessText_({ what: r.granted }) : accessText_(r);
+  var body = r.status === 'approved'
+    ? 'Dear ' + r.name + ',\n\nYour application no. ' + id + ' is approved. You can now see: ' + granted + (r.until ? ', until ' + fmtDay_(r.until) : '') + '.\n\n' +
+      'Sign in at ' + cfg.site + '#member and open “Society accounts”. Please keep the information confidential and use it only for the Society’s affairs, as in the portal agreement.\n\n' +
+      'For certified copies of any document, write to the Society; copies are given on payment of the fees in the bye-laws (Section 32(2) of the MCS Act 1960).'
+    : 'Dear ' + r.name + ',\n\nYour application no. ' + id + ' to see ' + accessText_(r) + ' was not approved' + (r.reason ? ' for this reason: ' + r.reason : '') + '.\n\n' +
+      'As a member you may still inspect the Society’s records at the office under Section 32 of the MCS Act 1960. Please write to the Society to fix a time, or reply to this email.';
+  body += '\n\nRegards,\n' + (r.decidedByName || team.name) + ', ' + (r.decidedRole || team.role) + '\nSunshree Suntec Co-op. Housing Society Ltd.';
+  MailApp.sendEmail({ to: r.email, cc: society, replyTo: society, name: 'Sunshree Suntec CHS',
+    subject: 'Sunshree Suntec: your application to view the Society’s accounts is ' + (r.status === 'approved' ? 'approved' : 'not approved') + ' (' + unit + ')', body: body });
+  var out = { emailed: true, to: r.email, cc: society };
+  props.setProperty(key, JSON.stringify(out));
+  return out;
 }
 
 function esc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }

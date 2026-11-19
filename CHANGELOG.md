@@ -6,6 +6,114 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.18.0] – 2026-11-20 – Who sees other units and the Society's accounts; applications to view the accounts
+
+### Changed
+- **Other units' maintenance amounts are no longer shown to every approved member.**
+  - On *Maintenance dues → Show amounts*, a member now sees **their own unit's amount**; other units stay masked.
+  - A member sees all units only when given **Maintenance amounts of all units** (`users.seeAllDues`).
+  - Committee and staff with *view* see everything as before.
+- **The Society's audited accounts and documents are no longer shown to every approved member.** The audit file lists every unit's year-end dues, and the documents include audit reports.
+  - A member sees them only when given **The Society's audited accounts and documents** (`users.societyAccounts`), optionally until a date (`users.accountsUntil`).
+  - The permission comes either from an approved application or from the member window.
+- **A member's own year-end figures still show without that permission.** Each unit now has its own audited year-end figures (`units/{id}/history/audited`), prepared automatically by the committee's page from the audit file whenever the audited years change, so a member's account history shows them as before.
+- **Only the Chairman, Secretary, Treasurer or Accountant give or withdraw these two permissions.** The rules enforce it (`accessApprover()`). A staff member allowed to approve members can still edit everything else.
+- **Wording:** *Can see* in the member window is now *Unit account* (sees the unit's bills, receipts and balance, or not, e.g. for a caretaker). The approval message no longer promises the Society's accounts.
+
+### Added
+- **Members' page → Society accounts → application to view the Society's accounts.**
+  - The member ticks what they want to see (audited accounts and documents; maintenance amounts of all units), writes the purpose and accepts confidentiality.
+  - The application (`accessRequests/{uid}_{time}`) is emailed to the Society with the reply going to the member, and the member gets an acknowledgement (Drive script version 7, `accessRequest`).
+  - The member sees each application's decision, who made it and the reason. They can withdraw an application still waiting, and only one can wait at a time.
+  - The page explains the member's right under Section 32 of the MCS Act 1960 and the bye-laws.
+- **Accounts → Members → Applications to view the Society's accounts** (shown to the Chairman, Secretary, Treasurer and Accountant).
+  - The Accountant's *Members* tab shows only this section.
+  - **Decide**: tick what to give and for how long (until withdrawn, until 31 March, 3 months, 30 days or a date), then **Approve** or **Not approve**. Not approving needs a reason, which the member sees.
+  - The member is emailed the decision with a copy to the Society (`accessDecision`). Decided applications are kept and listed.
+  - Other committee members see the applications but can't decide them.
+- **Member window → Beyond their own unit**: the two permissions and the end date, for approvers. The change is written to the member's history. The approved list shows *+ all units' amounts* and *+ Society accounts till …*.
+- **Drive script version 7**: `accessRequest` (member) and `accessDecision` (approvers). Both build the email from the database record, and each is sent only once.
+
+### Rules
+- `private/dues`: *view*, or an approved member with `seeAllDues`.
+- `auditYears`, `archiveDocs` (+ parts): *view*, or an approved member with `societyAccounts` (before `accountsUntil` if set).
+- `users`: the view permissions change only by an approver. An approver may change only those fields, stamped with who and when.
+- `accessRequests`: the member creates their own (fixed fields, own unit and email, 10–1,000-letter purpose) and may withdraw it while waiting. Approvers decide (approved / rejected, stamped). It is never deleted.
+
+### Tested
+- New suite t318 (26 checks):
+  - each unit's own history is prepared;
+  - a member sees only their own amount, and their own audited year-end figures without the audit file;
+  - applying and the emails;
+  - a non-approver can't decide;
+  - the Accountant approves the audited accounts only, until 31 March;
+  - the member then sees the accounts and may apply for all units;
+  - the Chairman gives all units' amounts in the member window;
+  - a tenant is refused with a reason, also on a phone.
+- The Drive script checks rose to 104.
+
+---
+
+## [3.17.0] – 2026-11-19 – Who closed Google sign-in during registration
+
+### Added
+- **What the person typed is kept with their sign-in attempt.** When someone fills in *New here? Register* and presses *Continue with Google and send request*, the name, unit and mobile they typed are saved with the attempt (`signInLog.name`, `.unit`, `.mobile`). This includes when Google's window is closed or fails, and the redirect sign-in used on phones. A plain *Sign in* carries none.
+- **Sign-in history** shows *Form: name · unit · +91 mobile* on those rows.
+- **Tried but never registered** now also lists people who filled in the form and closed Google, by name, unit and mobile, with what happened:
+  - **WhatsApp the steps**: a message to finish registering, by first name and unit;
+  - **Call**;
+  - **Email the steps** when the Gmail is known.
+
+  Each follow-up is recorded (*Followed up: WhatsApp, date, who*). The person drops off the list once a request with that mobile or email exists.
+
+### Rules
+- `signInLog` accepts the optional `name` (100), `unit` (40) and `mobile` (digits, 15). `memberReminders.kind` accepts `unfinished`.
+
+### Tested
+- New suite t317 (9 checks).
+
+---
+
+## [3.16.0] – 2026-11-19 – Reminders and invitations
+
+### Added
+- **Members → Reminders and invitations**, with three lists:
+  - **Agreement not accepted**: approved members who haven't accepted the current portal agreement.
+  - **Not visiting**: no visit for 30, 60 or 90 days or 6 months.
+  - **Not registered**: current owners and tenants with a mobile or email in the unit file (Members and Tenants records) who haven't registered. Units with someone already approved can be left out.
+- **Sending a reminder:**
+  - Each person has **WhatsApp** and **Email** buttons, which open a ready message on the committee member's own phone or computer.
+  - Up to 25 at a time can be **emailed from the Society's account** (Drive script version 6, `memberMail`, about 100 a day).
+  - **Copy for a WhatsApp group.**
+- **Recording reminders:** every reminder is recorded (`memberReminders`). *Don't remind again within 7 / 15 / 30 days* hides those reminded recently. A request from someone invited is labelled *Invited (date)*.
+- **The committee can edit the wording** of each message (`settings/memberReminders`).
+- **Visits:** a member's visit is recorded at most once a day (`users.lastSeenAt`).
+
+### Rules
+- `users`: the member may update only `lastSeenAt` (server time).
+- `memberReminders`: created by *approve members* (stamped), never changed; the committee may delete.
+- `settings/memberReminders` is readable by *approve members*.
+
+### Tested
+- New suite t316 (24 checks), plus 7 Drive script checks.
+
+---
+
+## [3.15.3] – 2026-11-18 – Agreement copies that weren't emailed: shown and sent again
+
+### Fixed
+- **A failed agreement copy is no longer silent.** If the PDF copy of an accepted agreement couldn't be saved or emailed (for example the Drive script was an older version, or Google's email permission wasn't given), the reason is now kept on the acceptance record (`memberAgreements.emailNote`). The member's next visit tries again once.
+
+### Added
+- **Members → Approved members:** each accepted agreement shows *Copy emailed* or *Copy not emailed: reason*, with **Send copy now** / **Email copy again**.
+- **Members tab warning:** when the Drive script in use is older than the website needs (it reads the script's version), or copies are waiting to be sent, with the steps to update the script.
+- **Drive script `setup`** also asks for, and checks, the email permission (*Email permission: allowed. Emails left today: …*).
+
+### Tested
+- New suite t3153 (7 checks).
+
+---
+
 ## [3.15.2] – 2026-11-17 – Maintenance exactly as the AGM of 25/01/2015; rate history for members
 
 ### Changed

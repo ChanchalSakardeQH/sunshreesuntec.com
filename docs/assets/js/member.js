@@ -68,6 +68,7 @@ function showPanel(which) {
   $('#member-status').hidden = which !== 'status';
   $('#member-account').hidden = which !== 'account';
   $('#member-agreement').hidden = which !== 'agreement';
+  if (which !== 'account') { $('#society-accounts').hidden = true; $('#sa-request').hidden = true; }
 }
 
 function setSignedInUI(user) {
@@ -217,7 +218,7 @@ async function onUser(user) {
     showPanel('account');
     await loadAccount();
     // In the app: note when this was loaded, and keep the Society documents on the phone too.
-    if (navigator.onLine) { markSaved(); saveForOffline(fb).catch(() => {}); }
+    if (navigator.onLine) { markSaved(); if (seesAccounts()) saveForOffline(fb).catch(() => {}); }
     return;
   }
   renderStatus(user);
@@ -264,8 +265,8 @@ function wireForms() {
   finishGoogleRedirect(fb, sayGoogle);
   $$('[data-go]').forEach((b) => b.addEventListener('click', () => { authView(b.dataset.go); $('#member-title').scrollIntoView({ behavior: 'smooth' }); }));
   const relNote = { owner: 'Owners and their family see the unit’s bills, receipts and balance once approved.',
-    tenant: 'Tenants first see the Society’s notices, accounts and documents. The committee can also give you the unit’s bills and balance (for example if you pay the maintenance).',
-    caretaker: 'Caretakers and agents first see the Society’s accounts and documents. The committee can give more access with the owner’s consent.' };
+    tenant: 'Tenants first see the Society’s notices. The committee can also give you the unit’s bills and balance (for example if you pay the maintenance).',
+    caretaker: 'Caretakers and agents first see the Society’s notices. The committee can give more access with the owner’s consent.' };
   $('#register-relation').addEventListener('change', (e) => {
     const r = e.currentTarget.value;
     $('#register-relation-note').textContent = relNote[r] || relNote.owner;
@@ -428,7 +429,7 @@ async function acceptAgreement(e) {
       showPanel('account');
       await loadAccount();
       setMsg($('#md-msg'), sent?.emailed ? `Thank you. Your copy of the agreement has been emailed to ${user.email}.` : 'Thank you. Your acceptance is recorded; your copy will be emailed to you shortly.', true);
-      if (navigator.onLine) { markSaved(); saveForOffline(fb).catch(() => {}); }
+      if (navigator.onLine) { markSaved(); if (seesAccounts()) saveForOffline(fb).catch(() => {}); }
     } catch (err) { setMsg(f, errorText(err)); }
   });
 }
@@ -601,6 +602,7 @@ function wireMemberDocs() {
   $('#md-add').addEventListener('click', (e) => { const b = e.target.closest('[data-md-add]'); if (b) openMd(b.dataset.mdAdd); });
   $('#md-cancel').addEventListener('click', () => $('#md-dialog').close());
   $('#md-form').addEventListener('submit', (e) => saveMd(e));
+  $('#sa-req-form').addEventListener('submit', (e) => sendAccessRequest(e));
   $('#md-file-input').addEventListener('change', (e) => {
     for (const file of e.target.files) {
       if (!/^image\/|^application\/pdf$/.test(file.type)) { setMsg($('#md-form'), `${file.name}: only PDF files and photos can be added.`); continue; }
@@ -650,8 +652,8 @@ async function loadAccount() {
   $('#account-money').hidden = basic;
   $('#account-basic').hidden = !basic;
   if (basic) {
-    $('#account-basic').textContent = `Your access is to the Society’s accounts and documents. The bills, receipts and balance of ${unitLabel(unitId)} are shown to the owner’s side; if you need them (for example to pay maintenance), ask the committee to give you access to the unit account.`;
-    audits = await loadAuditYears(fb).catch(() => []);
+    $('#account-basic').textContent = `The bills, receipts and balance of ${unitLabel(unitId)} are shown to the owner’s side; if you need them (for example to pay maintenance), ask the committee to give you access to the unit account. The Society’s accounts and documents are shown on application, below.`;
+    audits = seesAccounts() ? await loadAuditYears(fb).catch(() => []) : [];
     await loadSocietyAccounts().catch((err) => console.warn('Society accounts unavailable', err));
     return;
   }
@@ -688,7 +690,10 @@ async function loadAccount() {
     .sort((a, b) => a.date.localeCompare(b.date) || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
   // Full history: 2011-12 to 2017-18 (past committee's receipts, balanced to the audited figures each 31 March),
   // then the Society's Tally ledger up to 30 Sep 2026, then these accounts.
-  audits = await loadAuditYears(fb).catch(() => []);
+  // 3.18: the full audit file (every unit's year-end dues) only with the committee's permission; otherwise this unit's
+  // own audited year-end figures, prepared by the committee from the same file.
+  audits = seesAccounts() ? await loadAuditYears(fb).catch(() => []) : [];
+  if (!audits.length) audits = await ownAuditHistory(unitId).catch(() => []);
   const oldReceipts = await loadPastReceipts(fb, unitId).catch(() => []);
   const entries = mergeLedger(liveEntries, histSnap?.exists() ? histSnap.data() : null, preLedger(unitId, audits, oldReceipts));
   const cr = (v) => (v < 0 ? `<span class="amt-credit">${fmt(-v)} Cr</span>` : fmt(v));
@@ -744,7 +749,96 @@ function renderYear(fy) {
     <details class="glossary"><summary>Managing committee</summary><ul>${a.committee.map((c) => `<li>${esc(c.role)}: ${esc(c.name)} (${esc(c.unitId.replace('-', ' '))})</li>`).join('')}</ul></details>`;
 }
 
+/** 3.18: may this member see the Society's accounts and documents (given by the committee, until a date if set)? */
+function seesAccounts() {
+  const until = profile?.accountsUntil?.toDate ? profile.accountsUntil.toDate() : null;
+  return profile?.societyAccounts === true && (!until || until > new Date());
+}
+
+/** This unit's audited year-end figures (units/{id}/history/audited), shaped like the audit years the ledger uses. */
+async function ownAuditHistory(unitId) {
+  const { F, db } = fb;
+  const snap = await F.getDoc(F.doc(db, 'units', unitId, 'history', 'audited'));
+  if (!snap.exists()) return [];
+  return (snap.data().years || []).map((y) => ({ fy: y.fy, to: y.to, duesComplete: Boolean(y.complete),
+    dues: y.listed ? [{ unitId, name: y.name || '', amount: y.amount }] : [] }));
+}
+
+/* ---------- applications to view the Society's accounts (3.18) ---------- */
+const WHAT_TEXT = { accounts: 'The Society’s audited accounts and documents', allDues: 'Maintenance amounts of all units' };
+let myRequests = [];
+async function loadAccessRequests() {
+  const { F, db } = fb;
+  const box = $('#sa-request'), form = $('#sa-req-form');
+  const hasAll = profile.seeAllDues === true, hasAcc = seesAccounts();
+  const snap = await F.getDocs(F.query(F.collection(db, 'accessRequests'), F.where('uid', '==', fb.auth.currentUser.uid))).catch(() => ({ docs: [] }));
+  myRequests = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.id.localeCompare(a.id));
+  const waiting = myRequests.find((r) => r.status === 'pending');
+  box.hidden = hasAll && hasAcc && !myRequests.length;
+  $('#sa-request-intro').hidden = hasAcc;
+  $('#sa-request-title').textContent = hasAcc ? 'Applications for more access' : 'Society accounts';
+  const when = (t) => (t?.toDate ? t.toDate().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'just now');
+  $('#sa-req-list-wrap').hidden = !myRequests.length;
+  $('#sa-req-list').innerHTML = myRequests.map((r) => {
+    const st = r.status === 'approved' ? `<span class="sa-status ok">Approved</span> by ${esc(r.decidedByName || '')}${r.decidedRole ? `, ${esc(r.decidedRole)}` : ''}, ${when(r.decidedAt)}${r.until ? `<br><small class="muted">Until ${when(r.until)}</small>` : ''}${r.granted && r.granted.length < r.what.length ? `<br><small class="muted">Given: ${esc(r.granted.map((w) => WHAT_TEXT[w]).join('; '))}</small>` : ''}`
+      : r.status === 'rejected' ? `<span class="sa-status no">Not approved</span> by ${esc(r.decidedByName || '')}${r.decidedRole ? `, ${esc(r.decidedRole)}` : ''}, ${when(r.decidedAt)}${r.reason ? `<br><small>${esc(r.reason)}</small>` : ''}`
+      : r.status === 'withdrawn' ? '<span class="sa-status wait">Withdrawn</span>'
+      : '<span class="sa-status wait">Waiting for the decision</span>';
+    return `<tr><td>${when(r.at)}</td><td>${esc(r.what.map((w) => WHAT_TEXT[w]).join('; '))}<br><small class="muted">${esc(r.purpose)}</small></td><td>${st}</td>
+      <td>${r.status === 'pending' ? `<button class="btn btn-small" type="button" data-sa-withdraw="${esc(r.id)}">Withdraw</button>` : ''}</td></tr>`;
+  }).join('');
+  // Only what isn't given yet can be asked for, and one application at a time.
+  form.hidden = Boolean(waiting) || (hasAll && hasAcc);
+  $('[name=what][value=accounts]', form).closest('label').hidden = hasAcc;
+  $('[name=what][value=allDues]', form).closest('label').hidden = hasAll;
+  $('[name=what][value=accounts]', form).checked = !hasAcc;
+  $('[name=what][value=allDues]', form).checked = false;
+}
+async function sendAccessRequest(e) {
+  e.preventDefault();
+  const form = e.currentTarget, { F, db } = fb, user = fb.auth.currentUser;
+  const what = $$('[name=what]:checked', form).filter((c) => !c.closest('label').hidden).map((c) => c.value);
+  const purpose = form.purpose.value.trim();
+  if (!what.length) return setMsg(form, 'Tick what you would like to see.');
+  if (purpose.length < 10) return setMsg(form, 'Write the purpose in a few words (at least 10 letters).');
+  if (!form.declare.checked) return setMsg(form, 'Please tick the confidentiality line.');
+  const id = `${user.uid}_${Date.now()}`;
+  const btn = $('button[type=submit]', form);
+  btn.disabled = true;
+  try {
+    await F.setDoc(F.doc(db, 'accessRequests', id), { uid: user.uid, unit: profile.unit, name: profile.name, email: profile.email, mobile: profile.mobile,
+      relation: profile.relation || '', what, purpose, status: 'pending', at: F.serverTimestamp() });
+    form.reset();
+    setMsg(form, '');
+    await loadAccessRequests();
+    const note = $('#sa-request .sa-sent') || Object.assign(document.createElement('p'), { className: 'form-msg ok sa-sent' });
+    note.textContent = 'Application sent. The Chairman, Secretary, Treasurer or Accountant will decide it; you will get an email.';
+    $('#sa-req-list-wrap').after(note);
+    // Email to the Society with an acknowledgement to the member (Drive script version 7); noted on the application.
+    try {
+      await loadDriveCfg(fb);
+      if (driveReady()) {
+        const r = await driveCall(fb, 'accessRequest', { requestId: id });
+        await F.updateDoc(F.doc(db, 'accessRequests', id), { mailed: Boolean(r.emailed), mailNote: '' });
+      }
+    } catch (err) {
+      console.warn('access request email', err);
+      F.updateDoc(F.doc(db, 'accessRequests', id), { mailed: false, mailNote: String(errorText(err)).slice(0, 300) }).catch(() => {});
+    }
+  } catch (err) { setMsg(form, errorText(err)); }
+  finally { btn.disabled = false; }
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-sa-withdraw]');
+  if (!b || !confirm('Withdraw this application?')) return;
+  const { F, db } = fb;
+  try { await F.updateDoc(F.doc(db, 'accessRequests', b.dataset.saWithdraw), { status: 'withdrawn', decidedAt: F.serverTimestamp() }); await loadAccessRequests(); }
+  catch (err) { alert(errorText(err)); }
+});
+
 async function loadSocietyAccounts() {
+  loadAccessRequests().catch((err) => console.warn('access requests', err));
+  if (!seesAccounts()) { $('#society-accounts').hidden = true; return; }
   docs = await listArchive(fb).catch(() => []);
   if (!audits.length && !docs.length) return;
   $('#society-accounts').hidden = false;

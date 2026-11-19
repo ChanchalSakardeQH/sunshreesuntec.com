@@ -41,11 +41,16 @@ import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'letters', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { letters: 'letters', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'members', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TAB_NEED = { letters: 'letters', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'membersTab', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
+// 3.18: the Chairman, Secretary, Treasurer (committee) or the Accountant (staff) decide members' applications to view the
+// Society's accounts, and give or withdraw the permissions to see other units' amounts and the Society's accounts.
+const APPROVER_ROLES = ['Chairman', 'Secretary', 'Treasurer'];
+const isApprover = () => Boolean(me) && me.active !== false && (isCommitteeRecord(me) ? APPROVER_ROLES.includes(me.role) : me.role === 'Accountant');
 const canDo = (p) => (!p ? true : p === 'committee' ? isCommitteeRecord(me)
+  : p === 'membersTab' ? can(me, 'members') || isApprover()
   : p === 'expenses' ? ['view', 'submitExpenses', 'approveExpenses', 'payExpenses'].some((k) => can(me, k))
   : p === 'letters' ? ['view', 'correspondence'].some((k) => can(me, k)) : can(me, p));
 
@@ -282,6 +287,7 @@ function wireOnce() {
   wireDocuments();
   wireMembers();
   wireReminders();
+  wireAccessApps();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
     reloadBilling: async () => { billing = await loadBilling(fb); return lastBilled(); } });
   initCorrespondence({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units });
@@ -1106,6 +1112,12 @@ const saveCsv = (rows, name) => saveBlob(new Blob(['﻿' + csvText(rows)], { typ
 
 async function loadMembers() {
   const { F, db } = fb;
+  // An approver without the members permission (usually the Accountant) sees only the applications.
+  const onlyApps = !can(me, 'members');
+  $('.tab[data-tab="members"]').classList.toggle('only-apps', onlyApps);
+  ensureAuditHistory().catch((err) => console.warn('audited history for members', err));
+  await loadAccessApps();
+  if (onlyApps) return;
   const all = await F.getDocs(F.collection(db, 'users'));
   memberDocs = all.docs.map((d) => ({ id: d.id, ...d.data() }));
   // Everyone who has a record somewhere (for "Tried but never registered"): members, staff requests, staff and committee.
@@ -1137,7 +1149,7 @@ async function loadMembers() {
   memberAgreementRecs = new Map(agSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
   checkAgreementMail(appr, agV).catch((err) => console.warn('agreement mail check', err));
   $('#approved-rows').innerHTML = appr.map((p) => `<tr><td class="unit">${esc(memberUnitLabel(p.unit))}</td><td>${esc(p.name)}${gpill(p)}</td>
-      <td class="access-note">${(p.access || 'full') === 'full' ? 'Unit account + documents' : 'Documents only'}</td>${contact(p)}
+      <td class="access-note">${(p.access || 'full') === 'full' ? 'Unit account' : 'No unit account'}${viewExtras(p)}</td>${contact(p)}
       <td>${agreementCell(p, agV, memberAgreementRecs.get(p.agreementId))}</td>
       <td><div class="row-actions"><button class="btn btn-small" type="button" data-act="edit" data-uid="${esc(p.id)}">Edit</button>
       <button class="btn btn-small btn-danger" type="button" data-act="remove" data-uid="${esc(p.id)}">Remove access</button></div></td></tr>`).join('')
@@ -1364,7 +1376,7 @@ function notifyText(m, action) {
   if (action === 'approved') {
     return { subject: `Sunshree Suntec: your access for ${unit} is approved`,
       body: `Dear ${first},\n\nYour request for ${unit} on the Society website has been approved. Sign in at ${SITE_LINK} with ${m.email} to see ${
-        (m.access || defaultAccess(m.relation)) === 'full' ? 'your unit’s bills, receipts and balance, and' : ''} the Society’s accounts and documents.${sign}` };
+        (m.access || defaultAccess(m.relation)) === 'full' ? 'your unit’s bills, receipts and balance, and' : ''} the Society’s notices. To see the Society’s audited accounts and documents, apply under “Society accounts” on the same page.${sign}` };
   }
   if (action === 'removed') {
     return { subject: `Sunshree Suntec: access for ${unit} removed`,
@@ -1418,6 +1430,11 @@ async function openMemberDialog(m, mode) {
   form.reason.value = m.reason || '';
   form.relation.value = m.relation || 'owner';
   form.access.value = m.access || defaultAccess(m.relation);
+  form.seeAllDues.checked = m.seeAllDues === true;
+  form.societyAccounts.checked = m.societyAccounts === true;
+  form.accountsUntil.value = tsDate(m.accountsUntil) ? isoIST(tsDate(m.accountsUntil)) : '';
+  $$('#md-view input').forEach((x) => (x.disabled = !isApprover()));
+  $('#md-view-note').textContent = isApprover() ? '' : '(given by the Chairman, Secretary, Treasurer or Accountant)';
   $('#member-delete').hidden = !(canDo('committee') && m.status === 'rejected' && mode === 'edit');
   form.status.value = mode === 'reject' || mode === 'remove' ? 'rejected' : (m.status || 'pending');
   form.dataset.mode = mode;
@@ -1457,6 +1474,16 @@ async function saveMemberDialog() {
   if (relation !== (m.relation || 'owner')) changes.push(`relation ${relationLabel(m.relation)} → ${relationLabel(relation)}`);
   if (access !== (m.access || defaultAccess(m.relation))) changes.push(`can see: ${access === 'full' ? 'unit account and documents' : 'documents only'}`);
   if (reason !== (m.reason || '') && status === m.status) changes.push('reason updated');
+  // 3.18: other units' amounts and the Society's accounts (approvers only; the rules enforce it too).
+  if (isApprover()) {
+    const seeAll = form.seeAllDues.checked, acc = form.societyAccounts.checked, untilStr = acc ? form.accountsUntil.value : '';
+    const oldUntil = tsDate(m.accountsUntil) ? isoIST(tsDate(m.accountsUntil)) : '';
+    if (seeAll !== (m.seeAllDues === true) || acc !== (m.societyAccounts === true) || untilStr !== oldUntil) {
+      Object.assign(patch, { seeAllDues: seeAll, societyAccounts: acc, accountsUntil: untilStr ? fb.F.Timestamp.fromDate(new Date(`${untilStr}T23:59:59+05:30`)) : null,
+        accessBy: uid, accessByName: me?.name || '', accessAt: fb.F.serverTimestamp() });
+      changes.push(`sees other units’ amounts: ${seeAll ? 'yes' : 'no'}; Society accounts: ${acc ? `yes${untilStr ? ` until ${ddmmyyyy(untilStr)}` : ''}` : 'no'}`);
+    }
+  }
   let action = 'edited';
   if (status !== m.status) {
     patch.status = status;
@@ -1473,6 +1500,132 @@ async function saveMemberDialog() {
       showNotify(fresh || { ...m, ...patch }, action);
     } catch (err) { setMsg(form, esc(errorText(err))); }
   });
+}
+
+/* ----- 3.18: what a member sees beyond their own unit; applications to view the Society's accounts ----- */
+const VIEW_WHAT = { accounts: 'Society’s audited accounts and documents', allDues: 'Maintenance amounts of all units' };
+const isoIST = (d) => new Date(d.getTime() + 5.5 * 3600e3).toISOString().slice(0, 10);
+function accountsValid(p) { const u = tsDate(p.accountsUntil); return p.societyAccounts === true && (!u || u > new Date()); }
+function viewExtras(p) {
+  const out = [];
+  if (p.seeAllDues === true) out.push('+ all units’ amounts');
+  if (p.societyAccounts === true) out.push(accountsValid(p) ? `+ Society accounts${tsDate(p.accountsUntil) ? ` till ${whenShort(p.accountsUntil)}` : ''}` : `Society accounts ended ${whenShort(p.accountsUntil)}`);
+  return out.map((t) => `<span class="view-extra">${esc(t)}</span>`).join('');
+}
+
+let accessApps = [], arCurrent = null;
+async function loadAccessApps() {
+  const { F, db } = fb;
+  const snap = await F.getDocs(F.collection(db, 'accessRequests')).catch(() => ({ docs: [] }));
+  accessApps = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (tsDate(b.at) || 0) - (tsDate(a.at) || 0));
+  const pend = accessApps.filter((a) => a.status === 'pending').reverse(), done = accessApps.filter((a) => a.status !== 'pending');
+  $('#ar-count').textContent = pend.length ? `(${pend.length} waiting)` : '';
+  $('#ar-who').textContent = isApprover() ? `You can decide these applications as ${me.role}.` : 'Only the Chairman, Secretary, Treasurer or Accountant can decide these applications.';
+  const what = (a) => esc((a.what || []).map((w) => VIEW_WHAT[w] || w).join('; '));
+  const who = (a) => `<strong>${esc(a.name)}</strong> <span class="muted">${esc(memberUnitLabel(a.unit))}</span>${a.relation ? `<br><span class="muted">${esc(relationLabel(a.relation))}</span>` : ''}<br><a href="mailto:${esc(a.email)}">${esc(a.email)}</a>${a.mobile ? ` · <a href="tel:+91${esc(a.mobile)}">+91 ${esc(a.mobile)}</a>` : ''}`;
+  const mail = (a) => a.mailed === true ? '<span class="ar-mail">Emailed to the Society</span>' : a.mailNote ? `<span class="ar-mail">Not emailed: ${esc(a.mailNote)}</span>` : '';
+  $('#ar-rows').innerHTML = pend.map((a) => `<tr><td>${whenShort(a.at)}${mail(a)}</td><td>${who(a)}</td><td>${what(a)}</td><td>${esc(a.purpose)}</td>
+      <td>${isApprover() ? `<button class="btn btn-small btn-primary" type="button" data-ar="${esc(a.id)}">Decide</button>` : '<span class="muted">Waiting</span>'}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">No applications waiting.</td></tr>';
+  $('#ar-done-count').textContent = done.length ? `(${done.length})` : '';
+  $('#ar-done').innerHTML = done.map((a) => `<tr><td>${whenShort(a.at)}</td><td>${who(a)}</td><td>${what(a)}<br><small class="muted">${esc(a.purpose)}</small></td>
+      <td>${a.status === 'approved' ? `<span class="ag-ok">Approved</span>${a.granted && a.granted.length < (a.what || []).length ? `<span class="sub">Given: ${esc(a.granted.map((w) => VIEW_WHAT[w]).join('; '))}</span>` : ''}${a.until ? `<span class="sub">Until ${whenShort(a.until)}</span>` : ''}`
+        : a.status === 'rejected' ? '<span class="ag-no">Not approved</span>' : '<span class="muted">Withdrawn by the member</span>'}
+        ${a.decidedByName ? `<span class="sub">${esc(a.decidedByName)}${a.decidedRole ? `, ${esc(a.decidedRole)}` : ''}, ${whenShort(a.decidedAt)}</span>` : ''}${a.reason ? `<span class="sub">${esc(a.reason)}</span>` : ''}</td></tr>`).join('')
+    || '<tr><td colspan="4" class="empty">None yet.</td></tr>';
+}
+function openAccessApp(id) {
+  const a = accessApps.find((x) => x.id === id);
+  if (!a || !isApprover()) return;
+  arCurrent = a;
+  const f = $('#ar-form');
+  f.reset(); setMsg(f, '');
+  $('#ar-dialog-title').textContent = `${a.name}, ${memberUnitLabel(a.unit)}`;
+  $('#ar-dialog-sub').textContent = `Applied ${whenLong(a.at)} · ${a.email}${a.mobile ? ` · +91 ${a.mobile}` : ''}${a.relation ? ` · ${relationLabel(a.relation)}` : ''}`;
+  $('#ar-dialog-purpose').textContent = `Purpose: ${a.purpose}`;
+  $$('[name=grant]', f).forEach((c) => { c.checked = (a.what || []).includes(c.value); });
+  $('#ar-date-wrap').hidden = true;
+  $('#ar-dialog').showModal();
+}
+function untilFromForm(f) {
+  const v = f.until.value, now = new Date();
+  if (!v) return null;
+  let d;
+  if (v === 'fy') { const y = Number(isoIST(now).slice(0, 4)), m = Number(isoIST(now).slice(5, 7)); d = `${m >= 4 ? y + 1 : y}-03-31`; }
+  else if (v === 'date') d = f.date.value;
+  else d = isoIST(new Date(now.getTime() + Number(v) * 864e5));
+  return d ? fb.F.Timestamp.fromDate(new Date(`${d}T23:59:59+05:30`)) : undefined;
+}
+async function decideAccessApp(approve, btn) {
+  const f = $('#ar-form'), a = arCurrent, { F, db } = fb;
+  if (!a) return;
+  const granted = $$('[name=grant]:checked', f).map((c) => c.value), reason = f.reason.value.trim();
+  if (approve && !granted.length) return setMsg(f, 'Tick what to give, or press Not approve.');
+  if (!approve && reason.length < 5) return setMsg(f, 'Write the reason; the member sees it.');
+  const until = approve && granted.includes('accounts') ? untilFromForm(f) : null;
+  if (until === undefined) return setMsg(f, 'Choose the date.');
+  await busy(btn, async () => {
+    try {
+      const batch = F.writeBatch(db);
+      batch.update(F.doc(db, 'accessRequests', a.id), { status: approve ? 'approved' : 'rejected', granted: approve ? granted : [], until: until || null, reason,
+        decidedBy: uid, decidedByName: me?.name || '', decidedRole: me?.role || '', decidedAt: F.serverTimestamp() });
+      if (approve) {
+        const u = await F.getDoc(F.doc(db, 'users', a.uid));
+        const cur = u.exists() ? u.data() : {};
+        batch.update(F.doc(db, 'users', a.uid), { seeAllDues: granted.includes('allDues') || cur.seeAllDues === true,
+          societyAccounts: granted.includes('accounts') || cur.societyAccounts === true,
+          accountsUntil: granted.includes('accounts') ? until || null : cur.accountsUntil ?? null,
+          accessBy: uid, accessByName: me?.name || '', accessAt: F.serverTimestamp() });
+      }
+      await batch.commit();
+      $('#ar-dialog').close();
+      const msg = $('#ar-msg');
+      msg.className = 'form-msg ok';
+      msg.textContent = `${approve ? 'Approved' : 'Not approved'}: ${a.name}, ${memberUnitLabel(a.unit)}.`;
+      // Email the member the decision (Drive script version 7).
+      try {
+        await loadDriveCfg(fb);
+        if (driveReady()) { const r = await driveCall(fb, 'accessDecision', { requestId: a.id }); msg.textContent += ` Emailed to ${r.to}, with a copy to ${r.cc}.`; }
+        else msg.textContent += ' Not emailed: the Society’s Google Drive isn’t connected; please tell the member.';
+      } catch (err) { msg.className = 'form-msg'; msg.textContent += ` Not emailed (${errorText(err)}); please tell the member.`; }
+      await loadMembers();
+    } catch (err) { setMsg(f, esc(errorText(err))); }
+  });
+}
+function wireAccessApps() {
+  $('#ar-box').addEventListener('click', (e) => { const b = e.target.closest('[data-ar]'); if (b) openAccessApp(b.dataset.ar); });
+  $('#ar-form [name=until]').addEventListener('change', (e) => { $('#ar-date-wrap').hidden = e.target.value !== 'date'; });
+  $('#ar-approve').addEventListener('click', (e) => decideAccessApp(true, e.currentTarget));
+  $('#ar-reject').addEventListener('click', (e) => decideAccessApp(false, e.currentTarget));
+  $('#ar-dialog [data-close]').addEventListener('click', () => $('#ar-dialog').close());
+}
+
+/**
+ * Each unit's own audited year-end figures (units/{id}/history/audited), from the audit files, so a member who may
+ * not see the whole audit file (every unit's dues) still sees their own history. Committee only; redone when the
+ * audited years change.
+ */
+async function ensureAuditHistory(force = false) {
+  if (!canDo('committee')) return 0;
+  const { F, db } = fb;
+  const audits = auditCache.length ? auditCache : (auditCache = await loadAuditYears(fb).catch(() => []));
+  if (!audits.length) return 0;
+  const sig = audits.map((a) => `${a.fy}:${(a.dues || []).length}:${a.duesComplete ? 1 : 0}`).join(',');
+  const st = await F.getDoc(F.doc(db, 'settings', 'auditHistory')).catch(() => null);
+  if (!force && st?.exists() && st.data().sig === sig) return 0;
+  const list = units.length ? units : dues.units;
+  let n = 0, batch = F.writeBatch(db);
+  for (const u of list) {
+    const years = audits.map((a) => {
+      const r = (a.dues || []).find((d) => d.unitId === u.id);
+      return { fy: a.fy, to: a.to, listed: Boolean(r), name: r?.name || '', amount: r ? r.amount : null, complete: Boolean(a.duesComplete) };
+    });
+    batch.set(F.doc(db, 'units', u.id, 'history', 'audited'), { years, updatedAt: F.serverTimestamp() });
+    if (++n % 400 === 0) { await batch.commit(); batch = F.writeBatch(db); }
+  }
+  batch.set(F.doc(db, 'settings', 'auditHistory'), { sig, units: n, updatedAt: F.serverTimestamp(), by: uid });
+  await batch.commit();
+  return n;
 }
 
 /* ----- residents directory (watchman, housekeeping, manager) ----- */
@@ -3909,6 +4062,7 @@ function wireAuditImport() {
     await busy(btn, async () => {
       try {
         const n = await importAuditedAccounts(fb, data, (i, k) => { $('#audit-progress').textContent = `${i} of ${k}…`; });
+        auditCache = []; await ensureAuditHistory(true).catch((err) => console.warn('audited history for members', err));
         $('#audit-progress').textContent = '';
         auditCache = await loadAuditYears(fb);
         msg.className = 'form-msg ok';

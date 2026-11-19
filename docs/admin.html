@@ -29,7 +29,7 @@
         <a href="#reports" data-need="view">Reports</a>
         <a href="#documents" data-need="view">Documents</a>
         <a href="#letters" data-need="letters">Correspondence</a>
-        <a href="#members" data-need="members">Members</a>
+        <a href="#members" data-need="membersTab">Members</a>
         <a href="#website" data-need="website">Website</a>
         <a href="#expenses" data-need="expenses">Expenses</a>
         <a href="#directory" data-need="directory">Directory</a>
@@ -648,6 +648,47 @@
     <section class="tab" data-tab="members" hidden>
       <h1>Member access</h1>
       <div class="callout notify-box" id="member-notice" hidden></div>
+      <section class="callout ar-box" id="ar-box" aria-labelledby="ar-title">
+        <h2 id="ar-title">Applications to view the Society’s accounts <span class="count" id="ar-count"></span></h2>
+        <p class="small-note">Members apply from their portal page; the application is emailed to the Society. The <strong>Chairman, Secretary, Treasurer or Accountant</strong> decides it, and the member is emailed the decision. Under Section 32 of the MCS Act 1960 (and model bye-law 23) a member may inspect the Society’s books and records and get copies on paying the fees: refuse only with a reason, for example that the applicant is not a member of the Society. Other units’ maintenance amounts are not a member’s right under Section 32; give them only where the committee has decided to.</p>
+        <p class="small-note" id="ar-who"></p>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Applied on</th><th>Member</th><th>Asked to see</th><th>Purpose</th><th></th></tr></thead>
+          <tbody id="ar-rows"></tbody>
+        </table></div>
+        <details class="mt-sm" id="ar-done-box"><summary>Decided applications <span class="muted" id="ar-done-count"></span></summary>
+          <div class="table-scroll"><table>
+            <thead><tr><th>Applied on</th><th>Member</th><th>Asked to see</th><th>Decision</th></tr></thead>
+            <tbody id="ar-done"></tbody>
+          </table></div>
+        </details>
+        <p class="form-msg" id="ar-msg" role="status"></p>
+      </section>
+      <dialog id="ar-dialog">
+        <form id="ar-form" class="form" method="dialog" novalidate>
+          <h2 id="ar-dialog-title">Application</h2>
+          <p class="muted small-note" id="ar-dialog-sub"></p>
+          <p id="ar-dialog-purpose"></p>
+          <fieldset class="ar-grant"><legend>Give access to</legend>
+            <label class="check"><input type="checkbox" name="grant" value="accounts"> The Society’s audited accounts and documents</label>
+            <label class="check"><input type="checkbox" name="grant" value="allDues"> Maintenance amounts of all units</label>
+          </fieldset>
+          <label>Audited accounts and documents visible<select name="until">
+            <option value="">Until the committee withdraws it</option>
+            <option value="fy">Until 31 March (end of this financial year)</option>
+            <option value="90">For 3 months</option>
+            <option value="30">For 30 days</option>
+            <option value="date">Until a date…</option></select></label>
+          <label id="ar-date-wrap" hidden>Date<input type="date" name="date"></label>
+          <label>Reason or note <span class="muted">(the member sees this; needed when not approving)</span><textarea name="reason" rows="2" maxlength="300"></textarea></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="button" id="ar-approve">Approve</button>
+            <button class="btn btn-danger" type="button" id="ar-reject">Not approve</button>
+            <button class="btn" type="button" data-close>Close</button>
+          </div>
+        </form>
+      </dialog>
       <details class="callout ma-box" id="ma-box">
         <summary><strong>Member portal agreement</strong> <span id="ma-status" class="muted"></span></summary>
         <p>Every approved member (new and existing) must accept the current version before using the portal. The accepted copy is saved as a PDF in the unit’s folder in the Society’s Google Drive (<em>Units › wing › unit › Agreements</em>) and emailed to the member with a copy to the Society. Publishing a new version asks everyone to accept again at their next visit.</p>
@@ -767,9 +808,14 @@
           <label>Relation to the unit<select name="relation">
             <option value="owner">Owner</option><option value="jointOwner">Joint owner</option><option value="family">Family member of the owner</option>
             <option value="tenant">Tenant</option><option value="caretaker">Caretaker / agent</option></select></label>
-          <label>Can see<select name="access">
-            <option value="full">Unit account (bills, receipts, balance) and Society documents</option>
-            <option value="basic">Society accounts and documents only</option></select></label>
+          <label>Unit account<select name="access">
+            <option value="full">Sees the unit’s bills, receipts and balance</option>
+            <option value="basic">Doesn’t see the unit account (for example a caretaker)</option></select></label>
+          <fieldset class="ar-grant" id="md-view"><legend>Beyond their own unit <span class="muted" id="md-view-note"></span></legend>
+            <label class="check"><input type="checkbox" name="seeAllDues"> Maintenance amounts of all units</label>
+            <label class="check"><input type="checkbox" name="societyAccounts"> The Society’s audited accounts and documents</label>
+            <label>until <span class="muted">(blank: until withdrawn)</span><input type="date" name="accountsUntil"></label>
+          </fieldset>
           <label>Mobile<input name="mobile" inputmode="numeric" maxlength="14"></label>
           <label>Email<input name="email" readonly></label>
           <label>Status<select name="status"><option value="pending">Waiting for approval</option><option value="approved">Approved</option><option value="rejected">Rejected / removed</option></select></label>
@@ -1277,7 +1323,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.17.0</p>
+    <p class="muted mt" id="version-note">Software version 3.18.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

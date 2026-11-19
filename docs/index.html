@@ -381,6 +381,30 @@
           </dialog>
         </div>
 
+        <section class="sa-request" id="sa-request" aria-labelledby="sa-request-title" hidden>
+          <h2 class="mt-sm" id="sa-request-title">Society accounts</h2>
+          <p id="sa-request-intro">The Society’s audited accounts, balance sheets and documents, and the maintenance amounts of other units, are shown on the portal to members the committee allows. As a member you have the right to inspect the Society’s books and records and to get copies of them (Section 32 of the Maharashtra Co-operative Societies Act 1960 and the Society’s bye-laws). Apply here: the Chairman, Secretary, Treasurer or Accountant decides your application, and you receive an email when it is sent and when it is decided.</p>
+          <div class="table-scroll" id="sa-req-list-wrap" hidden>
+            <table>
+              <thead><tr><th scope="col">Applied on</th><th scope="col">Asked to see</th><th scope="col">Decision</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+              <tbody id="sa-req-list"></tbody>
+            </table>
+          </div>
+          <form class="form" id="sa-req-form" novalidate>
+            <fieldset class="checks">
+              <legend>What would you like to see?</legend>
+              <label class="check"><input type="checkbox" name="what" value="accounts"> The Society’s audited accounts and documents</label>
+              <label class="check"><input type="checkbox" name="what" value="allDues"> Maintenance amounts of all units</label>
+            </fieldset>
+            <label>Purpose
+              <textarea name="purpose" rows="3" maxlength="1000" placeholder="For example: to study the accounts before the annual general meeting"></textarea>
+            </label>
+            <label class="check"><input type="checkbox" name="declare"> I will keep what I see confidential and use it only for the Society’s affairs, as in the member portal agreement.</label>
+            <p class="form-msg" role="alert"></p>
+            <div class="form-actions"><button class="btn btn-primary" type="submit">Send application</button></div>
+          </form>
+        </section>
+
         <div id="society-accounts" hidden>
           <h2 class="mt-sm">Society accounts</h2>
           <p class="muted">The Society’s audited accounts, year by year. Figures are as printed in each year’s audit report; the full report can be opened below.</p>
