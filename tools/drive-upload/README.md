@@ -72,6 +72,14 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.19 (script version 8):** adds *committeeUndertaking* (PDF of a committee member's accepted undertaking in
+*Committee › Undertakings*, emailed to them with a copy to the Society), uploads of kind *committee* (*Committee › M-20 bonds*
+and *Committee › Registrar intimation*) and opening those files (committee only). No new permission is needed.
+
+**3.18 (script version 7):** adds *accessRequest* (a member's application to view the Society's accounts, emailed to the
+Society with an acknowledgement to the member) and *accessDecision* (the Chairman, Secretary, Treasurer or Accountant
+emails the decision). No new permission is needed.
+
 **3.16 (script version 6):** adds *memberMail*, used by Members → *Reminders and invitations* → **Email the selected
 from the Society's account**. No new permission is needed (email was allowed for 3.13). Paste the new `Code.gs`, save,
 and deploy a new version as below. Until then the Members tab says *Needs the Google Drive script version 6* and the

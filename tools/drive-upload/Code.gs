@@ -29,6 +29,10 @@
  * Version 7 (3.18): accessRequest (member) emails the Society a member's application to view the Society's
  * accounts, with an acknowledgement to the member; accessDecision (Chairman, Secretary, Treasurer or Accountant)
  * emails the member the decision. Both read the application from the database, so the wording can't be changed.
+ *
+ * Version 8 (3.19): committeeUndertaking makes the PDF of a committee member's accepted undertaking (Drive:
+ * Committee/Undertakings) and emails it to them with a copy to the Society; uploads of kind 'committee' keep the
+ * signed M-20 bonds (Committee/M-20 bonds) and the letter informing the Registrar (Committee/Registrar intimation).
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -52,7 +56,7 @@ function config_() {
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 7 });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 8 });
 }
 
 function doPost(e) {
@@ -67,7 +71,7 @@ function doPost(e) {
     } else {
       var team = teamRecord_(cfg, who, req.idToken);
       var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_,
-        backupRegister: backupRegister_, memberMail: memberMail_, accessDecision: accessDecision_ };
+        backupRegister: backupRegister_, memberMail: memberMail_, accessDecision: accessDecision_, committeeUndertaking: committeeUndertaking_ };
       var fn = actions[req.action];
       if (!fn) throw new Error('Unknown request.');
       out = fn(cfg, req, who, team);
@@ -204,6 +208,7 @@ function upload_(cfg, req, who, team) {
   if (req.kind === 'unit') return uploadUnit_(cfg, req, who, team);
   if (req.kind === 'correspondence') return uploadLetter_(cfg, req, who, team);
   if (req.kind === 'reference') return uploadReference_(cfg, req, who, team);
+  if (req.kind === 'committee') return uploadCommittee_(cfg, req, who, team);
   var report = req.kind === 'report', payment = req.kind === 'payment';
   var need = report ? ['view', 'approveExpenses', 'payExpenses'] : payment ? ['payExpenses'] : ['submitExpenses', 'approveExpenses', 'payExpenses'];
   if (!any_(team, need)) throw new Error('You don’t have permission to add ' + (report ? 'reports.' : payment ? 'payment proofs.' : 'expenses.'));
@@ -233,6 +238,13 @@ function fetchFile_(cfg, req, who, team) {
     list = rec.files || [];
   } else if (req.referenceId) {
     list = siteReferences_(cfg, req.idToken);
+  } else if (req.committeeUid || req.undertakingId || req.committeeRegister) {
+    // 3.19: a committee member's M-20 bond or undertaking, or the letter to the Registrar (committee only, by the rules).
+    var path = req.committeeUid ? 'admins/' + encodeURIComponent(String(req.committeeUid))
+      : req.undertakingId ? 'committeeUndertakings/' + encodeURIComponent(String(req.undertakingId)) : 'settings/committeeRegister';
+    rec = readDoc_(cfg, req.idToken, path);
+    if (!rec) throw new Error('You can’t see this committee record.');
+    list = req.committeeUid ? [rec.m20 && rec.m20.file] : req.undertakingId ? [rec.pdf] : [rec.letterFile];
   } else if (req.correspondenceId) {
     if (!/^[A-Za-z0-9_-]{1,60}$/.test(String(req.correspondenceId))) throw new Error('Unknown letter.');
     rec = readDoc_(cfg, req.idToken, 'correspondence/' + encodeURIComponent(req.correspondenceId));
@@ -362,6 +374,73 @@ function uploadReference_(cfg, req, who, team) {
 function siteReferences_(cfg, idToken) {
   var site = readDoc_(cfg, idToken, 'public/site') || {};
   return (site.interestRefs || []).filter(function (r) { return r && r.id; });
+}
+
+/* ---------------- Managing Committee (3.19) ---------------- */
+
+var COMMITTEE_FOLDER = { m20: 'M-20 bonds', registrar: 'Registrar intimation' };
+function uploadCommittee_(cfg, req, who, team) {
+  if (!team.committee) throw new Error('Only the committee can keep committee records.');
+  if (!COMMITTEE_FOLDER[req.sub]) throw new Error('Unknown committee record.');
+  if (['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].indexOf(req.mimeType) < 0) throw new Error('Only photos (JPEG, PNG, WebP) and PDF files can be kept.');
+  var bytes = Utilities.base64Decode(String(req.data || ''));
+  if (!bytes.length) throw new Error('The file is empty.');
+  if (bytes.length > MAX_MEMBER_PDF) throw new Error('The file is larger than 25 MB.');
+  var folder = child_(child_(rootFolder_(cfg), 'Committee'), COMMITTEE_FOLDER[req.sub]);
+  var file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, cleanName_(req.name)));
+  file.setDescription(('Kept by ' + team.name + ' <' + who.email + '> (' + team.role + ') on ' + Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm') +
+    (req.note ? '\n' + String(req.note) : '')).slice(0, 1500));
+  return { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: req.mimeType } };
+}
+
+/** A committee member's accepted undertaking: PDF in Committee/Undertakings, emailed to them with a copy to the Society. */
+function committeeUndertaking_(cfg, req, who, team) {
+  if (!team.committee) throw new Error('Only committee members give the committee undertaking.');
+  var id = String(req.undertakingId || '');
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new Error('Unknown undertaking.');
+  var u = readDoc_(cfg, req.idToken, 'committeeUndertakings/' + encodeURIComponent(id));
+  if (!u) throw new Error('Undertaking not found.');
+  var props = PropertiesService.getScriptProperties(), key = 'undertaking_' + id, done = props.getProperty(key);
+  if (done && !req.again) return JSON.parse(done);
+  var at = u.acceptedAt ? new Date(u.acceptedAt) : new Date();
+  u.acceptedText = Utilities.formatDate(at, 'Asia/Kolkata', 'dd/MM/yyyy HH:mm');
+  var name = cleanName_(u.signedName + ' - ' + u.role + ' - Committee undertaking v' + u.version + ' - ' + Utilities.formatDate(at, 'Asia/Kolkata', 'yyyy-MM-dd') + '.pdf');
+  var folder = child_(child_(rootFolder_(cfg), 'Committee'), 'Undertakings');
+  var file, it = folder.getFilesByName(name);
+  if (it.hasNext()) file = it.next();
+  else {
+    file = folder.createFile(Utilities.newBlob(undertakingHtml_(u, id), 'text/html', 'undertaking.html').getAs('application/pdf').setName(name));
+    file.setDescription('Committee undertaking accepted electronically by ' + u.signedName + ' <' + u.email + '>, ' + u.role + ', version ' + u.version + '.');
+  }
+  var society = Session.getEffectiveUser().getEmail(), emailed = false, note = '';
+  try {
+    if (MailApp.getRemainingDailyQuota() < 1) throw new Error('Daily email limit reached; send it again tomorrow.');
+    MailApp.sendEmail({ to: u.email, cc: society, replyTo: society, name: 'Sunshree Suntec CHS',
+      subject: 'Your committee undertaking – ' + u.role + ' – Sunshree Suntec CHS',
+      htmlBody: '<p>Dear ' + esc_(u.signedName) + ',</p><p>Thank you for accepting the ' + esc_(u.title) + ' (version ' + esc_(u.version) + ') as ' + esc_(u.role) + ' on ' + esc_(u.acceptedText) +
+        '. A copy is attached and kept in the Society’s records.</p><p>Please remember to hand the Secretary your bond in <strong>Form M-20</strong> on stamp paper within fifteen days of taking office (Rule 58A of the MCS Rules 1961).</p>' +
+        '<p>Managing Committee<br>Sunshree Suntec Co-operative Housing Society Ltd.<br>' + esc_(society) + '</p>',
+      attachments: [file.getBlob()] });
+    emailed = true;
+  } catch (e) { note = String((e && e.message) || e); }
+  var out = { pdf: { id: file.getId(), name: file.getName(), mime: 'application/pdf', size: file.getSize() }, emailed: emailed, emailedTo: u.email, cc: society, note: note };
+  if (emailed) props.setProperty(key, JSON.stringify(out));
+  return out;
+}
+
+function undertakingHtml_(u, id) {
+  var h = '<html><head><meta charset="utf-8"><style>body{font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.45;color:#1b1f24;margin:18mm 16mm}' +
+    'h1{font-size:15pt;margin:0 0 4pt}h2{font-size:11.5pt;margin:12pt 0 4pt}.meta{color:#555;font-size:9pt}li{margin:3pt 0}.box{border:1px solid #999;padding:6pt 8pt;margin:8pt 0}</style></head><body>';
+  h += '<p class="meta">SUNSHREE SUNTEC CO-OP. HSG. SOC. LTD. · Regd. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30-10-2012 · S. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411 048</p>';
+  h += '<h1>' + esc_(u.title) + '</h1><p class="meta">Version ' + esc_(u.version) + '</p><p>' + esc_(u.intro) + '</p>';
+  h += '<div class="box"><strong>Committee member:</strong> ' + esc_(u.name) + '<br><strong>Post:</strong> ' + esc_(u.role) + (u.unitLabel ? '<br><strong>Unit:</strong> ' + esc_(u.unitLabel) : '') +
+    (u.tookOfficeOn ? '<br><strong>Took office:</strong> ' + esc_(fmtDay_(u.tookOfficeOn + 'T12:00:00+05:30')) : '') + '<br><strong>Email:</strong> ' + esc_(u.email) + '</div>';
+  if ((u.roleLines || []).length) { h += '<h2>My responsibilities as ' + esc_(u.role) + '</h2><ol>'; u.roleLines.forEach(function (l) { h += '<li>' + esc_(l) + '</li>'; }); h += '</ol>'; }
+  h += '<h2>My undertakings</h2><ol>'; (u.common || []).forEach(function (l) { h += '<li>' + esc_(l) + '</li>'; }); h += '</ol>';
+  h += '<p><strong>' + esc_(u.closing || '') + '</strong></p>';
+  h += '<div class="box"><strong>Accepted electronically</strong> by ' + esc_(u.signedName) + ' (' + esc_(u.email) + ') on ' + esc_(u.acceptedText) + ' (India time). Reference: ' + esc_(id) + '.</div>';
+  h += '<p class="meta">Generated by the Society’s records system. Accepted under section 10A of the Information Technology Act, 2000. This undertaking is in addition to, and does not replace, the bond in Form M-20.</p></body></html>';
+  return h;
 }
 
 /* ---------------- Society correspondence (3.14) ---------------- */

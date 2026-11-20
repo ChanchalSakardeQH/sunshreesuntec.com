@@ -31,6 +31,7 @@ import {
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from './defaults.js';
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
+import { POSTS, SINGLE_POSTS, M20_DAYS, DEFAULT_UNDERTAKING, m20Status, undertakingFor, addYears, addDays as cAddDays } from './committee.js';
 import { REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
 import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
@@ -45,6 +46,7 @@ const TAB_NEED = { letters: 'letters', documents: 'view', reports: 'view', unitf
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
+let undertaking = null, agreementMode = 'staff';   // 3.19: current committee undertaking; which document the agreement screen shows
 // 3.18: the Chairman, Secretary, Treasurer (committee) or the Accountant (staff) decide members' applications to view the
 // Society's accounts, and give or withdraw the permissions to see other units' amounts and the Society's accounts.
 const APPROVER_ROLES = ['Chairman', 'Secretary', 'Treasurer'];
@@ -188,6 +190,11 @@ async function startSession(user) {
     if (!agreement) { gate('The committee hasn’t published the staff agreement yet. Please try again later.', true); return; }
     if (me.agreementVersion !== agreement.version) { showAgreement(); return; }
   }
+  // 3.19: each committee member accepts the committee undertaking (current version) before working.
+  if (isCommitteeRecord(me)) {
+    undertaking = await loadUndertaking();
+    if (me.undertakingVersion !== undertaking.version && sessionStorage.getItem('undertakingLater') !== `${user.uid}:${undertaking.version}`) { showUndertaking(); return; }
+  }
   F.updateDoc(F.doc(db, 'admins', user.uid), { lastLoginAt: F.serverTimestamp() }).catch(() => {});
 
   uid = user.uid;
@@ -201,6 +208,7 @@ async function startSession(user) {
   }
   wireOnce();
   route();
+  if (isCommitteeRecord(me)) refreshCommitteeNotice().catch((err) => console.warn('committee notice', err));
 }
 
 /* ---------------- staff agreement ---------------- */
@@ -225,6 +233,8 @@ function agreementHTML(ag, rec, accepted) {
 }
 
 function showAgreement() {
+  agreementMode = 'staff';
+  $('#agreement-agree-text').textContent = 'I have read and understood this agreement, the access given to me and my responsibilities, and I accept them.';
   $('#gate').hidden = true;
   $('#agreement-doc').innerHTML = agreementHTML(agreement, me);
   const f = $('#agreement-form');
@@ -243,6 +253,7 @@ function wireAgreement() {
     const signed = String(fd.get('sign')).trim().replace(/\s+/g, ' ');
     if (!fd.get('agree')) return setMsg(f, 'Tick the box to confirm you have read and accept the agreement.');
     if (signed.length < 3) return setMsg(f, 'Type your full name as your signature.');
+    if (agreementMode === 'committee') return acceptUndertaking(f, signed);
     const { F, db } = fb;
     await busy($('button[type=submit]', f), async () => {
       try {
@@ -288,6 +299,7 @@ function wireOnce() {
   wireMembers();
   wireReminders();
   wireAccessApps();
+  wireCommittee();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
     reloadBilling: async () => { billing = await loadBilling(fb); return lastBilled(); } });
   initCorrespondence({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units });
@@ -1502,6 +1514,329 @@ async function saveMemberDialog() {
   });
 }
 
+/* ----- 3.19: Managing Committee — posts, undertaking, M-20 bonds ----- */
+const POST_ORDER = (r) => { const i = POSTS.indexOf(r); return i < 0 ? 99 : i; };
+const todayISO = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+let mcApproved = [], mcCurrent = null, mcRegister = {};
+
+async function loadUndertaking() {
+  const snap = await fb.F.getDoc(fb.F.doc(fb.db, 'settings', 'committeeUndertaking')).catch(() => null);
+  return snap?.exists() ? snap.data() : structuredClone(DEFAULT_UNDERTAKING);
+}
+function undertakingDocHTML(u, rec) {
+  const t = undertakingFor(u, rec.role || 'Committee member');
+  return `<h1>${esc(t.title)}</h1>
+    <p class="meta-line">Sunshree Suntec Co-operative Housing Society Ltd., Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13. Version ${esc(t.version)}.</p>
+    <p>${esc(t.intro)}</p>
+    <h2>Committee member</h2>
+    <p><strong>${esc(rec.name || '')}</strong>, ${esc(rec.role || 'Committee member')}${rec.unitLabel ? `, ${esc(rec.unitLabel)}` : ''}<br>${esc(rec.email || '')}${rec.tookOfficeOn ? `<br>Took office on ${dmy(rec.tookOfficeOn)}; M-20 bond due by ${dmy(cAddDays(rec.tookOfficeOn, M20_DAYS))}` : ''}</p>
+    <h2>Access</h2>
+    <p>As a committee member you have every permission on the Society’s accounts portal, including those only the committee has: ${esc(COMMITTEE_ONLY.join('; '))}.</p>
+    ${t.roleLines.length ? `<h2>My responsibilities as ${esc(rec.role || 'Committee member')}</h2><ol>${t.roleLines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''}
+    <h2>My undertakings</h2>
+    <ol>${t.common.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
+    <p>${esc(t.closing)}</p>`;
+}
+function showUndertaking() {
+  agreementMode = 'committee';
+  $('#gate').hidden = true;
+  $('#agreement-doc').innerHTML = undertakingDocHTML(undertaking, me);
+  $('#agreement-agree-text').textContent = 'I have read and understood this undertaking and my responsibilities as a member of the Managing Committee, and I accept them.';
+  const f = $('#agreement-form');
+  f.reset(); f.sign.value = ''; setMsg(f, '');
+  $('#agreement-screen').hidden = false;
+}
+async function acceptUndertaking(f, signed) {
+  const { F, db } = fb, t = undertakingFor(undertaking, me.role || 'Committee member');
+  await busy($('button[type=submit]', f), async () => {
+    try {
+      const ref = await F.addDoc(F.collection(db, 'committeeUndertakings'), {
+        uid: me.uid, email: me.email || '', name: me.name || '', signedName: signed, role: me.role || 'Committee member', unit: me.unit || '', unitLabel: me.unitLabel || '',
+        tookOfficeOn: me.tookOfficeOn || '', version: t.version, title: t.title, intro: t.intro, roleLines: t.roleLines, common: t.common, closing: t.closing,
+        acceptedAt: F.serverTimestamp(), device: navigator.userAgent.slice(0, 180) });
+      await F.updateDoc(F.doc(db, 'admins', me.uid), { undertakingVersion: t.version, undertakingAt: F.serverTimestamp(), undertakingName: signed, undertakingId: ref.id });
+      // The PDF copy in the Society's Drive and by email (Drive script version 8); noted on the acceptance.
+      loadDriveCfg(fb).then(() => (driveReady() ? driveCall(fb, 'committeeUndertaking', { undertakingId: ref.id }) : null))
+        .then((r) => r && F.updateDoc(F.doc(db, 'committeeUndertakings', ref.id), { pdf: r.pdf, emailed: Boolean(r.emailed), emailedTo: r.emailedTo || '', cc: r.cc || '', emailNote: r.note || '', archivedAt: F.serverTimestamp() }))
+        .catch((err) => { console.warn('undertaking copy', err); F.updateDoc(F.doc(db, 'committeeUndertakings', ref.id), { emailed: false, emailNote: String(errorText(err)).slice(0, 300) }).catch(() => {}); });
+      await startSession(fb.auth.currentUser);
+    } catch (err) {
+      // Never lock the committee out (for example if the new rules aren't published yet): allow continuing for this visit.
+      setMsg(f, `${esc(errorText(err))} Your acceptance couldn’t be recorded. <button class="btn btn-small" type="button" id="und-later">Continue for now</button>`);
+      $('#und-later').onclick = () => { sessionStorage.setItem('undertakingLater', `${me.uid}:${undertaking.version}`); startSession(fb.auth.currentUser); };
+    }
+  });
+}
+
+/** The banner for committee members: their own M-20 bond, and for the Chairman and Secretary, everyone's. */
+async function refreshCommitteeNotice() {
+  const { F, db } = fb, box = $('#committee-notice'), lines = [];
+  const own = m20Status(me);
+  if (own.state === 'due' || own.state === 'overdue') lines.push(`Your bond in <strong>Form M-20</strong> (Rule 58A, MCS Rules 1961) ${own.state === 'due' ? `is due by <strong>${dmy(own.due)}</strong> (${own.left} day${own.left === 1 ? '' : 's'} left)` : `was due on <strong>${dmy(own.due)}</strong>`}: sign it on stamp paper and hand it to the Secretary.`);
+  if (['Chairman', 'Secretary'].includes(me.role)) {
+    const adm = await F.getDocs(F.collection(db, 'admins'));
+    const pend = adm.docs.map((d) => ({ uid: d.id, ...d.data() })).filter((x) => isCommitteeRecord(x) && x.active !== false && x.uid !== me.uid)
+      .map((x) => ({ x, st: m20Status(x) })).filter(({ st }) => st.state === 'due' || st.state === 'overdue' || st.state === 'unknown');
+    if (pend.length) lines.push(`M-20 bonds not yet received: ${pend.map(({ x, st }) => `${esc(x.name || x.email)} (${esc(x.role || 'Committee member')}${st.due ? `, due ${dmy(st.due)}` : ', date of taking office not recorded'})`).join('; ')}. <a href="#staff">Record them</a>.`);
+    const reg = await F.getDoc(F.doc(db, 'settings', 'committeeRegister')).catch(() => null);
+    const r = reg?.exists() ? reg.data() : {};
+    if (r.formedOn && !r.informedOn) lines.push(`Inform the Registrar of the committee’s formation and the M-20 bonds by <strong>${dmy(cAddDays(r.formedOn, M20_DAYS))}</strong>. <a href="#staff">Record it</a>.`);
+  }
+  box.innerHTML = lines.map((l) => `<p>${l}</p>`).join('');
+  box.hidden = !lines.length;
+}
+
+async function renderCommittee() {
+  const { F, db } = fb;
+  const [usr, und, reg] = await Promise.all([
+    F.getDocs(F.query(F.collection(db, 'users'), F.where('status', '==', 'approved'))).catch(() => ({ docs: [] })),
+    F.getDocs(F.collection(db, 'committeeUndertakings')).catch(() => ({ docs: [] })),
+    F.getDoc(F.doc(db, 'settings', 'committeeRegister')).catch(() => null)]);
+  undertaking = await loadUndertaking();
+  mcRegister = reg?.exists() ? reg.data() : {};
+  const users = usr.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => !u.removed);
+  const usersById = new Map(users.map((u) => [u.id, u]));
+  const committee = staffList.filter((x) => x.kind !== 'staff');   // including past members (inactive)
+  const active = committee.filter((x) => x.active !== false).sort((a, b) => POST_ORDER(a.role) - POST_ORDER(b.role) || (a.name || '').localeCompare(b.name || ''));
+  const past = committee.filter((x) => x.active === false);
+  const accepted = und.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (tsDate(b.acceptedAt) || 0) - (tsDate(a.acceptedAt) || 0));
+  const m20Cell = (x) => {
+    const st = m20Status(x);
+    if (st.state === 'submitted') return `<span class="m20-ok">Received ${dmy(st.on)}</span>${x.m20.stampValue ? `<span class="sub">Stamp paper ₹${esc(x.m20.stampValue)}${x.m20.stampNo ? `, no. ${esc(x.m20.stampNo)}` : ''}</span>` : ''}${x.m20.receivedByName ? `<span class="sub">Recorded by ${esc(x.m20.receivedByName)}</span>` : ''}${x.m20.file ? `<button class="btn btn-small" type="button" data-m20-open="${esc(x.uid)}">Open scan</button>` : ''}`;
+    if (st.state === 'unknown') return '<span class="m20-due">Date of taking office not recorded</span>';
+    return st.state === 'due' ? `<span class="m20-due">Due by ${dmy(st.due)}</span><span class="sub">${st.left} day${st.left === 1 ? '' : 's'} left</span>` : `<span class="m20-late">Overdue since ${dmy(st.due)}</span><span class="sub">${-st.left} days late</span>`;
+  };
+  const term = (x) => `${x.tookOfficeOn ? `From ${dmy(x.tookOfficeOn)}` : '<span class="muted">Start not recorded</span>'}${x.termEnds ? `<span class="sub">Term ends ${dmy(x.termEnds)}</span>` : ''}${x.termEndedOn ? `<span class="sub">Ended ${dmy(x.termEndedOn)}${x.endReason ? `: ${esc(x.endReason)}` : ''}</span>` : ''}`;
+  const remind = (x) => {
+    const st = m20Status(x), u = usersById.get(x.uid), mobile = x.mobile || u?.mobile || '', email = x.email || u?.email || '';
+    const pendingUnd = x.undertakingVersion !== undertaking.version;
+    if (!(st.state === 'due' || st.state === 'overdue') && !pendingUnd) return '';
+    const first = String(x.name || '').replace(/^(mr|mrs|ms|dr|shri|smt)\.?\s+/i, '').split(' ')[0] || 'Sir / Madam';
+    const parts = [];
+    if (pendingUnd) parts.push(`please sign in to the Society accounts page (https://www.sunshreesuntec.com/admin.html) with ${email || 'your Gmail'} and accept the committee undertaking`);
+    if (st.due) parts.push(`please sign the bond in Form M-20 on stamp paper and hand it to the Secretary by ${dmy(st.due)} (Rule 58A, MCS Rules 1961)`);
+    const m = { subject: 'Sunshree Suntec: committee undertaking and M-20 bond', body: `Dear ${first},\n\nAs ${x.role || 'committee member'} of Sunshree Suntec CHS${x.tookOfficeOn ? ` from ${dmy(x.tookOfficeOn)}` : ''}, ${parts.join('; and ')}.\n\nRegards,\n${me?.name || ''}, ${me?.role || 'Managing Committee'}\nSunshree Suntec Co-op. Housing Society Ltd.` };
+    return `${waNumber(mobile) ? `<a class="btn btn-small" href="${esc(waLink(mobile, m))}" target="_blank" rel="noopener">WhatsApp reminder</a>` : ''}${validEmail(email) ? `<a class="btn btn-small" href="${esc(mailLink(email, m))}">Email reminder</a>` : ''}`;
+  };
+  $('#mc-rows').innerHTML = active.map((x) => {
+    const acc = x.undertakingVersion === undertaking.version ? `<span class="pill-ok">v${x.undertakingVersion} accepted</span><span class="sub">${esc(tsText(x.undertakingAt))}</span>`
+      : `<span class="warn">${x.undertakingVersion ? `Accepted v${x.undertakingVersion}; v${undertaking.version} pending` : 'Not yet accepted'}</span>`;
+    const copy = accepted.find((a) => a.id === x.undertakingId);
+    return `<tr><td><strong>${esc(x.name || x.email || x.uid)}</strong>${x.unitLabel ? ` <span class="muted">${esc(x.unitLabel)}</span>` : ''}<span class="sub">${esc(x.email || '')}</span></td>
+      <td>${esc(x.role || 'Committee member')}${APPROVER_ROLES.includes(x.role) ? '<span class="sub">Decides applications to view the accounts</span>' : ''}</td>
+      <td>${term(x)}</td><td>${acc}${copy?.pdf ? `<button class="btn btn-small" type="button" data-und-open="${esc(copy.id)}">Copy</button>` : ''}</td><td>${m20Cell(x)}</td>
+      <td><div class="mc-actions"><button class="btn btn-small" type="button" data-mc-edit="${esc(x.uid)}">Edit</button><button class="btn btn-small btn-primary" type="button" data-mc-m20="${esc(x.uid)}">M-20…</button>${remind(x)}</div></td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">No committee members yet.</td></tr>';
+  $('#mc-past-count').textContent = past.length ? `(${past.length})` : '';
+  $('#mc-past').innerHTML = past.map((x) => `<tr><td>${esc(x.name || x.email)}${x.unitLabel ? ` <span class="muted">${esc(x.unitLabel)}</span>` : ''}</td><td>${esc(x.role || '')}</td><td>${term(x)}</td><td>${m20Cell(x)}</td><td></td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">None.</td></tr>';
+  // Make a member a committee member: approved members who aren't on the committee or staff now.
+  const taken = new Set(staffList.filter((x) => x.active !== false).map((x) => x.uid));
+  mcApproved = users.filter((u) => !taken.has(u.id)).sort((a, b) => String(a.unit).localeCompare(String(b.unit), 'en', { numeric: true }));
+  const f = $('#mc-form');
+  f.uid.innerHTML = '<option value="">Choose…</option>' + mcApproved.map((u) => `<option value="${esc(u.id)}">${esc(memberUnitLabel(u.unit))} – ${esc(u.name)} (${esc(relationLabel(u.relation || 'owner'))})</option>`).join('');
+  [f.post, $('#mc-edit').post].forEach((sel) => { sel.innerHTML = POSTS.map((p) => `<option>${esc(p)}</option>`).join(''); });
+  if (!f.from.value) f.from.value = todayISO();
+  // Registrar
+  const rf = $('#mc-reg-form');
+  rf.formedOn.value = mcRegister.formedOn || ''; rf.informedOn.value = mcRegister.informedOn || ''; rf.ref.value = mcRegister.ref || '';
+  $('#mc-reg-status').innerHTML = !mcRegister.formedOn ? 'Enter the date the committee was formed: the Registrar is to be informed within 15 days.'
+    : mcRegister.informedOn ? `Registrar informed on ${dmy(mcRegister.informedOn)}${mcRegister.ref ? `, letter ${esc(mcRegister.ref)}` : ''}.${mcRegister.letterFile ? ' <button class="btn btn-small" type="button" id="mc-reg-open">Open letter</button>' : ''}`
+    : `To be informed by ${dmy(cAddDays(mcRegister.formedOn, M20_DAYS))}.`;
+  // Undertaking text and acceptances
+  const done = active.filter((x) => x.undertakingVersion === undertaking.version).length;
+  $('#und-status').textContent = `Current undertaking: version ${undertaking.version}${undertaking.publishedAt ? `, published ${tsText(undertaking.publishedAt)}` : ' (standard text)'}. ${done} of ${active.length} committee members have accepted it.`;
+  const ef = $('#und-edit');
+  ef.title.value = undertaking.title || ''; ef.intro.value = undertaking.intro || ''; ef.common.value = (undertaking.common || []).join('\n'); ef.closing.value = undertaking.closing || '';
+  $('#und-role-texts').innerHTML = POSTS.map((r) => `<label>Responsibilities of the ${esc(r)} (one per line)<textarea name="role_${esc(r)}" rows="5">${esc((undertaking.roles?.[r] || []).join('\n'))}</textarea></label>`).join('');
+  $('#und-rows').innerHTML = accepted.map((a) => `<tr><td>${esc(tsText(a.acceptedAt))}</td><td>${esc(a.signedName)}</td><td>${esc(a.role)}</td><td>${esc(a.version)}</td>
+    <td>${a.pdf ? `<button class="btn btn-small" type="button" data-und-open="${esc(a.id)}">PDF</button>${a.emailed ? '<span class="sub">Emailed</span>' : ''}` : a.emailNote ? `<span class="sub">Not saved: ${esc(a.emailNote)}</span>` : '<span class="muted">—</span>'}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">No acceptances yet.</td></tr>';
+}
+
+/** Keeps the website's Committee page in step (public/site.committee). */
+async function siteCommitteeSet(fn) {
+  const { F, db } = fb;
+  const snap = await F.getDoc(F.doc(db, 'public', 'site'));
+  const list = structuredClone(snap.exists() ? snap.data().committee || [] : []);
+  const next = fn(list);
+  await F.setDoc(F.doc(db, 'public', 'site'), { committee: next, updatedAt: F.serverTimestamp() }, { merge: true });
+  if (site) site.committee = next;
+}
+/** Single posts: offer to move the present holder to Committee member. Returns false if the committee member cancels. */
+function holderOf(post, exceptUid) {
+  return SINGLE_POSTS.includes(post) ? staffList.find((x) => isCommitteeRecord(x) && x.active !== false && x.role === post && x.uid !== exceptUid) : null;
+}
+async function openDriveCopy(payload) {
+  const w = window.open('', '_blank');
+  try { const url = await driveFileUrl(fb, payload); if (w) w.location = url; else location.href = url; }
+  catch (err) { if (w) w.close(); alert(errorText(err)); }
+}
+async function uploadCommitteeFile(file, sub, name, note) {
+  await loadDriveCfg(fb);
+  if (!driveReady()) throw new Error('Connect the Society’s Google Drive first (Expenses → Set-up).');
+  const f = await prepareFile(file);
+  if (!/^image\/|^application\/pdf$/.test(f.type)) throw new Error('Only PDF files and photos.');
+  const ext = (f.name.match(/\.(\w+)$/)?.[1] || (f.type === 'application/pdf' ? 'pdf' : 'jpg')).toLowerCase();
+  const r = await driveCall(fb, 'upload', { kind: 'committee', sub, name: `${name.replace(/[\\/:*?"<>|#%]+/g, ' ').slice(0, 120)}.${ext}`, mimeType: f.type, data: await toBase64(f), note });
+  return r.file;
+}
+function wireCommittee() {
+  const { F, db } = fb;
+  const msg = $('#mc-msg');
+  const say = (t, ok = true) => { msg.className = ok ? 'form-msg ok' : 'form-msg'; msg.textContent = t; };
+  $('#mc-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.currentTarget, u = mcApproved.find((x) => x.id === f.uid.value), post = f.post.value, from = f.from.value, to = f.to.value;
+    if (!u) return setMsg(f, 'Choose the member.');
+    if (!from) return setMsg(f, 'Enter the date they took office.');
+    if (to && to <= from) return setMsg(f, 'The term must end after it starts.');
+    const prior = staffList.find((x) => x.uid === u.id);
+    if (prior && prior.kind === 'staff') return setMsg(f, `${esc(u.name)} has a staff login; remove it in the Staff list first.`);
+    const holder = holderOf(post, u.id);
+    if (holder && !confirm(`${holder.name} is ${post} now. Make ${holder.name} a Committee member, and ${u.name} the ${post}?`)) return;
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        const unitLabel = memberUnitLabel(u.unit);
+        const batch = F.writeBatch(db);
+        if (holder) batch.update(F.doc(db, 'admins', holder.uid), { role: 'Committee member', postHistory: [...(holder.postHistory || []), { post: 'Committee member', from, by: me?.name || '', at: new Date().toISOString() }] });
+        // A new term: a fresh undertaking and M-20 bond (an earlier term's record stays in the acceptance list and the Drive).
+        batch.set(F.doc(db, 'admins', u.id), { name: u.name, email: u.email, mobile: u.mobile || '', role: post, unit: u.unit, unitLabel, active: true,
+          tookOfficeOn: from, termEnds: to || '', termEndedOn: '', endReason: '', m20: null, undertakingVersion: null, undertakingId: '',
+          postHistory: [...(prior?.postHistory || []), { post, from, by: me?.name || '', at: new Date().toISOString() }],
+          addedBy: uid, addedByName: me?.name || '', createdAt: F.serverTimestamp() }, { merge: true });
+        await batch.commit();
+        if (f.site.checked) {
+          await siteCommitteeSet((list) => {
+            const out = list.filter((c) => (c.name || '').trim().toLowerCase() !== u.name.trim().toLowerCase());
+            if (holder) out.forEach((c) => { if ((c.name || '').trim().toLowerCase() === (holder.name || '').trim().toLowerCase()) c.role = 'Committee member'; });
+            const at = SINGLE_POSTS.includes(post) ? out.findIndex((c) => POST_ORDER(c.role) > POST_ORDER(post)) : -1;
+            const row = { role: post, name: u.name, unit: unitLabel, phone: '' };
+            if (at < 0) out.push(row); else out.splice(at, 0, row);
+            return out;
+          }).catch((err) => console.warn('website committee list', err));
+        }
+        f.reset(); setMsg(f, '');
+        say(`${u.name} (${unitLabel}) is now ${post}. They sign in to this page with ${u.email}, accept the committee undertaking, and their M-20 bond is due by ${dmy(cAddDays(from, M20_DAYS))}.${holder ? ` ${holder.name} is now a Committee member.` : ''}`);
+        await loadStaff();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#mc-box').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.mcEdit) {
+      mcCurrent = staffList.find((x) => x.uid === b.dataset.mcEdit);
+      const f = $('#mc-edit');
+      f.post.value = mcCurrent.role && POSTS.includes(mcCurrent.role) ? mcCurrent.role : 'Committee member';
+      f.from.value = mcCurrent.tookOfficeOn || ''; f.to.value = mcCurrent.termEnds || '';
+      $('#mc-edit-title').textContent = `${mcCurrent.name || mcCurrent.email}${mcCurrent.unitLabel ? `, ${mcCurrent.unitLabel}` : ''}`;
+      setMsg(f, ''); $('#mc-dialog').showModal();
+    } else if (b.dataset.mcM20) {
+      mcCurrent = staffList.find((x) => x.uid === b.dataset.mcM20);
+      const f = $('#m20-form'); f.reset(); setMsg(f, '');
+      f.on.value = mcCurrent.m20?.submittedOn || todayISO(); f.stamp.value = mcCurrent.m20?.stampValue || ''; f.stampNo.value = mcCurrent.m20?.stampNo || '';
+      $('#m20-title').textContent = `M-20 bond: ${mcCurrent.name || mcCurrent.email} (${mcCurrent.role || 'Committee member'})`;
+      $('#m20-dialog').showModal();
+    } else if (b.dataset.m20Open) {
+      const x = staffList.find((y) => y.uid === b.dataset.m20Open);
+      openDriveCopy({ committeeUid: x.uid, fileId: x.m20.file.id });
+    } else if (b.dataset.undOpen) {
+      const snap = await F.getDoc(F.doc(db, 'committeeUndertakings', b.dataset.undOpen));
+      if (snap.exists() && snap.data().pdf) openDriveCopy({ undertakingId: b.dataset.undOpen, fileId: snap.data().pdf.id });
+    } else if (b.id === 'mc-reg-open') {
+      openDriveCopy({ committeeRegister: true, fileId: mcRegister.letterFile.id });
+    }
+  });
+  $$('#mc-dialog [data-close], #m20-dialog [data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
+  $('#mc-edit').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.currentTarget, x = mcCurrent, post = f.post.value;
+    if (f.to.value && f.from.value && f.to.value <= f.from.value) return setMsg(f, 'The term must end after it starts.');
+    const holder = post !== x.role ? holderOf(post, x.uid) : null;
+    if (holder && !confirm(`${holder.name} is ${post} now. Make ${holder.name} a Committee member?`)) return;
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        const batch = F.writeBatch(db), today = todayISO();
+        if (holder) batch.update(F.doc(db, 'admins', holder.uid), { role: 'Committee member', postHistory: [...(holder.postHistory || []), { post: 'Committee member', from: today, by: me?.name || '', at: new Date().toISOString() }] });
+        const patch = { role: post, tookOfficeOn: f.from.value || '', termEnds: f.to.value || '' };
+        if (post !== x.role) patch.postHistory = [...(x.postHistory || []), { post, from: today, by: me?.name || '', at: new Date().toISOString() }];
+        batch.update(F.doc(db, 'admins', x.uid), patch);
+        await batch.commit();
+        if (post !== x.role) siteCommitteeSet((list) => list.map((c) => {
+          const n = (c.name || '').trim().toLowerCase();
+          if (n === (x.name || '').trim().toLowerCase()) return { ...c, role: post };
+          if (holder && n === (holder.name || '').trim().toLowerCase()) return { ...c, role: 'Committee member' };
+          return c;
+        })).catch(() => {});
+        $('#mc-dialog').close();
+        say(`${x.name}: saved.${holder ? ` ${holder.name} is now a Committee member.` : ''}`);
+        await loadStaff();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#mc-end').addEventListener('click', async () => {
+    const x = mcCurrent, f = $('#mc-edit');
+    if (x.uid === uid) return setMsg(f, 'Ask another committee member to end your term.');
+    const reason = prompt(`End ${x.name}'s term as ${x.role || 'committee member'}? They lose committee access at once. Reason (e.g. term over, resigned, disqualified):`);
+    if (reason === null) return;
+    const when = prompt('Term ended on (DD/MM/YYYY):', dmy(todayISO()));
+    const m = String(when || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return setMsg(f, 'Write the date as DD/MM/YYYY.');
+    try {
+      await F.updateDoc(F.doc(db, 'admins', x.uid), { active: false, termEndedOn: `${m[3]}-${m[2]}-${m[1]}`, endReason: reason.trim().slice(0, 200), endedBy: uid, endedByName: me?.name || '' });
+      if (confirm(`Also remove ${x.name} from the website's Committee page?`)) await siteCommitteeSet((list) => list.filter((c) => (c.name || '').trim().toLowerCase() !== (x.name || '').trim().toLowerCase())).catch(() => {});
+      $('#mc-dialog').close();
+      say(`${x.name}'s term ended on ${when}. Their records, undertaking and M-20 bond stay under Past committee members. Collect the records, keys and cheque books they hold.`);
+      await loadStaff();
+    } catch (err) { setMsg(f, esc(errorText(err))); }
+  });
+  $('#m20-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.currentTarget, x = mcCurrent, file = f.file.files[0];
+    if (!f.on.value) return setMsg(f, 'Enter the date the bond was received.');
+    if (x.tookOfficeOn && f.on.value < x.tookOfficeOn) return setMsg(f, 'The bond can’t be received before taking office.');
+    if (!file && !x.m20?.file && !confirm('Save without a scan of the signed bond? You can add the scan later.')) return;
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        const saved = file ? await uploadCommitteeFile(file, 'm20', `${x.name} - ${x.role || 'Committee member'} - M-20 bond - ${f.on.value}`, `Form M-20 bond of ${x.name}, ${x.role}, received ${dmy(f.on.value)}`) : x.m20?.file || null;
+        await F.updateDoc(F.doc(db, 'admins', x.uid), { m20: { submittedOn: f.on.value, stampValue: f.stamp.value ? Number(f.stamp.value) : null, stampNo: f.stampNo.value.trim(), file: saved,
+          receivedBy: uid, receivedByName: me?.name || '', recordedAt: F.serverTimestamp() } });
+        $('#m20-dialog').close();
+        say(`M-20 bond of ${x.name} recorded (received ${dmy(f.on.value)}).`);
+        await loadStaff();
+        refreshCommitteeNotice().catch(() => {});
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#mc-reg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.currentTarget, file = f.file.files[0];
+    if (f.informedOn.value && f.formedOn.value && f.informedOn.value < f.formedOn.value) return setMsg(f, 'The Registrar can’t be informed before the committee was formed.');
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        const letterFile = file ? await uploadCommitteeFile(file, 'registrar', `Registrar intimation - committee formed ${f.formedOn.value || ''} - ${f.ref.value || ''}`, 'Letter informing the Registrar of the committee and the M-20 bonds') : mcRegister.letterFile || null;
+        await F.setDoc(F.doc(db, 'settings', 'committeeRegister'), { formedOn: f.formedOn.value, informedOn: f.informedOn.value, ref: f.ref.value.trim(), letterFile, updatedBy: uid, updatedAt: F.serverTimestamp() });
+        setMsg(f, 'Saved.', true); f.file.value = '';
+        await loadStaff();
+        refreshCommitteeNotice().catch(() => {});
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#und-edit').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.currentTarget, lines = (t) => t.split('\n').map((l) => l.trim()).filter(Boolean);
+    const next = { title: f.title.value.trim(), intro: f.intro.value.trim(), common: lines(f.common.value), closing: f.closing.value.trim(),
+      roles: Object.fromEntries(POSTS.map((r) => [r, lines(f[`role_${r}`].value)])), version: (undertaking.version || 1) + 1, publishedAt: F.serverTimestamp(), publishedBy: uid };
+    if (next.title.length < 5 || next.common.length < 3) return setMsg(f, 'Write the title and at least three undertakings.');
+    if (!confirm(`Publish version ${next.version}? Every committee member must accept it at their next sign-in.`)) return;
+    await busy($('button[type=submit]', f), async () => {
+      try { await F.setDoc(F.doc(db, 'settings', 'committeeUndertaking'), next); setMsg(f, `Version ${next.version} published.`, true); await loadStaff(); }
+      catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+}
+
 /* ----- 3.18: what a member sees beyond their own unit; applications to view the Society's accounts ----- */
 const VIEW_WHAT = { accounts: 'Society’s audited accounts and documents', allDues: 'Maintenance amounts of all units' };
 const isoIST = (d) => new Date(d.getTime() + 5.5 * 3600e3).toISOString().slice(0, 10);
@@ -2490,7 +2825,8 @@ async function loadStaff() {
   staffList = adm.docs.map((d) => ({ uid: d.id, ...d.data() }));
   const claimed = new Set(staffList.map((x) => (x.email || '').toLowerCase()));
 
-  $('#staff-rows').innerHTML = staffList.sort((a, b) => (isCommitteeRecord(b) - isCommitteeRecord(a)) || (a.name || '').localeCompare(b.name || '')).map((x) => {
+  renderCommittee().catch((err) => console.warn('committee', err));
+  $('#staff-rows').innerHTML = staffList.filter((x) => x.kind === 'staff').sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((x) => {
     const committee = x.kind !== 'staff';
     const agr = committee || x.agreementRequired === false ? '<span class="muted">Not required</span>'
       : x.agreementVersion === agreement.version ? `<span class="pill-ok">v${x.agreementVersion} accepted</span><br><span class="muted">${esc(tsText(x.agreementAcceptedAt))}</span>`

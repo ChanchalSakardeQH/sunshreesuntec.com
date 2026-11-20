@@ -6,6 +6,59 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.19.0] – 2026-11-20 – Managing Committee: make a member a committee member, committee undertaking, M-20 bonds
+
+### Added
+- **Accounts → Staff → Managing Committee.**
+  - **Make a member a committee member:** choose an approved member, their post (Chairman, Vice-Chairman, Secretary, Joint Secretary, Treasurer, Committee member), the date they took office and optionally the date the term ends. No Firebase console needed.
+    - It creates their committee login (`admins/{uid}` with `role`, `unit`, `tookOfficeOn`, `termEnds`, `postHistory`). They sign in to the accounts page with the same Gmail.
+    - For a post one person holds (all but Committee member), it asks before making the present holder a Committee member.
+    - *Also show them on the website's Committee page* keeps `public/site.committee` in step.
+  - **The committee list:**
+    - each member's post (the Chairman, Secretary and Treasurer are marked as deciding applications to view the accounts);
+    - their term;
+    - whether they accepted the current undertaking, with a copy;
+    - their M-20 bond: *Due by … (n days left)*, *Overdue since …*, *Received … (stamp paper ₹, no.)* with **Open scan**, or *Date of taking office not recorded*.
+  - **Actions on each member:**
+    - **Edit** changes the post or the dates.
+    - **End term…** asks for the reason and date, ends committee access at once, and moves them to *Past committee members*. It can remove them from the website, and nobody can end their own term.
+    - **WhatsApp reminder** / **Email reminder** ask them to accept the undertaking and hand over the M-20 bond by the due date.
+- **Committee undertaking.** Every committee member accepts it at their first sign-in to the accounts page, and again when a new version is published.
+  - **What it contains:** the member's details and M-20 due date; their access (every permission, including the committee-only ones); the **responsibilities of their post**; and ten undertakings. These cover acting within the Act, Rules, bye-laws and resolutions, the M-20 bond and joint responsibility, decisions only in meetings, declaring personal interest, confidentiality (DPDP Act 2023), no personal gain or gifts, paying one's own dues, attending meetings and training, being recorded, and handing over at the end of the term.
+  - **Records:** each acceptance is kept permanently with the exact text accepted (`committeeUndertakings`). A PDF goes into the Drive (*Committee › Undertakings*) and is emailed to the member with a copy to the Society (Drive script version 8, `committeeUndertaking`).
+  - **Editing:** the committee edits the text, including each post's responsibilities, and publishes new versions (`settings/committeeUndertaking`).
+  - **If the acceptance can't be saved** (for example the new rules aren't published yet), *Continue for now* lets the committee member work for that visit instead of being locked out.
+- **M-20 bonds** (Rule 58A, MCS Rules 1961: bond in Form M-20 on stamp paper within 15 days of taking office, kept by the Secretary).
+  - **M-20…** records the date received, the stamp paper value and number, and the scan of the signed bond (Drive: *Committee › M-20 bonds*), with who recorded it (`admins.m20`).
+  - **Banner on the accounts page:** each committee member sees their own bond's due date until it is recorded. The Chairman and Secretary also see whose bonds are still due, and when the Registrar is still to be informed.
+- **Informing the Registrar:** the date the committee was formed, the date the Registrar was informed (due 15 days later), the letter reference and a copy of the letter (Drive: *Committee › Registrar intimation*; `settings/committeeRegister`).
+- **Drive script version 8:**
+  - `committeeUndertaking`;
+  - uploads of kind `committee` (`m20`, `registrar`);
+  - opening an M-20 scan, an undertaking PDF or the Registrar letter (committee only, checked against the record).
+
+### Changed
+- The *Staff* list no longer repeats committee members; they are in *Managing Committee* above it.
+
+### Rules
+- `committeeUndertakings`: the committee member creates their own acceptance (fixed fields, server time, signed name 3–100 letters). Only the PDF and email fields are added later, and it is never deleted.
+
+### Tested
+- New suite t319 (28 checks):
+  - the undertaking before work;
+  - the banner about an overdue bond;
+  - making Saji Rajan Panikkassery (C 503) Chairman, with the previous Chairman becoming Committee member and the website list updated;
+  - the reminder;
+  - recording and opening an M-20 bond;
+  - ending a term (not one's own);
+  - informing the Registrar;
+  - a new undertaking version asked again;
+  - the new Chairman deciding applications;
+  - staff not asked.
+- 11 new Drive script checks (115 in all). The older suites' committee fixtures now carry an accepted undertaking.
+
+---
+
 ## [3.18.0] – 2026-11-20 – Who sees other units and the Society's accounts; applications to view the accounts
 
 ### Changed

@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.18.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.19.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -33,6 +33,7 @@ This document explains what the system does, where the data lives, how every amo
 12-1. Reminders and invitations (3.16)
 12-2. Registrations not finished (3.17)
 12-3. Other units' amounts and the Society's accounts: permissions and applications (3.18)
+12-4. Managing Committee: posts, undertaking and M-20 bonds (3.19)
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
@@ -135,6 +136,10 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `memberReminders/{id}` (3.16) | Every reminder or invitation sent: kind (agreement / visit / invite / unfinished), person, unit, email, mobile, channel (WhatsApp / email / email from the Society), who and when. Never changed | Members tab |
 | `settings/memberReminders` (3.16) | The committee's wording of each reminder | Committee |
 | `units/{unitId}/history/audited` (3.18) | That unit's own audited year-end figures (year, date, listed or not, name, amount), taken from the audit file so the member sees their history without the whole file | Committee's page, automatically when the audited years change (`settings/auditHistory`) |
+| `admins/{uid}` committee fields (3.19) | `role` (post: Chairman, Vice-Chairman, Secretary, Joint Secretary, Treasurer, Committee member), `unit`, `unitLabel`, `tookOfficeOn`, `termEnds`, `termEndedOn`, `endReason`, `postHistory` (post, from, by, when), `undertakingVersion`, `undertakingAt`, `undertakingName`, `undertakingId`, `m20` (submittedOn, stampValue, stampNo, file, receivedBy, receivedByName) | Committee |
+| `committeeUndertakings/{id}` (3.19) | Each acceptance of the committee undertaking with the exact text accepted (title, intro, the post's responsibilities, undertakings, closing), signed name, post, unit, date taking office, server time, device, PDF copy and whether emailed. Never deleted | The committee member (own); PDF fields by the committee |
+| `settings/committeeUndertaking` (3.19) | Current committee undertaking (versioned; the standard text is used until one is published) | Committee |
+| `settings/committeeRegister` (3.19) | Date the committee was formed, date the Registrar was informed, letter reference and copy | Committee |
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
 | `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time; and (3.17) the name, unit and mobile typed in the registration form when Google was opened from it. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
 | `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, `agreementRequired` (false = no agreement needed, e.g. auditors), `validUntil` (access ends after this date), `org`, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation, or by the committee approving a request. Committee: Staff tab |
@@ -493,6 +498,34 @@ They are given by deciding an application, or in the member window (*Edit* → *
 
 **Members' own history without the audit file.** Because the audit file lists every unit's dues, each unit gets its own year-end figures (`units/{id}/history/audited`), prepared automatically by the committee's page when it opens Members or imports the audited accounts.
 
+## 12-4. Managing Committee: posts, undertaking and M-20 bonds (3.19)
+
+**Who is on the committee.** A committee member is an `admins/{uid}` record without `kind: 'staff'`. Committee members have **every permission**, including the committee-only ones (Settings, opening import, staff and their access, the staff agreement, Access by role). *Access by role* is only for staff. Of the posts, the **Chairman, Secretary and Treasurer** also decide members' applications to view the Society's accounts (section 12-3).
+
+**Making a member a committee member (Staff → Managing Committee).**
+- **The form:** choose the approved member, the post, the date they took office and (optionally) the date the term ends, then **Make committee member**.
+- **Single posts:** for a post one person holds, the present holder is offered to become *Committee member*.
+- **The website list:** *Also show them on the website's Committee page* updates the public list.
+- **First sign-in:** the new committee member opens the accounts page and signs in with the Gmail they use as a member. They keep their member login for their own unit.
+- **Changes:** **Edit** changes the post or dates; every change of post is kept in `postHistory`.
+- **Ending a term:** **End term…** records the date and reason and ends access at once. The person moves to *Past committee members* with their undertaking and bond, and the committee should collect the records, keys and cheque books they hold. Nobody can end their own term.
+
+**Committee undertaking.** At their first sign-in (and after each new version) a committee member reads and accepts the *Undertaking by a Member of the Managing Committee*:
+- their details and the M-20 due date;
+- their access;
+- **the responsibilities of their post**: Chairman (presiding, supervising decisions, emergency powers only as the bye-laws allow, joint signatory, deciding applications to view the accounts); Secretary (registers, notices, minutes, correspondence, audit and returns, receiving the M-20 bonds and informing the Registrar, AGM on time); Treasurer (accounts, recovery of dues and reporting defaulters, joint signatory, bank reconciliation, monthly accounts, the auditor); Vice-Chairman, Joint Secretary and Committee member;
+- ten undertakings for everyone.
+
+The acceptance is kept with the exact text (`committeeUndertakings`). A PDF is saved in the Drive (*Committee › Undertakings*) and emailed to them with a copy to the Society. The committee can edit the text, including each post's responsibilities, under *Committee undertaking: text and acceptances*, and publish a new version. The standard text is a starting draft: the committee should check it against the Society's registered bye-laws.
+
+**M-20 bond.** Rule 58A of the MCS Rules 1961: every elected committee member executes a bond in Form M-20 on stamp paper within 15 days of taking office, making the committee members jointly and severally responsible for the committee's decisions. The Secretary receives and keeps the bonds and informs the Registrar within 15 days of the committee's formation.
+- **Tracking:** the list shows each member's bond as due, overdue or received.
+- **Recording:** **M-20…** records the date received, the stamp paper value and number, and the scan of the signed bond (Drive: *Committee › M-20 bonds*). **Open scan** shows it.
+- **Reminders:** a banner on the accounts page reminds each committee member of their own bond, and shows the Chairman and Secretary all bonds still due. **WhatsApp reminder** / **Email reminder** send a ready message.
+- **Informing the Registrar:** record the date the committee was formed, the date the Registrar was informed, the letter reference (for example the outward number in the correspondence register) and a copy of the letter (Drive: *Committee › Registrar intimation*).
+
+**Making the first committee member (setting up from scratch).** The very first committee member is still added once in Firebase console → Firestore → `admins` → document ID = their sign-in UID, with `name`, `role`, `email`, `active: true`. Everyone after that is added from the Staff tab.
+
 ## 12A. Staff: roles, access and agreement
 
 ### Staff and officials asking for access (3.6)
@@ -719,6 +752,9 @@ See `README.md` for step-by-step instructions. Summary:
 | A member can't see the Society's accounts or other units' amounts | Not given (3.18), or the end date has passed | They apply on their page; the Chairman, Secretary, Treasurer or Accountant decides, or gives it in the member window |
 | A member's past year-end figures are missing | The unit's own audited history isn't prepared yet | A committee member opens Accounts → Members once |
 | *Email the selected from the Society's account* is greyed out | Drive script older than version 6 | Deploy the new `Code.gs` |
+| A committee member is stuck on the committee undertaking | A new version was published | Read, tick, sign, accept. If saving fails (rules not published), *Continue for now*, then publish `firestore.rules` |
+| *Make committee member* doesn't list someone | They aren't an approved member, or already have a committee or staff login | Approve them in Members; remove a staff login first |
+| An undertaking has no PDF copy | Drive script older than version 8, or email permission missing | Deploy the new `Code.gs`; the copy is made at the next acceptance |
 
 ---
 
@@ -752,7 +788,8 @@ See `README.md` for step-by-step instructions. Summary:
 
 - Maharashtra Co-operative Societies Act, 1960 (Section 154B for housing societies; Section 32 and Section 154B-8: members' right to inspect books and records and get copies).
 - Maharashtra Co-operative Societies Rules, 1961, as amended by the MCS (Amendment) Rules, 2026 (notified 18 June 2026; Gazette 22 June 2026), Chapter XI-B, including Rule 106C-12 on charges.
-- Model Bye-laws of Co-operative Housing Societies (2014): Bye-laws 13 (funds), 23 (inspection of records and copies), 43 (non-occupancy), 65–71 (levy of charges, interest), 165 (penalty), 172 (fees for copies).
+- Maharashtra Co-operative Societies Rules, 1961, Rule 58A: bond in Form M-20 by every elected committee member within 15 days of taking office.
+- Model Bye-laws of Co-operative Housing Societies (2014): Bye-laws 13 (funds), 23 (inspection of records and copies), 117 (disqualification for the committee), 138–141 (duties of the Secretary), 43 (non-occupancy), 65–71 (levy of charges, interest), 165 (penalty), 172 (fees for copies).
 - Society resolutions: AGM 25 Jan 2015 (MOM AGM-MOM/20150225), amendment 07 Jul 2015 (AmendmentOfMom/20150707).
 - Notice dated 16 Oct 2026 (payment and account verification).
 

@@ -355,3 +355,15 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .view-extra { display: block; font-size: .82rem; color: var(--credit); }
 .ar-mail { display: block; font-size: .82rem; color: var(--muted); }
 .tab.only-apps > :not(h1):not(#ar-box):not(dialog) { display: none !important; }
+
+/* 3.19: Managing Committee, undertaking, M-20 bonds */
+.mc-box { border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 2rem; background: var(--surface); }
+.mc-box h2 { margin-top: 0; }
+.mc-box .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem 1rem; }
+.mc-table td { vertical-align: top; }
+.mc-table .sub, .mc-box .sub { display: block; font-size: .82rem; color: var(--muted); }
+.m20-ok { color: var(--credit); font-weight: 600; }
+.m20-due { color: var(--muted); font-weight: 600; }
+.m20-late { color: var(--due); font-weight: 600; }
+.mc-actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+#committee-notice p { margin: .2rem 0; }

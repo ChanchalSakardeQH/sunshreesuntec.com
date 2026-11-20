@@ -473,6 +473,19 @@ service cloud.firestore {
       allow write: if isCommittee();
     }
 
+    // 3.19: each committee member's acceptance of the committee undertaking. Permanent; the committee member creates
+    // their own (server time); only the PDF copy and whether it was emailed are added afterwards.
+    match /committeeUndertakings/{id} {
+      allow read: if isCommittee();
+      allow create: if isCommittee()
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'signedName', 'role', 'unit', 'unitLabel', 'tookOfficeOn', 'version', 'title', 'intro', 'roleLines', 'common', 'closing', 'acceptedAt', 'device'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.acceptedAt == request.time
+        && request.resource.data.signedName is string && request.resource.data.signedName.size() >= 3 && request.resource.data.signedName.size() <= 100;
+      allow update: if isCommittee() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pdf', 'emailed', 'emailedTo', 'cc', 'emailNote', 'archivedAt']);
+      allow delete: if false;
+    }
+
     // 3.18: a member's application to view the Society's accounts (MCS Act s.32 / s.154B-8, model bye-law 23).
     // The member applies; the Chairman, Secretary, Treasurer or Accountant decides. Kept permanently.
     match /accessRequests/{id} {
