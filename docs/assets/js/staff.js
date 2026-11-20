@@ -13,6 +13,7 @@ export const PERMS = [
   ['liftExpenses', 'Record lift AMC / repair expenses'],
   ['unitRecords', 'Maintain unit files: member register (I & J), tenants and rental history, communication'],
   ['correspondence', 'Society correspondence: record letters and documents received and sent, with scans (inward / outward register)'],
+  ['library', 'Rules, GRs and forms library: add, change and remove documents'],
   ['members', 'Approve or remove member logins'],
   ['website', 'Publish notices and contact details on the website'],
   ['directory', 'Residents directory: units, names and mobile numbers (for visitors, deliveries, emergencies)'],
@@ -37,9 +38,9 @@ export const COMMITTEE_ONLY = [
  * group: 'staff' works for the Society; 'official' inspects it (auditors, government officials).
  */
 export const DEFAULT_ROLE_POLICIES = {
-  'Society Manager': { group: 'staff', perms: ['view', 'recordPayments', 'editUnits', 'liftExpenses', 'unitRecords', 'correspondence', 'members', 'website', 'directory', 'submitExpenses'], agreement: true, days: 0 },
+  'Society Manager': { group: 'staff', perms: ['view', 'recordPayments', 'editUnits', 'liftExpenses', 'unitRecords', 'correspondence', 'library', 'members', 'website', 'directory', 'submitExpenses'], agreement: true, days: 0 },
   'Accountant': { group: 'staff', perms: ['view', 'recordPayments', 'cancelReceipts', 'generateBills', 'corrections', 'liftExpenses', 'submitExpenses', 'payExpenses'], agreement: true, days: 0 },
-  'Office Assistant': { group: 'staff', perms: ['view', 'recordPayments', 'unitRecords', 'correspondence', 'submitExpenses'], agreement: true, days: 0 },
+  'Office Assistant': { group: 'staff', perms: ['view', 'recordPayments', 'unitRecords', 'correspondence', 'library', 'submitExpenses'], agreement: true, days: 0 },
   'Housekeeping': { group: 'staff', perms: ['directory', 'submitExpenses'], agreement: true, days: 0 },
   'Watchman / Security': { group: 'staff', perms: ['directory', 'submitExpenses'], agreement: true, days: 0 },
   'Auditor': { group: 'official', perms: ['view'], agreement: false, days: 90 },

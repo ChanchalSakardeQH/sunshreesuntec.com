@@ -473,6 +473,20 @@ service cloud.firestore {
       allow write: if isCommittee();
     }
 
+    // 3.20: the Rules, GRs and forms library. Entries marked public are listed to everyone; members and the team see
+    // all. Committee or staff with the 'library' permission add and change them; entries are removed by marking them.
+    match /libraryDocs/{id} {
+      allow read: if resource.data.public == true || approvedMember() || (isTeam() && active());
+      allow create, update: if perm('library')
+        && request.resource.data.title is string && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 300
+        && (request.resource.data.get('removed', false) != true || request.resource.data.get('public', false) == false);
+      allow delete: if false;
+      match /index/{n} {
+        allow read: if resource.data.public == true || approvedMember() || (isTeam() && active());
+        allow write: if perm('library');
+      }
+    }
+
     // 3.19: each committee member's acceptance of the committee undertaking. Permanent; the committee member creates
     // their own (server time); only the PDF copy and whether it was emailed are added afterwards.
     match /committeeUndertakings/{id} {

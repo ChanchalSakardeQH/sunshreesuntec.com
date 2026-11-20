@@ -30,7 +30,8 @@ import {
   todayIST, monthOf, monthBounds, addDays, monthLabel, ddmmyyyy, round
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from './defaults.js';
-import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
+import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, safeName, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
+import { LIB_CATEGORIES, LIB_LANGS, LIB_TYPES, LIB_MAX_BYTES, pdfWords, wordList, saveIndex, setIndexPublic, loadIndex, forgetIndex, searchLibrary, fmtSize, extOf } from './library.js';
 import { POSTS, SINGLE_POSTS, M20_DAYS, DEFAULT_UNDERTAKING, m20Status, undertakingFor, addYears, addDays as cAddDays } from './committee.js';
 import { REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
 import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
@@ -41,8 +42,8 @@ import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } 
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'letters', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { letters: 'letters', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'membersTab', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'letters', 'library', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { letters: 'letters', library: 'library', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'membersTab', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
@@ -277,9 +278,9 @@ function route() {
   $$('.tab').forEach((t) => (t.hidden = t.dataset.tab !== id));
   $$('#admin-nav a').forEach((a) => (a.getAttribute('href') === '#' + id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   $('#admin-nav').classList.remove('open');
-  $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website', 'directory', 'expenses'].includes(id) || !canDo('view');
+  $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website', 'directory', 'expenses', 'library'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, letters: loadCorrespondence, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, letters: loadCorrespondence, library: loadLibraryAdmin, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -300,6 +301,7 @@ function wireOnce() {
   wireReminders();
   wireAccessApps();
   wireCommittee();
+  wireLibraryAdmin();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
     reloadBilling: async () => { billing = await loadBilling(fb); return lastBilled(); } });
   initCorrespondence({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units });
@@ -1512,6 +1514,161 @@ async function saveMemberDialog() {
       showNotify(fresh || { ...m, ...patch }, action);
     } catch (err) { setMsg(form, esc(errorText(err))); }
   });
+}
+
+/* ----- 3.20: Rules, GRs and forms library ----- */
+let libDocs = [], libEdit = null;
+const libIndexes = new Map();
+async function loadLibraryAdmin() {
+  const { F, db } = fb;
+  const snap = await F.getDocs(F.collection(db, 'libraryDocs'));
+  libDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const f = $('#lib-form');
+  if (!f.category.options.length) {
+    f.category.innerHTML = LIB_CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join('');
+    f.lang.innerHTML = LIB_LANGS.map((c) => `<option>${esc(c)}</option>`).join('');
+    $('#lib-cat').innerHTML = '<option value="">All</option>' + LIB_CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join('');
+  }
+  renderLibraryAdmin();
+}
+async function renderLibraryAdmin() {
+  const q = $('#lib-q').value.trim(), cat = $('#lib-cat').value, showRemoved = $('#lib-show-removed').checked;
+  let list = libDocs.filter((e) => (showRemoved || !e.removed) && (!cat || e.category === cat));
+  if (q.length >= 2) for (const e of list) if (e.textWords && !libIndexes.has(e.id)) libIndexes.set(e.id, await loadIndex(fb, e.id));
+  const hits = searchLibrary(list, q, libIndexes);
+  $('#lib-count').textContent = `(${libDocs.filter((e) => !e.removed).length})`;
+  $('#lib-rows').innerHTML = hits.map(({ e, inside }) => `<tr class="${e.removed ? 'lib-removed' : ''}">
+      <td><strong>${esc(e.title)}</strong>${e.number ? `<span class="sub">${esc(e.number)}</span>` : ''}<span class="sub">${esc([e.issuer, e.lang, extOf(e) && `${extOf(e)} ${fmtSize(e.file?.size)}`].filter(Boolean).join(' · '))}</span>
+        ${(e.keywords || []).length ? `<span class="sub">Keywords: ${esc(e.keywords.join(', '))}</span>` : ''}${inside ? '<span class="sub">Found inside the document</span>' : ''}
+        <span class="sub">${e.public ? 'Public' : 'Members and team only'}${e.removed ? ` · Removed ${whenShort(e.removedAt)}` : ''}${e.addedByName ? ` · Added by ${esc(e.addedByName)}` : ''}</span></td>
+      <td>${esc(e.category)}</td><td>${e.date ? dmy(e.date) : ''}</td>
+      <td>${e.textWords ? `${e.textWords.toLocaleString('en-IN')} words${e.pages ? `<span class="sub">${e.pages} pages</span>` : ''}` : e.file?.mime === 'application/pdf' ? '<span class="warn">No text (scanned?)</span>' : '<span class="muted">—</span>'}</td>
+      <td><div class="mc-actions">${e.file ? `<button class="btn btn-small" type="button" data-lib-open="${esc(e.id)}">Open</button>` : ''}${e.link ? `<a class="btn btn-small" href="${esc(e.link)}" target="_blank" rel="noopener">Official source</a>` : ''}
+        ${e.removed ? `<button class="btn btn-small" type="button" data-lib-restore="${esc(e.id)}">Restore</button>` : `<button class="btn btn-small" type="button" data-lib-edit="${esc(e.id)}">Edit</button>${e.file?.mime === 'application/pdf' ? `<button class="btn btn-small" type="button" data-lib-reindex="${esc(e.id)}">Read words again</button>` : ''}<button class="btn btn-small btn-danger" type="button" data-lib-remove="${esc(e.id)}">Remove</button>`}</div></td></tr>`).join('')
+    || `<tr><td colspan="5" class="empty">${libDocs.length ? 'Nothing matches.' : 'The library is empty. Add the first document above.'}</td></tr>`;
+}
+function libProgress(t) { $('#lib-progress').textContent = t; }
+/** Reads the words of a PDF (bytes) and saves them with the entry. */
+async function indexLibraryPdf(id, bytes, isPublic) {
+  libProgress('Reading the words in the PDF…');
+  const r = await pdfWords(bytes, (p, n) => libProgress(`Reading the words: page ${p} of ${n}…`));
+  libProgress('Saving the word list…');
+  await saveIndex(fb, id, r.words, isPublic);
+  forgetIndex(id); libIndexes.delete(id);
+  await fb.F.updateDoc(fb.F.doc(fb.db, 'libraryDocs', id), { textWords: r.count, pages: r.pages, indexedAt: fb.F.serverTimestamp() });
+  return r;
+}
+function resetLibForm() {
+  const f = $('#lib-form');
+  f.reset(); libEdit = null; setMsg(f, ''); libProgress('');
+  $('#lib-form-title').textContent = 'Add a document'; $('#lib-save').textContent = 'Add to the library';
+  $('#lib-cancel').hidden = true; $('#lib-keep-wrap').hidden = true;
+  libSourceChanged();
+}
+function libSourceChanged() {
+  const v = $('#lib-form').source.value;
+  $('#lib-file-wrap').hidden = v !== 'file'; $('#lib-url-wrap').hidden = v !== 'link';
+}
+function wireLibraryAdmin() {
+  const { F, db } = fb;
+  const f = $('#lib-form');
+  $$('[name=source]', f).forEach((r) => r.addEventListener('change', libSourceChanged));
+  f.url.addEventListener('change', () => { if (!f.link.value) f.link.value = f.url.value; });
+  ['#lib-q', '#lib-cat', '#lib-show-removed'].forEach((id) => $(id).addEventListener(id === '#lib-q' ? 'input' : 'change', () => renderLibraryAdmin()));
+  $('#lib-cancel').addEventListener('click', resetLibForm);
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const source = f.source.value, file = f.file.files[0], title = f.title.value.trim();
+    if (title.length < 3) return setMsg(f, 'Write the title.');
+    if (source === 'file' && !file) return setMsg(f, 'Choose the file.');
+    if (source === 'file' && !LIB_TYPES[file.type]) return setMsg(f, 'Only PDF, Word, Excel, text files and photos can be added.');
+    if (source === 'file' && file.size > LIB_MAX_BYTES) return setMsg(f, 'The file is larger than 30 MB.');
+    if (source === 'link' && !/^https?:\/\/\S+$/i.test(f.url.value.trim())) return setMsg(f, 'Give the full web address, starting with https://');
+    if (f.link.value && !/^https?:\/\/\S+$/i.test(f.link.value.trim())) return setMsg(f, 'The official source must be a web address starting with https://');
+    const meta = { title, category: f.category.value, issuer: f.issuer.value.trim(), number: f.number.value.trim(), date: f.date.value || '', year: f.date.value ? f.date.value.slice(0, 4) : '',
+      lang: f.lang.value, keywords: f.keywords.value.split(',').map((k) => k.trim()).filter(Boolean).slice(0, 30), description: f.description.value.trim(),
+      link: f.link.value.trim(), public: f.public.checked, removed: false, updatedAt: F.serverTimestamp(), updatedBy: uid, updatedByName: me?.name || '' };
+    await busy($('#lib-save'), async () => {
+      try {
+        await loadDriveCfg(fb);
+        if (source !== 'keep' && !driveReady()) throw new Error('Connect the Society’s Google Drive first (Expenses → Set-up).');
+        let saved = null, bytes = null;
+        if (source === 'file') {
+          libProgress('Saving the file in the Society’s Google Drive…');
+          const ext = (file.name.match(/\.(\w+)$/)?.[1] || LIB_TYPES[file.type]).toLowerCase();
+          const r = await driveCall(fb, 'upload', { kind: 'library', category: meta.category, name: `${safeName(title, 110)}${meta.number ? ` - ${safeName(meta.number, 60)}` : ''}.${ext}`,
+            mimeType: file.type, data: await toBase64(file), note: [meta.number, meta.issuer].filter(Boolean).join(', ') });
+          saved = r.file;
+          if (file.type === 'application/pdf') bytes = new Uint8Array(await file.arrayBuffer());
+        } else if (source === 'link') {
+          libProgress('Fetching the document from its web address and saving it in the Drive…');
+          const r = await driveCall(fb, 'libraryFromLink', { url: f.url.value.trim(), category: meta.category, name: safeName(title, 110) });
+          saved = r.file;
+          if (saved.mime === 'application/pdf' && r.data) { const bin = atob(r.data); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
+          if (!meta.link) meta.link = f.url.value.trim();
+        }
+        let id = libEdit?.id;
+        if (saved) Object.assign(meta, { file: saved, textWords: 0, pages: 0 });
+        if (id) await F.updateDoc(F.doc(db, 'libraryDocs', id), meta);
+        else {
+          const ref = await F.addDoc(F.collection(db, 'libraryDocs'), { ...meta, file: saved, textWords: 0, pages: 0, addedBy: uid, addedByName: me?.name || '', addedAt: F.serverTimestamp() });
+          id = ref.id;
+        }
+        let note = '';
+        if (bytes) {
+          try { const r = await indexLibraryPdf(id, bytes, meta.public); note = r.count ? ` ${r.count.toLocaleString('en-IN')} words read from ${r.pages} pages, so it can be found by what it says.` : ' No words could be read (a scanned PDF?): add keywords so it can be found.'; }
+          catch (err) { console.warn('pdf words', err); note = ` The words couldn’t be read (${errorText(err)}); add keywords, or press “Read words again”.`; }
+        } else if (libEdit && libEdit.public !== meta.public) await setIndexPublic(fb, id, meta.public);
+        else if (saved) await saveIndex(fb, id, '', meta.public);
+        const msg = $('#lib-msg');
+        msg.className = 'form-msg ok';
+        msg.textContent = `${libEdit ? 'Saved' : 'Added'}: ${title}.${note}`;
+        resetLibForm();
+        await loadLibraryAdmin();
+      } catch (err) { libProgress(''); setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#lib-rows').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const msg = $('#lib-msg');
+    const ent = libDocs.find((x) => x.id === (b.dataset.libOpen || b.dataset.libEdit || b.dataset.libRemove || b.dataset.libRestore || b.dataset.libReindex));
+    if (!ent) return;
+    try {
+      if (b.dataset.libOpen) {
+        const w = window.open('', '_blank');
+        try { const url = await driveFileUrl(fb, { libraryId: ent.id, fileId: ent.file.id }); if (w) w.location = url; else location.href = url; }
+        catch (err) { if (w) w.close(); throw err; }
+      } else if (b.dataset.libEdit) {
+        libEdit = ent;
+        f.title.value = ent.title || ''; f.category.value = ent.category; f.issuer.value = ent.issuer || ''; f.number.value = ent.number || ''; f.date.value = ent.date || '';
+        f.lang.value = ent.lang || 'English'; f.keywords.value = (ent.keywords || []).join(', '); f.description.value = ent.description || ''; f.link.value = ent.link || ''; f.public.checked = ent.public === true;
+        $('#lib-keep-wrap').hidden = !ent.file; f.source.value = ent.file ? 'keep' : 'file'; libSourceChanged();
+        $('#lib-form-title').textContent = `Change: ${ent.title}`; $('#lib-save').textContent = 'Save changes'; $('#lib-cancel').hidden = false;
+        f.scrollIntoView({ behavior: 'smooth' });
+      } else if (b.dataset.libRemove) {
+        if (!confirm(`Remove “${ent.title}” from the library? The file stays in the Society’s Drive and the entry can be restored.`)) return;
+        await F.updateDoc(F.doc(db, 'libraryDocs', ent.id), { removed: true, public: false, removedAt: F.serverTimestamp(), removedBy: uid, updatedAt: F.serverTimestamp() });
+        await setIndexPublic(fb, ent.id, false);
+        msg.className = 'form-msg ok'; msg.textContent = `Removed: ${ent.title}.`;
+        await loadLibraryAdmin();
+      } else if (b.dataset.libRestore) {
+        await F.updateDoc(F.doc(db, 'libraryDocs', ent.id), { removed: false, updatedAt: F.serverTimestamp() });
+        msg.className = 'form-msg ok'; msg.textContent = `Restored (members and team only; tick Public in Edit to list it to everyone): ${ent.title}.`;
+        await loadLibraryAdmin();
+      } else if (b.dataset.libReindex) {
+        await busy(b, async () => {
+          const url = await driveFileUrl(fb, { libraryId: ent.id, fileId: ent.file.id });
+          const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+          const r = await indexLibraryPdf(ent.id, bytes, ent.public);
+          libProgress('');
+          msg.className = 'form-msg ok'; msg.textContent = `${ent.title}: ${r.count.toLocaleString('en-IN')} words read from ${r.pages} pages.`;
+          await loadLibraryAdmin();
+        });
+      }
+    } catch (err) { libProgress(''); msg.className = 'form-msg'; msg.textContent = errorText(err); }
+  });
+  libSourceChanged();
 }
 
 /* ----- 3.19: Managing Committee — posts, undertaking, M-20 bonds ----- */

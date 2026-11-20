@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.19.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.20.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -34,6 +34,7 @@ This document explains what the system does, where the data lives, how every amo
 12-2. Registrations not finished (3.17)
 12-3. Other units' amounts and the Society's accounts: permissions and applications (3.18)
 12-4. Managing Committee: posts, undertaking and M-20 bonds (3.19)
+12-5. Rules, GRs and forms library (3.20)
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
@@ -140,6 +141,8 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `committeeUndertakings/{id}` (3.19) | Each acceptance of the committee undertaking with the exact text accepted (title, intro, the post's responsibilities, undertakings, closing), signed name, post, unit, date taking office, server time, device, PDF copy and whether emailed. Never deleted | The committee member (own); PDF fields by the committee |
 | `settings/committeeUndertaking` (3.19) | Current committee undertaking (versioned; the standard text is used until one is published) | Committee |
 | `settings/committeeRegister` (3.19) | Date the committee was formed, date the Registrar was informed, letter reference and copy | Committee |
+| `libraryDocs/{id}` (3.20) | Library entry: title, category, issued by, number / reference, date, year, language, keywords, description, official source, public, the file in the Drive (id, name, type, size), words read and pages, removed, who added and changed it | Committee and staff with *library* |
+| `libraryDocs/{id}/index/{n}` (3.20) | The words inside the document (space-separated, unique, lower case), in chunks of up to 700 KB, with the entry's public flag | Same |
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
 | `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time; and (3.17) the name, unit and mobile typed in the registration form when Google was opened from it. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
 | `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, `agreementRequired` (false = no agreement needed, e.g. auditors), `validUntil` (access ends after this date), `org`, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation, or by the committee approving a request. Committee: Staff tab |
@@ -526,6 +529,26 @@ The acceptance is kept with the exact text (`committeeUndertakings`). A PDF is s
 
 **Making the first committee member (setting up from scratch).** The very first committee member is still added once in Firebase console → Firestore → `admins` → document ID = their sign-in UID, with `name`, `role`, `email`, `active: true`. Everyone after that is added from the Staff tab.
 
+## 12-5. Rules, GRs and forms library (3.20)
+
+**For readers (website → Library).** Type any words: titles, numbers (e.g. a GR number), keywords and **the words inside the documents** are searched, in English or Marathi. Every word typed must be found as the start of a word, so *trans* finds *transfer*. Marathi numerals match typed ones. Filter by kind and language.
+- **Visitors** see the public entries, each with its official source.
+- **Approved members and the team** see all and press **Open** for the Society's copy. It is fetched from the Drive by the script after checking who is asking.
+- A result found by words inside the document says so: after opening, use Find (Ctrl + F) to go to the place.
+
+**Adding documents (Accounts → Library;** committee, or staff with *Rules, GRs and forms library*).
+1. Choose **A file** (PDF, Word, Excel, text or photo, up to 30 MB) or **Save a copy from its official web address**. With the second, the script downloads it into the Drive. If the site refuses, or the address is a web page rather than the PDF, download it yourself and add the file.
+2. Fill in the title and category, and the issuer, number, date, language, keywords (English and Marathi), what it is about and the official source as available.
+3. **Public** lists it to everyone; untick it for documents meant for members only (e.g. the Society's own formats).
+4. **Add to the library.** The file goes to the Drive (*Library › category*). For a PDF, the words are read page by page in the browser and saved with the entry; the list shows *n words, p pages*. *No text (scanned?)* means the PDF is pictures of pages: add good keywords.
+
+**Changing:**
+- **Edit** changes the details or replaces the file.
+- **Read words again** reads a PDF's words again.
+- **Remove** takes it off the website and out of members' searches; the file stays in the Drive. *Show removed* → **Restore** brings it back as members-only; tick *Public* in Edit to list it again.
+
+**Where things are.** Files: Society's Google Drive → *Library* → one folder per category. Entries and word lists: `libraryDocs`. pdf.js (Mozilla, Apache-2.0) is part of the website (`assets/vendor/pdfjs`) and is loaded only when a PDF is added.
+
 ## 12A. Staff: roles, access and agreement
 
 ### Staff and officials asking for access (3.6)
@@ -754,6 +777,9 @@ See `README.md` for step-by-step instructions. Summary:
 | *Email the selected from the Society's account* is greyed out | Drive script older than version 6 | Deploy the new `Code.gs` |
 | A committee member is stuck on the committee undertaking | A new version was published | Read, tick, sign, accept. If saving fails (rules not published), *Continue for now*, then publish `firestore.rules` |
 | *Make committee member* doesn't list someone | They aren't an approved member, or already have a committee or staff login | Approve them in Members; remove a staff login first |
+| *Save a copy from its official web address* fails | The site needs a browser, refuses scripts, or the address is a web page | Open it, download the PDF, add the file |
+| A library PDF shows *No text (scanned?)* | The PDF is pictures of pages, or uses an old Marathi font | Add keywords (English and Marathi) |
+| A member can't open a library document | Not approved yet, or the Drive script is older than version 9 | Approve them; deploy the new `Code.gs` |
 | An undertaking has no PDF copy | Drive script older than version 8, or email permission missing | Deploy the new `Code.gs`; the copy is made at the next acceptance |
 
 ---
@@ -775,6 +801,8 @@ See `README.md` for step-by-step instructions. Summary:
 **Who can see my maintenance amount?** You see your own. Other members see it only if the Chairman, Secretary, Treasurer or Accountant has allowed them to see all units' amounts; visitors see masks (x,xxx). The committee and the accounts staff see all.
 
 **How do I see the Society's accounts?** Members' page → Society accounts → apply. You will get an email when it is decided. You may also inspect the records at the office under Section 32 of the MCS Act.
+
+**Where can I find the Rules, a GR or a form?** Website → Library. Type any words (for example *transfer of flat*, *M-20*, *नामनिर्देशन*). Sign in as a member to open the Society's copies.
 
 **Who can see my mobile number and email?** The committee, and staff the committee has allowed to approve member logins, under a written confidentiality agreement. The public page shows names and amounts only.
 

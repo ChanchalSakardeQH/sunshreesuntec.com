@@ -414,3 +414,20 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 .sa-status.ok { color: var(--credit); }
 .sa-status.no { color: var(--due); }
 .sa-status.wait { color: var(--muted); }
+
+/* 3.20: Rules, GRs and forms library */
+.lib-search { display: grid; gap: .6rem; margin: 1rem 0 .5rem; max-width: 46rem; }
+.lib-q-label { font-weight: 600; }
+.lib-search input[type="search"] { font-size: 1.05rem; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); width: 100%; }
+.lib-filters { display: flex; flex-wrap: wrap; gap: .75rem; }
+.lib-filters label { display: grid; gap: .2rem; font-size: .9rem; }
+.lib-list { list-style: none; padding: 0; margin: 1rem 0; display: grid; gap: .75rem; max-width: 52rem; }
+.lib-item { border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; background: var(--surface); }
+.lib-item h2 { font-size: 1.05rem; margin: 0 0 .2rem; }
+.lib-meta { font-size: .88rem; color: var(--muted); margin: 0 0 .35rem; }
+.lib-cat { display: inline-block; font-size: .78rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px; border: 1px solid var(--line); margin-right: .4rem; }
+.lib-kw { font-size: .85rem; margin: .3rem 0 0; }
+.lib-inside { font-size: .85rem; color: var(--credit); margin: .3rem 0 0; }
+.lib-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .55rem; }
+.lib-item mark { background: color-mix(in srgb, var(--stamp) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 .1rem; }
+.lib-filters select { font: inherit; padding: .4rem .5rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); min-width: 9rem; }

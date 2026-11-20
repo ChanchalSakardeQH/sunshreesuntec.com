@@ -29,6 +29,7 @@
         <a href="#reports" data-need="view">Reports</a>
         <a href="#documents" data-need="view">Documents</a>
         <a href="#letters" data-need="letters">Correspondence</a>
+        <a href="#library" data-need="library">Library</a>
         <a href="#members" data-need="membersTab">Members</a>
         <a href="#website" data-need="website">Website</a>
         <a href="#expenses" data-need="expenses">Expenses</a>
@@ -588,6 +589,51 @@
     </section>
 
     <!-- CORRESPONDENCE (3.14): inward / outward register -->
+    <section class="tab" data-tab="library" hidden>
+      <h1>Rules, GRs and forms library</h1>
+      <p class="muted">Acts, Rules, bye-laws, Government Resolutions, circulars, judgments, statutory forms and application formats, kept in the Society’s Google Drive (<em>Library › category</em>). Entries marked <strong>public</strong> are listed to everyone on the website’s <em>Library</em> page; members and the team see all of them and open the Society’s copies. The words inside each PDF are read when it is added, so the search finds documents by what they say (scanned pages have no words: add keywords).</p>
+
+      <form id="lib-form" class="form wide-form lib-form" novalidate>
+        <h2 id="lib-form-title">Add a document</h2>
+        <fieldset class="lib-source">
+          <legend>The document</legend>
+          <label class="check"><input type="radio" name="source" value="file" checked> A file from this phone or computer</label>
+          <label class="check"><input type="radio" name="source" value="link"> Save a copy from its official web address</label>
+          <label class="check" id="lib-keep-wrap" hidden><input type="radio" name="source" value="keep"> Keep the present file</label>
+          <label id="lib-file-wrap">File (PDF, Word, Excel, text or photo; up to 30 MB)<input type="file" name="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.odt,.txt,image/*"></label>
+          <label id="lib-url-wrap" hidden>Web address of the PDF<input type="url" name="url" placeholder="https://sahakarayukta.maharashtra.gov.in/…/mah_coop_society_rules_1961.pdf"></label>
+        </fieldset>
+        <div class="form-grid">
+          <label>Title<input type="text" name="title" maxlength="300" required placeholder="Maharashtra Co-operative Societies Rules, 1961"></label>
+          <label>Category<select name="category"></select></label>
+          <label>Issued by <span class="muted">(optional)</span><input type="text" name="issuer" maxlength="120" list="lib-issuers" placeholder="Co-operation Department, Government of Maharashtra"></label>
+          <label>Number / reference <span class="muted">(optional)</span><input type="text" name="number" maxlength="120" placeholder="GR No. सगृयो-2019/प्र.क्र.25/7-स"></label>
+          <label>Date <span class="muted">(optional)</span><input type="date" name="date"></label>
+          <label>Language<select name="lang"></select></label>
+        </div>
+        <label>Keywords <span class="muted">(comma separated; English and Marathi)</span><input type="text" name="keywords" maxlength="500" placeholder="MCS Rules, election, M-20, सहकारी संस्था नियम"></label>
+        <label>What it is about <span class="muted">(optional)</span><textarea name="description" rows="2" maxlength="1000"></textarea></label>
+        <label>Official source <span class="muted">(optional web address, shown to readers)</span><input type="url" name="link" placeholder="https://"></label>
+        <label class="check"><input type="checkbox" name="public" checked> Public: list it to everyone on the website (members and the team always see it)</label>
+        <datalist id="lib-issuers"><option>Co-operation Department, Government of Maharashtra</option><option>Commissioner for Co-operation and Registrar, Pune</option><option>Deputy Registrar, Co-operative Societies, Pune</option><option>Maharashtra State Co-operative Housing Federation</option><option>High Court of Bombay</option><option>Supreme Court of India</option><option>Sunshree Suntec CHS (Managing Committee)</option></datalist>
+        <p class="small-note" id="lib-progress" aria-live="polite"></p>
+        <p class="form-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit" id="lib-save">Add to the library</button><button class="btn" type="button" id="lib-cancel" hidden>Cancel</button></div>
+      </form>
+
+      <h2 class="mt">In the library <span class="muted" id="lib-count"></span></h2>
+      <div class="filter-row">
+        <label>Search<input type="search" id="lib-q" placeholder="Title, number, keyword or words inside"></label>
+        <label>Category<select id="lib-cat"><option value="">All</option></select></label>
+        <label class="check"><input type="checkbox" id="lib-show-removed"> Show removed</label>
+      </div>
+      <div class="table-scroll"><table class="lib-table">
+        <thead><tr><th>Document</th><th>Category</th><th>Date</th><th>Text</th><th></th></tr></thead>
+        <tbody id="lib-rows"></tbody>
+      </table></div>
+      <p class="form-msg" id="lib-msg" role="status"></p>
+    </section>
+
     <section class="tab" data-tab="letters" hidden>
       <h1>Correspondence</h1>
       <p class="muted">The Society’s inward and outward register: letters and documents received from and sent to the DDR / Registrar, PMC, MSEDCL, banks, police, other societies, contractors and AMC vendors, advocates, members and others. Each gets a number (IN/2026-27/0001, OUT/2026-27/0001); scans are kept in the Society’s Google Drive under <em>Correspondence › year › Inward / Outward</em>.</p>
@@ -1412,7 +1458,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.19.0</p>
+    <p class="muted mt" id="version-note">Software version 3.20.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

@@ -5,7 +5,7 @@ initOfflineUi();
 import { maskAmount } from './billing-core.js';
 import { DEFAULT_SITE } from './defaults.js';
 
-const TABS = ['home', 'about', 'dues', 'notices', 'committee', 'contact', 'member'];
+const TABS = ['home', 'about', 'dues', 'notices', 'committee', 'library', 'contact', 'member'];
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 

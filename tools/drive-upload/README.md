@@ -72,6 +72,10 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.20 (script version 9):** the Rules, GRs and forms library: uploads of kind *library* (*Library › category*),
+*libraryFromLink* (saves a copy of a document from its web address; uses the existing permission to fetch web addresses)
+and opening library documents for the team and approved members. No new permission is needed.
+
 **3.19 (script version 8):** adds *committeeUndertaking* (PDF of a committee member's accepted undertaking in
 *Committee › Undertakings*, emailed to them with a copy to the Society), uploads of kind *committee* (*Committee › M-20 bonds*
 and *Committee › Registrar intimation*) and opening those files (committee only). No new permission is needed.

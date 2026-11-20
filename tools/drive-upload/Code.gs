@@ -33,6 +33,10 @@
  * Version 8 (3.19): committeeUndertaking makes the PDF of a committee member's accepted undertaking (Drive:
  * Committee/Undertakings) and emails it to them with a copy to the Society; uploads of kind 'committee' keep the
  * signed M-20 bonds (Committee/M-20 bonds) and the letter informing the Registrar (Committee/Registrar intimation).
+ *
+ * Version 9 (3.20): the Rules, GRs and forms library. Uploads of kind 'library' (Library/<category>), libraryFromLink
+ * (saves a copy of a document from its official web address), and opening a library document (the team, and approved
+ * members) — committee or staff with the 'library' permission add documents.
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -56,7 +60,7 @@ function config_() {
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 8 });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 9 });
 }
 
 function doPost(e) {
@@ -66,12 +70,15 @@ function doPost(e) {
     var who = verifyToken_(cfg, req.idToken);
     var memberActions = { memberUpload: memberUpload_, memberFetch: memberFetch_, memberAgreement: memberAgreement_, accessRequest: accessRequest_ };
     var out;
-    if (memberActions[req.action]) {
+    if (req.action === 'fetch' && req.libraryId) req.action = 'libraryFetch';   // anyone signed in opening a library document
+    if (req.action === 'libraryFetch') {
+      out = libraryFetch_(cfg, req, who);
+    } else if (memberActions[req.action]) {
       out = memberActions[req.action](cfg, req, who, memberRecord_(cfg, who, req.idToken));
     } else {
       var team = teamRecord_(cfg, who, req.idToken);
       var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_,
-        backupRegister: backupRegister_, memberMail: memberMail_, accessDecision: accessDecision_, committeeUndertaking: committeeUndertaking_ };
+        backupRegister: backupRegister_, memberMail: memberMail_, accessDecision: accessDecision_, committeeUndertaking: committeeUndertaking_, libraryFromLink: libraryFromLink_ };
       var fn = actions[req.action];
       if (!fn) throw new Error('Unknown request.');
       out = fn(cfg, req, who, team);
@@ -209,6 +216,7 @@ function upload_(cfg, req, who, team) {
   if (req.kind === 'correspondence') return uploadLetter_(cfg, req, who, team);
   if (req.kind === 'reference') return uploadReference_(cfg, req, who, team);
   if (req.kind === 'committee') return uploadCommittee_(cfg, req, who, team);
+  if (req.kind === 'library') return uploadLibrary_(cfg, req, who, team);
   var report = req.kind === 'report', payment = req.kind === 'payment';
   var need = report ? ['view', 'approveExpenses', 'payExpenses'] : payment ? ['payExpenses'] : ['submitExpenses', 'approveExpenses', 'payExpenses'];
   if (!any_(team, need)) throw new Error('You don’t have permission to add ' + (report ? 'reports.' : payment ? 'payment proofs.' : 'expenses.'));
@@ -374,6 +382,63 @@ function uploadReference_(cfg, req, who, team) {
 function siteReferences_(cfg, idToken) {
   var site = readDoc_(cfg, idToken, 'public/site') || {};
   return (site.interestRefs || []).filter(function (r) { return r && r.id; });
+}
+
+/* ---------------- Rules, GRs and forms library (3.20) ---------------- */
+
+var LIB_TYPES = { 'application/pdf': 1, 'image/jpeg': 1, 'image/png': 1, 'image/webp': 1, 'application/msword': 1,
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 1, 'application/vnd.ms-excel': 1,
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 1, 'application/vnd.oasis.opendocument.text': 1, 'text/plain': 1 };
+var LIB_MAX = 30 * 1024 * 1024;
+function libraryFolder_(cfg, category) {
+  return child_(child_(rootFolder_(cfg), 'Library'), cleanName_(String(category || 'Other')).slice(0, 60) || 'Other');
+}
+function uploadLibrary_(cfg, req, who, team) {
+  if (!team.can('library')) throw new Error('You don’t have permission to add documents to the library.');
+  if (!LIB_TYPES[req.mimeType]) throw new Error('Only PDF, Word, Excel, text files and photos can be added.');
+  var bytes = Utilities.base64Decode(String(req.data || ''));
+  if (!bytes.length) throw new Error('The file is empty.');
+  if (bytes.length > LIB_MAX) throw new Error('The file is larger than 30 MB.');
+  var file = libraryFolder_(cfg, req.category).createFile(Utilities.newBlob(bytes, req.mimeType, cleanName_(req.name)));
+  file.setDescription(('Library: ' + (req.note || '') + '\nAdded by ' + team.name + ' <' + who.email + '> on ' + Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm')).slice(0, 1500));
+  return { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: req.mimeType } };
+}
+/** Saves a copy of a document from its official address (e.g. the Co-operation Department's website). */
+function libraryFromLink_(cfg, req, who, team) {
+  if (!team.can('library')) throw new Error('You don’t have permission to add documents to the library.');
+  var url = String(req.url || '').trim();
+  if (!/^https?:\/\/[^\s]+$/i.test(url)) throw new Error('Give the full web address, starting with https://');
+  var r;
+  try { r = UrlFetchApp.fetch(url, { followRedirects: true, muteHttpExceptions: true, validateHttpsCertificates: true }); }
+  catch (e) { throw new Error('Couldn’t reach that address (' + String((e && e.message) || e).slice(0, 120) + '). Download the document and add the file instead.'); }
+  if (r.getResponseCode() !== 200) throw new Error('That website answered ' + r.getResponseCode() + '. Download the document and add the file instead.');
+  var blob = r.getBlob(), type = String(blob.getContentType() || '').split(';')[0].toLowerCase();
+  if ((!LIB_TYPES[type] || type === 'text/plain') && /\.pdf(\?|#|$)/i.test(url)) type = 'application/pdf';
+  if (!LIB_TYPES[type]) throw new Error('That address gives a ' + (type || 'web page') + ', not a document. Open it, download the PDF and add the file instead.');
+  var bytes = blob.getBytes();
+  if (type === 'application/pdf' && String.fromCharCode.apply(null, bytes.slice(0, 4)) !== '%PDF') throw new Error('That address didn’t give a PDF (the site may need a browser). Download it and add the file instead.');
+  if (bytes.length > LIB_MAX) throw new Error('The document is larger than 30 MB.');
+  var ext = { 'application/pdf': '.pdf', 'image/jpeg': '.jpg', 'image/png': '.png', 'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx' }[type] || '';
+  var name = cleanName_(String(req.name || url.split('/').pop().split('?')[0] || 'Document')).replace(/\.\w{2,4}$/, '') + ext;
+  var file = libraryFolder_(cfg, req.category).createFile(Utilities.newBlob(bytes, type, name));
+  file.setDescription(('Library: saved from ' + url + '\nBy ' + team.name + ' <' + who.email + '> on ' + Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm')).slice(0, 1500));
+  var out = { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: type } };
+  if (bytes.length <= 20 * 1024 * 1024) out.data = Utilities.base64Encode(bytes);   // so the browser can read the words
+  return out;
+}
+/** Opens a library document: anyone on the team, or an approved member (the rules decide who may read the entry). */
+function libraryFetch_(cfg, req, who) {
+  var id = String(req.libraryId || '');
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new Error('Unknown document.');
+  var e = readDoc_(cfg, req.idToken, 'libraryDocs/' + id);
+  if (!e || e.removed) throw new Error('This document isn’t in the library.');
+  var a = readDoc_(cfg, req.idToken, 'admins/' + encodeURIComponent(who.uid)), ok = a && a.active !== false;
+  if (!ok) { var m = readDoc_(cfg, req.idToken, 'users/' + encodeURIComponent(who.uid)); ok = m && m.status === 'approved' && !m.removed && who.verified; }
+  if (!ok) throw new Error('Sign in as a member to open the Society’s copy.');
+  if (!e.file || e.file.id !== req.fileId) throw new Error('That file doesn’t belong to this document.');
+  var blob = DriveApp.getFileById(req.fileId).getBlob();
+  return { name: blob.getName(), mime: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) };
 }
 
 /* ---------------- Managing Committee (3.19) ---------------- */

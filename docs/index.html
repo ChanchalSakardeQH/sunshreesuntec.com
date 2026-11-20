@@ -30,6 +30,7 @@
         <a href="#dues">Maintenance dues</a>
         <a href="#notices">Notices</a>
         <a href="#committee">Committee</a>
+        <a href="#library">Library</a>
         <a href="#contact">Contact</a>
         <a href="#member" class="nav-member">Member login</a>
         <a href="admin.html" class="nav-admin" hidden>Accounts</a>
@@ -127,6 +128,24 @@
     </section>
 
     <!-- NOTICES -->
+    <section class="tab" data-tab="library" hidden aria-labelledby="library-title">
+      <div class="wrap page">
+        <h1 id="library-title">Rules, GRs and forms</h1>
+        <p class="lede">Acts, Rules, bye-laws, Government Resolutions, circulars, court judgments, statutory forms and application formats for co-operative housing societies, collected by the Society. Type any words: the search looks at titles, numbers and keywords, and at the words inside the documents, in English or Marathi.</p>
+        <div class="lib-search">
+          <label class="lib-q-label" for="libp-q">Search the library</label>
+          <input type="search" id="libp-q" placeholder="e.g. M-20 bond, transfer of flat, नामनिर्देशन, section 101" autocomplete="off">
+          <div class="lib-filters">
+            <label>Kind<select id="libp-cat"><option value="">All</option></select></label>
+            <label>Language<select id="libp-lang"><option value="">All</option></select></label>
+          </div>
+        </div>
+        <p class="small-note" id="libp-status" aria-live="polite"></p>
+        <p class="small-note" id="libp-signin" hidden>You see the documents open to everyone. <a href="#member">Sign in as a member</a> to see all of them and open the Society’s copies.</p>
+        <ul class="lib-list" id="libp-list"></ul>
+      </div>
+    </section>
+
     <section class="tab" data-tab="notices" hidden aria-labelledby="notices-title">
       <div class="wrap page notices-layout">
         <div class="notices-main">
@@ -440,5 +459,6 @@
 
   <script type="module" src="assets/js/app.js"></script>
   <script type="module" src="assets/js/member.js"></script>
+  <script type="module" src="assets/js/librarypage.js"></script>
 </body>
 </html>

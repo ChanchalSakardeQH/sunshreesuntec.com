@@ -6,6 +6,46 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.20.0] – 2026-11-20 – Rules, GRs and forms library, searchable by the words inside
+
+### Added
+- **Website → Library** (new menu item): the Society's collection of Acts, Rules, bye-laws, Government Resolutions, circulars and orders, court judgments, statutory forms, application formats (member → Society, member → Registrar / DDR) and the Society's own formats.
+  - **Search:** type any words and every word must be found as the start of a word.
+    - **Where it looks:** the title, number or reference, issuer, date, keywords and description, **and the words inside the documents**, in English or Marathi.
+    - **Matching:** Marathi numerals match typed numbers (१९६० = 1960), and ligatures match plain letters.
+    - **Results:** say *Found inside the document* with a hint to use Find (Ctrl + F) after opening. Filters for the kind of document and the language.
+  - **Visitors** see the entries marked public, each with its **Official source** link where given.
+  - **Members (approved) and the team** see every entry and **open the Society's copy** from the Google Drive.
+- **Accounts → Library** (committee, and staff with the new permission *Rules, GRs and forms library*; given by default to the Society Manager and Office Assistant).
+  - **Adding:** add a document from a file (PDF, Word, Excel, text or photo, up to 30 MB) or **save a copy from its official web address** (for example a PDF on the Co-operation Department's website), with:
+    - title and category;
+    - issued by, number / reference, date and language;
+    - keywords (English and Marathi) and what it is about;
+    - official source;
+    - **Public** (listed to everyone) or members and team only.
+  - **Storage:** files go into the Society's Google Drive under *Library › category*.
+  - **Search inside:** the **words inside each PDF** are read in the browser when it is added (pdf.js 4.10, Mozilla, Apache-2.0, kept with the site in `assets/vendor/pdfjs`). They are saved as a word list with the entry (`libraryDocs/{id}/index/{n}`), so documents are found by what they say. Scanned PDFs have no words, which the list shows, so add keywords for them.
+  - **Managing:** **Edit** (details, public or not, replace the file) and **Read words again**. **Remove** takes the entry off the website; the file stays in the Drive and it can be restored. Search the library, filter by category, show removed entries.
+- **Drive script version 9:**
+  - uploads of kind `library`;
+  - `libraryFromLink`: the script fetches the document from its web address, refuses web pages and login pages that aren't the document, and returns the bytes so the words can be read;
+  - opening a library document for any team member or approved member, checked against the entry.
+
+  No new Google permission is needed (fetching web addresses was already allowed).
+
+### Rules
+- `libraryDocs` and their word lists: readable by everyone when public, otherwise by approved members and the team. They are written by those with the *library* permission and never deleted (removed by marking; a removed entry is never public).
+
+### Notes
+- The extraction keeps both the text as written and as spaced, and puts the Devanagari vowel sign ि after its consonant, because PDFs store it in drawing order. Some PDFs made with old Marathi fonts give no usable text; keywords cover those.
+- If *Access by role* was saved before, tick *Rules, GRs and forms library* for the Society Manager and Office Assistant there. Saved role settings take precedence over the new defaults.
+
+### Tested
+- New suite t320 (22 checks): a real two-page PDF with English and Marathi text made in the test; words read (including सहकारी, नियम); copy from a link; a members-only Word format; admin search by words inside; a visitor sees only public entries and finds “bond M-20” inside and a Marathi GR number; a member sees all, finds by keywords and opens; remove, restore, edit, make public; staff without the permission don't see the tab.
+- 15 new Drive script checks (130 in all).
+
+---
+
 ## [3.19.0] – 2026-11-20 – Managing Committee: make a member a committee member, committee undertaking, M-20 bonds
 
 ### Added
