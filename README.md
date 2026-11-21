@@ -6,6 +6,7 @@ Website and maintenance accounting for **Sunshree Suntec Co-op. Hsg. Soc. Ltd.**
 
 - **Website (public):** Home, About, Maintenance dues, Notices, Committee, Contact. Dues update by themselves whenever a bill, payment or correction is saved.
 - **Accounts (`/admin.html`, committee only):** monthly bills in the Society's bill format, payments with numbered digital receipts, unit ledgers, corrections, member access approvals, notices and contact details.
+- **Test copy:** try every role (owner, tenant, staff, committee) on a separate test project and Drive folder, with a red TEST banner; see `TESTING.md` (3.21).
 - **Library:** Acts, Rules, GRs, circulars, judgments and forms kept in the Society's Google Drive; anyone searches the public ones, by title, keywords or the words inside (English and Marathi); members open the Society's copies (3.20).
 - **Members:** register with Google → committee approves → member accepts the portal agreement and sees their own unit's bills, receipts and balance. Other units' amounts and the Society's audited accounts are shown on application, decided by the Chairman, Secretary, Treasurer or Accountant (3.18).
 - **Hosting:** GitHub Pages (from the `docs/` folder). Data and logins: Firebase (free Spark plan). Monthly bills: GitHub Actions.

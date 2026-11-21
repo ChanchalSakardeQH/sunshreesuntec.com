@@ -72,6 +72,11 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.21 (script version 10):** a **test copy** of this script (see TESTING.md): make a copy of the project, set its
+Script properties to the test Firebase project, `ROOT_FOLDER = TEST Sunshree Suntec Records`, `SITE_ADDRESS` to the test
+site and `TEST = yes`. Its emails are marked [TEST] and it never writes into the real folder. The real script only needs
+the new Code.gs (all emails go through one helper; nothing else changes).
+
 **3.20 (script version 9):** the Rules, GRs and forms library: uploads of kind *library* (*Library › category*),
 *libraryFromLink* (saves a copy of a document from its web address; uses the existing permission to fetch web addresses)
 and opening library documents for the team and approved members. No new permission is needed.

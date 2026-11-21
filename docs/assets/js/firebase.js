@@ -1,9 +1,34 @@
 // Shared start-up for every page. Returns null until the configuration is filled in.
-import { firebaseConfig } from './firebase-config.js';
+import * as siteConfig from './firebase-config.js';
+
+/* ---------- Test copy (3.21) ----------
+ * firebase-config.js may also hold testFirebaseConfig (a separate Firebase project with test data) and testSites
+ * (addresses of a test copy of the website, e.g. 'username.github.io/suntec-test'). The test project is used only on
+ * this computer (localhost) or on those addresses, never on the Society's own address or in the Android app, and
+ * every page then shows a red TEST banner. Nothing done there touches the Society's records. */
+const PRODUCTION_HOSTS = ['sunshreesuntec.com', 'www.sunshreesuntec.com', 'appassets.androidplatform.net'];
+const here = typeof location === 'undefined' ? '' : `${location.host}${location.pathname}`;
+export const TEST_MODE = typeof location !== 'undefined' && Boolean(siteConfig.testFirebaseConfig?.projectId)
+  && !PRODUCTION_HOSTS.includes(location.hostname)
+  && (['localhost', '127.0.0.1'].includes(location.hostname) || (siteConfig.testSites || []).some((t) => t && here.startsWith(String(t).replace(/^https?:\/\//, ''))));
+const firebaseConfig = TEST_MODE ? siteConfig.testFirebaseConfig : siteConfig.firebaseConfig;
+if (TEST_MODE && typeof document !== 'undefined') {
+  const mark = () => {
+    if (document.getElementById('test-banner')) return;
+    const b = document.createElement('div');
+    b.id = 'test-banner';
+    b.setAttribute('role', 'note');
+    b.textContent = `TEST COPY (${firebaseConfig.projectId}) · test data and test Drive folder only · nothing here is the Society’s record`;
+    b.style.cssText = 'background:#b3261e;color:#fff;font:600 13px/1.4 system-ui,sans-serif;text-align:center;padding:6px 10px;position:relative;z-index:9999;-webkit-print-color-adjust:exact;print-color-adjust:exact';
+    document.body.prepend(b);
+    if (!document.title.startsWith('TEST')) document.title = `TEST · ${document.title}`;
+  };
+  if (document.body) mark(); else document.addEventListener('DOMContentLoaded', mark);
+}
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
 /** Shown at the foot of the accounts page and stored with each sign-in attempt. */
-export const SITE_VERSION = '3.20.0';
+export const SITE_VERSION = '3.21.0';
 let ready;
 
 /* ---------- Android app ----------

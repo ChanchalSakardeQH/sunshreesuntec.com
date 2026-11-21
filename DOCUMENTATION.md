@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.20.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.21.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -35,6 +35,7 @@ This document explains what the system does, where the data lives, how every amo
 12-3. Other units' amounts and the Society's accounts: permissions and applications (3.18)
 12-4. Managing Committee: posts, undertaking and M-20 bonds (3.19)
 12-5. Rules, GRs and forms library (3.20)
+12-6. Test copy for trying roles safely (3.21)
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
@@ -549,6 +550,15 @@ The acceptance is kept with the exact text (`committeeUndertakings`). A PDF is s
 
 **Where things are.** Files: Society's Google Drive → *Library* → one folder per category. Entries and word lists: `libraryDocs`. pdf.js (Mozilla, Apache-2.0) is part of the website (`assets/vendor/pdfjs`) and is loaded only when a PDF is added.
 
+## 12-6. Test copy for trying roles safely (3.21)
+
+To try the site as an owner, a tenant, the Accountant, a watchman or the Chairman without touching the real records, run a **test copy**: the same pages connected to a separate Firebase project and a separate copy of the Drive script. **`TESTING.md`** has the set-up steps and a checklist.
+
+- **Switch:** `firebase-config.js` → `testFirebaseConfig` (and optionally `testSites`). The test project is used only on `localhost` / `127.0.0.1` or the listed addresses. It is never used on sunshreesuntec.com, www, or in the Android app (`PRODUCTION_HOSTS` in `firebase.js`).
+- **Banner:** every test page, printed receipts included, shows a red **TEST COPY (project)** banner, and titles start with *TEST ·*.
+- **Drive:** a copy of the Apps Script project with Script properties for the test project, `ROOT_FOLDER = TEST Sunshree Suntec Records` and `TEST = yes`. Its emails say **[TEST]**, and it never writes into the real folder, even if the copied properties remember it.
+- **People:** sign-ins belong to a project, so any Gmail can play any role in the test copy, whatever it is on the real site. Use separate Chrome profiles to be signed in as several people at once.
+
 ## 12A. Staff: roles, access and agreement
 
 ### Staff and officials asking for access (3.6)
@@ -777,6 +787,7 @@ See `README.md` for step-by-step instructions. Summary:
 | *Email the selected from the Society's account* is greyed out | Drive script older than version 6 | Deploy the new `Code.gs` |
 | A committee member is stuck on the committee undertaking | A new version was published | Read, tick, sign, accept. If saving fails (rules not published), *Continue for now*, then publish `firestore.rules` |
 | *Make committee member* doesn't list someone | They aren't an approved member, or already have a committee or staff login | Approve them in Members; remove a staff login first |
+| The red TEST COPY banner is missing on the test copy | `testFirebaseConfig` not in `firebase-config.js`, or the address isn't `localhost` or in `testSites` | See TESTING.md step A.2 |
 | *Save a copy from its official web address* fails | The site needs a browser, refuses scripts, or the address is a web page | Open it, download the PDF, add the file |
 | A library PDF shows *No text (scanned?)* | The PDF is pictures of pages, or uses an old Marathi font | Add keywords (English and Marathi) |
 | A member can't open a library document | Not approved yet, or the Drive script is older than version 9 | Approve them; deploy the new `Code.gs` |

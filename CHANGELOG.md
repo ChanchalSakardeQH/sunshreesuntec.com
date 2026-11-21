@@ -6,6 +6,30 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.21.0] – 2026-11-21 – Test copy: try every role without touching the Society's records
+
+### Added
+- **Test copy of the website** (`TESTING.md` explains the set-up and has a checklist from registration to daily use for owner, tenant or family, Accountant, watchman and committee).
+  - **The switch:** `firebase-config.js` may also hold `testFirebaseConfig` (a separate Firebase project) and `testSites` (addresses of a test website).
+    - **Where it applies:** the test project is used only on this computer (`localhost`, `127.0.0.1`) or on those listed addresses.
+    - **Where it never applies:** sunshreesuntec.com, www.sunshreesuntec.com, the Android app, or any other address.
+    - **Without a test config,** nothing changes anywhere.
+  - **Red banner:** every page of the test copy, printed receipts included, shows a **TEST COPY (project)** banner, and the page title starts with *TEST ·*.
+- **Drive script version 10: a test copy of the script.**
+  - **Recognised by:** Script property `TEST = yes`, or a `ROOT_FOLDER` named *TEST…*.
+  - **Emails:** it marks every email with **[TEST]** in the subject and a red note at the top. The script's version answer says `test: true`.
+  - **Folders:** a test copy uses a remembered folder only if it carries the test folder's name, so a copy made from the real script can never write into the Society's real records folder.
+  - **The real script's behaviour is unchanged.** All emails now go through one helper.
+
+### Fixed
+- **Agreement copies retried too often.** A member's visit retries an agreement copy that wasn't emailed. A retry that finished now isn't repeated for 10 minutes, even if the page is reloaded; an interrupted one is tried again. The Drive script already sent each copy only once, so no duplicate emails went out.
+
+### Tested
+- New suite t321 (8 checks): test project and banner on localhost (website, accounts page, receipts) and on a listed test site; never on sunshreesuntec.com or www, or an unlisted address; nothing without a test config.
+- 5 new Drive script checks (135 in all): [TEST] emails, version answer, a test copy that remembers the real folder still writes only to its TEST folder, and the real script unchanged.
+
+---
+
 ## [3.20.0] – 2026-11-20 – Rules, GRs and forms library, searchable by the words inside
 
 ### Added

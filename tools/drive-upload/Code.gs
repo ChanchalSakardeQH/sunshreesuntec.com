@@ -37,6 +37,10 @@
  * Version 9 (3.20): the Rules, GRs and forms library. Uploads of kind 'library' (Library/<category>), libraryFromLink
  * (saves a copy of a document from its official web address), and opening a library document (the team, and approved
  * members) — committee or staff with the 'library' permission add documents.
+ *
+ * Version 10 (3.21): a test copy. Make a copy of this script project, set its Script properties to the TEST Firebase
+ * project, ROOT_FOLDER to e.g. "TEST Sunshree Suntec Records" (or TEST = yes) and SITE_ADDRESS to the test site:
+ * its files then go into that separate folder and every email it sends is marked [TEST].
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -55,12 +59,16 @@ function config_() {
   var p = PropertiesService.getScriptProperties();
   var c = { apiKey: p.getProperty('FIREBASE_API_KEY'), project: p.getProperty('FIREBASE_PROJECT_ID'),
     root: p.getProperty('ROOT_FOLDER') || 'Sunshree Suntec Society Records', site: p.getProperty('SITE_ADDRESS') || 'https://sunshreesuntec.com/' };
+  // 3.21: a test copy of the script (Script property TEST = yes, or a root folder named TEST…) marks its emails.
+  c.test = String(p.getProperty('TEST') || '').toLowerCase() === 'yes' || /^test/i.test(c.root);
   if (!c.apiKey || !c.project) throw new Error('The storage script is not set up: add FIREBASE_API_KEY and FIREBASE_PROJECT_ID in its Script properties.');
   return c;
 }
 
 function doGet() {
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 9 });
+  var test = false;
+  try { test = config_().test; } catch (e) { /* not set up */ }
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 10, test: test });
 }
 
 function doPost(e) {
@@ -153,11 +161,16 @@ function any_(team, list) { return list.some(function (p) { return team.can(p); 
 
 function rootFolder_(cfg) {
   var p = PropertiesService.getScriptProperties(), id = p.getProperty('ROOT_FOLDER_ID');
-  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* deleted: make a new one */ } }
+  // In a test copy, a folder remembered by id is used only if it is the folder named in ROOT_FOLDER, so a copy made
+  // from the real script can never write into the Society's real records folder.
+  var known = function (fid) { try { var f = DriveApp.getFolderById(fid); return !cfg.test || f.getName() === cfg.root ? f : null; } catch (e) { return null; } };
+  var hit = id && known(id);
+  if (hit) return hit;
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     id = p.getProperty('ROOT_FOLDER_ID');
-    if (id) { try { return DriveApp.getFolderById(id); } catch (e) { } }
+    hit = id && known(id);
+    if (hit) return hit;
     var it = DriveApp.getRootFolder().getFoldersByName(cfg.root);
     var f = it.hasNext() ? it.next() : DriveApp.getRootFolder().createFolder(cfg.root);
     p.setProperty('ROOT_FOLDER_ID', f.getId());
@@ -480,7 +493,7 @@ function committeeUndertaking_(cfg, req, who, team) {
   var society = Session.getEffectiveUser().getEmail(), emailed = false, note = '';
   try {
     if (MailApp.getRemainingDailyQuota() < 1) throw new Error('Daily email limit reached; send it again tomorrow.');
-    MailApp.sendEmail({ to: u.email, cc: society, replyTo: society, name: 'Sunshree Suntec CHS',
+    sendMail_(cfg, { to: u.email, cc: society, replyTo: society, name: 'Sunshree Suntec CHS',
       subject: 'Your committee undertaking – ' + u.role + ' – Sunshree Suntec CHS',
       htmlBody: '<p>Dear ' + esc_(u.signedName) + ',</p><p>Thank you for accepting the ' + esc_(u.title) + ' (version ' + esc_(u.version) + ') as ' + esc_(u.role) + ' on ' + esc_(u.acceptedText) +
         '. A copy is attached and kept in the Society’s records.</p><p>Please remember to hand the Secretary your bond in <strong>Form M-20</strong> on stamp paper within fifteen days of taking office (Rule 58A of the MCS Rules 1961).</p>' +
@@ -632,7 +645,7 @@ function archiveAgreement_(cfg, idToken, id, a, again) {
   var society = Session.getEffectiveUser().getEmail(), emailed = false, note = '';
   try {
     if (MailApp.getRemainingDailyQuota() < 1) throw new Error('Daily email limit reached; send it again tomorrow.');
-    MailApp.sendEmail({
+    sendMail_(cfg, {
       to: a.email, cc: society, name: 'Sunshree Suntec CHS', replyTo: society,
       subject: 'Your member portal agreement – ' + a.unitLabel + ' – Sunshree Suntec CHS',
       htmlBody: '<p>Dear ' + esc_(a.signedName) + ',</p><p>Thank you for accepting the Member Portal Use Agreement (version ' + a.version + ') for unit ' + esc_(a.unitLabel) +
@@ -663,7 +676,7 @@ function memberMail_(cfg, req, who, team) {
       if (subject.indexOf('Sunshree Suntec') < 0) subject = 'Sunshree Suntec: ' + subject;
       var body = String(it.body || '').slice(0, 6000);
       var html = esc_(body).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, '<br>');
-      MailApp.sendEmail({ to: to, name: 'Sunshree Suntec CHS', replyTo: society, subject: subject, body: body,
+      sendMail_(cfg, { to: to, name: 'Sunshree Suntec CHS', replyTo: society, subject: subject, body: body,
         htmlBody: '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">' + html +
           '<p style="color:#777;font-size:12px;margin-top:18px">Sent by ' + esc_(team.name) + ' (' + esc_(team.role) + ') for the Managing Committee of Sunshree Suntec CHS. Reply to this email to reach the Society.</p></div>' });
       sent.push(to);
@@ -693,12 +706,12 @@ function accessRequest_(cfg, req, who, m) {
     'Decide it on the Society accounts page → Members → Applications to view the Society’s accounts (Chairman, Secretary, Treasurer or Accountant).',
     'Under Section 32 of the MCS Act 1960 a member may inspect the Society’s records; copies are given on payment of the fees in the bye-laws.'];
   var body = lines.join('\n');
-  MailApp.sendEmail({ to: society, replyTo: r.email, name: 'Sunshree Suntec CHS portal', subject: 'Application to view the Society’s accounts: ' + unit + ', ' + r.name,
+  sendMail_(cfg, { to: society, replyTo: r.email, name: 'Sunshree Suntec CHS portal', subject: 'Application to view the Society’s accounts: ' + unit + ', ' + r.name,
     body: body, htmlBody: '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">' + esc_(body).replace(/\n/g, '<br>') + '</div>' });
   var ack = 'Dear ' + r.name + ',\n\nThe Society has received your application (no. ' + id + ', ' + when + ') to see: ' + accessText_(r) + '.\n\n' +
     'The Chairman, Secretary, Treasurer or Accountant will decide it and you will receive an email. You can also follow it on the portal under “Society accounts”.\n\n' +
     'Regards,\nManaging Committee, Sunshree Suntec Co-op. Housing Society Ltd.';
-  MailApp.sendEmail({ to: r.email, replyTo: society, name: 'Sunshree Suntec CHS', subject: 'Sunshree Suntec: your application to view the Society’s accounts (' + unit + ')', body: ack });
+  sendMail_(cfg, { to: r.email, replyTo: society, name: 'Sunshree Suntec CHS', subject: 'Sunshree Suntec: your application to view the Society’s accounts (' + unit + ')', body: ack });
   var out = { emailed: true, to: society, ack: r.email };
   props.setProperty(key, JSON.stringify(out));
   return out;
@@ -722,11 +735,22 @@ function accessDecision_(cfg, req, who, team) {
     : 'Dear ' + r.name + ',\n\nYour application no. ' + id + ' to see ' + accessText_(r) + ' was not approved' + (r.reason ? ' for this reason: ' + r.reason : '') + '.\n\n' +
       'As a member you may still inspect the Society’s records at the office under Section 32 of the MCS Act 1960. Please write to the Society to fix a time, or reply to this email.';
   body += '\n\nRegards,\n' + (r.decidedByName || team.name) + ', ' + (r.decidedRole || team.role) + '\nSunshree Suntec Co-op. Housing Society Ltd.';
-  MailApp.sendEmail({ to: r.email, cc: society, replyTo: society, name: 'Sunshree Suntec CHS',
+  sendMail_(cfg, { to: r.email, cc: society, replyTo: society, name: 'Sunshree Suntec CHS',
     subject: 'Sunshree Suntec: your application to view the Society’s accounts is ' + (r.status === 'approved' ? 'approved' : 'not approved') + ' (' + unit + ')', body: body });
   var out = { emailed: true, to: r.email, cc: society };
   props.setProperty(key, JSON.stringify(out));
   return out;
+}
+
+/** Every email goes through here: a test copy marks the subject [TEST] and says so at the top. */
+function sendMail_(cfg, o) {
+  if (cfg && cfg.test) {
+    o.subject = '[TEST] ' + o.subject;
+    var note = 'TEST COPY: this email comes from the test copy of the Society’s website, not from the Society’s records.';
+    if (o.htmlBody) o.htmlBody = '<p style="background:#b3261e;color:#fff;padding:6px 10px;font-weight:bold">' + note + '</p>' + o.htmlBody;
+    if (o.body) o.body = note + '\n\n' + o.body;
+  }
+  return MailApp.sendEmail(o);
 }
 
 function esc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }

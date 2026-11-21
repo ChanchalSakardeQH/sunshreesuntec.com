@@ -493,6 +493,12 @@ async function loadInterestInfo() {
 /** "C 202 Agreement for sale … - agreement-2012.pdf" → "agreement-2012.pdf" */
 const shortName = (n) => { const i = String(n).lastIndexOf(' - '); return i > 0 ? n.slice(i + 3) : n; };
 let agreementRetried = null;
+/** After a finished retry, no other for 10 minutes, also across page reloads (3.21). An interrupted one is tried again. */
+function recentlyRetried(id) {
+  try { return Date.now() - Number(sessionStorage.getItem(`agreementRetry:${id}`) || 0) < 10 * 60 * 1000; }
+  catch { return false; }
+}
+function markRetried(id) { try { sessionStorage.setItem(`agreementRetry:${id}`, String(Date.now())); } catch { /* private mode */ } }
 let myDocs = [], mdKind = null, mdId = null, mdFiles = [], mdNew = [];
 
 async function loadMyDocs() {
@@ -515,7 +521,7 @@ async function loadMyDocs() {
     const a = await F.getDoc(F.doc(db, 'memberAgreements', id)).catch(() => null);
     const rec = a?.exists() ? a.data() : null;
     // Not saved or not emailed yet: try again once per visit (the script sends each copy only once).
-    if (rec && !rec.emailed && agreementRetried !== id) { agreementRetried = id; archiveAgreement(id).then((r) => r && loadMyDocs()).catch(() => {}); }
+    if (rec && !rec.emailed && agreementRetried !== id && !recentlyRetried(id)) { agreementRetried = id; archiveAgreement(id).then((r) => { markRetried(id); if (r) loadMyDocs(); }).catch(() => {}); }
     $('#my-agreement').innerHTML = rec ? `Member portal agreement: version ${esc(rec.version)} accepted by ${esc(rec.signedName)}${rec.acceptedAt?.toDate ? ` on ${rec.acceptedAt.toDate().toLocaleDateString('en-IN')}` : ''}.
       ${rec.pdf ? `<button class="file-link" type="button" data-agreement="${esc(id)}">Download your copy</button>` : '<span class="muted">Your copy is being prepared.</span>'}` : '';
   }
