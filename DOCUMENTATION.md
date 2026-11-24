@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.26.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.27.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -113,6 +113,7 @@ flowchart LR
 | `docs/assets/js/billing-core.js` | **All billing rules**: bill heads, formulas, numbering, amount in words. Shared with the GitHub Action, so manual and automatic bills are identical |
 | `docs/assets/js/defaults.js` | Starting values: society and bank details, AGM 2015 rates, MMC expense template, October 2026 bill |
 | `docs/print.html`, `assets/js/print.js` | Printable bill and receipt (A4, Society format) |
+| `assets/js/billexplain.js` (3.27) | The page printed after a bill: *How this bill is worked out* (charges, interest, arrears year by year) |
 | `docs/assets/js/firebase-config.js` | Firebase project settings (public values; access is controlled by the rules) |
 | `docs/data/dues.json` | Statement balances as on 30 Sep 2026 (used for the one-time import and as a fallback) |
 | `firestore.rules` | Server-side security rules |
@@ -318,6 +319,8 @@ All four happen together or not at all.
 - **Issuing:** tick payments (at most 60), name (used for Tally and past-committee copies; website copies keep the original name), reason. Saved in one transaction as `receiptCopies/{id}` with reference `DUP/<FY>/<nnnn>` (counter `duplicates-<FY>`), issuer, date, reason and a copy of what is printed on each receipt; then `print.html?copies=<id>` opens.
 - **Printed copy:** title *DUPLICATE RECEIPT*, original number and date, *Recorded in* line (these accounts / Tally voucher No. / past committee’s receipt No.); balances for website copies (from the receipt) and Tally copies (running Tally balance from the Tally opening); none for 2011–2016 copies. Under the receipt: *Duplicate copy of the receipt dated …, issued on … by … (reason). Reference DUP/…*.
 - **Who:** `recordPayments` (committee; Accountant by default). Records cannot be changed or deleted; the unit’s approved member can read them.
+
+**Bill explanation (3.27):** `print.html?bill=<id>` prints a second page, *How this bill is worked out*: arrears + this month's charges = total; the unit's recorded details; each charge with its working (the `detail` saved on the bill line, else *rate fixed by the General Body*); penal interest (the bill's interest line, simple, the General Body's rate periods); and the arrears year by year from the merged ledger (audited years, Tally, these accounts — the same as the member's statement), using the entries dated up to the bill date that were recorded before the bill was made, excluding the bill's own entry, so the years add up to the arrears on the bill (a difference, if any, is explained). The toolbar box hides it; for a month's bills add `&explain=1`.
 
 **Printed receipt (`print.html?receipt=<id>`):** ends with *This is a computer-generated receipt from sunshreesuntec.com and is valid without a signature.* and, since 3.10.1, a disclaimer: digitally generated receipts are for members’ tracking; a physical copy can be obtained from the Society’s Accountant; the amount shown is subject to clearance in the Society’s bank account.
 
@@ -752,7 +755,7 @@ The Society's Android app (kept separately from this repository, with its own RE
 ### Every month
 1. Before the 1st: record lift expenses for the coming month (Lift tab); check new tenants (status Rented / Tenant) and vehicle changes.
 2. 1st, 06:00 IST: GitHub creates the bills (or Bills → Generate bills).
-3. Bills → **Print all bills** → save one PDF; distribute.
+3. Bills → **Print all bills** → save one PDF; distribute. Tick *With "How this bill is worked out"* to add the explanation page after each bill (3.27).
 4. Through the month: record every payment the day it reaches the bank; send receipts.
 5. Month end: Payments → **Download CSV**; reconcile with the IDBI bank statement.
 

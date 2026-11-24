@@ -8,6 +8,7 @@ import { loadSite } from './accounts.js';
 import { PARTICULARS, OPTIONAL, STATUSES, LIFT_GROUPS, money, amountInWords, ddmmyyyy, longDate, monthLabel } from './billing-core.js';
 import { esc } from './data.js';
 import { DEFAULT_SITE } from './defaults.js';
+import { loadExplainData, explainHTML } from './billexplain.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -49,13 +50,16 @@ async function main() {
   } else if (params.get('bill')) {
     const s = await F.getDoc(F.doc(db, 'bills', params.get('bill')));
     if (!s.exists()) throw new Error('Bill not found.');
-    html = billHTML(s.data(), site);
+    // 3.27: with a second page explaining the calculation and the arrears (hide it with the toolbar box).
+    const b = { id: s.id, ...s.data() };
+    html = billHTML(b, site) + explainHTML(b, await loadExplainData(fb, b), site, basisText(b, site));
+    explainToggle(true);
     title = `Bill ${s.data().billNo}`;
     document.title = `${title} – ${s.data().unit}`;
   } else if (params.get('month')) {
     const month = params.get('month');
     const snap = await F.getDocs(F.query(F.collection(db, 'bills'), F.where('month', '==', month)));
-    const bills = snap.docs.map((d) => d.data());
+    const bills = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     const order = new Map(); // keep the society's unit order
     try {
       const pub = await F.getDoc(F.doc(db, 'public', 'dues'));
@@ -63,7 +67,11 @@ async function main() {
     } catch { /* ignore */ }
     bills.sort((a, b) => (order.get(a.unitId) ?? 999) - (order.get(b.unitId) ?? 999));
     if (!bills.length) throw new Error(`No bills found for ${monthLabel(month)}.`);
-    html = bills.map((b) => billHTML(b, site)).join('');
+    // 3.27: the explanation page for every bill only when asked (…&explain=1): it reads each unit's whole account.
+    const withX = params.get('explain') === '1';
+    const xs = withX ? await Promise.all(bills.map((b) => loadExplainData(fb, b))) : [];
+    html = bills.map((b, i) => billHTML(b, site) + (withX ? explainHTML(b, xs[i], site, basisText(b, site)) : '')).join('');
+    explainToggle(withX, true);
     title = `${bills.length} bills for ${monthLabel(month)}`;
     document.title = `Bills ${monthLabel(month)}`;
   } else {
@@ -74,6 +82,19 @@ async function main() {
   $('#tb-title').textContent = title;
   $('#toolbar').hidden = false;
   $('#msg').hidden = true;
+}
+
+/** Toolbar box: show or hide the "How this bill is worked out" pages (for the month, reloads with them). */
+function explainToggle(on, reload = false) {
+  const box = document.getElementById('tb-explain');
+  if (!box) return;
+  box.hidden = false;
+  const cb = box.querySelector('input');
+  cb.checked = on;
+  cb.addEventListener('change', () => {
+    if (reload) { const p = new URLSearchParams(location.search); if (cb.checked) p.set('explain', '1'); else p.delete('explain'); location.search = p.toString(); return; }
+    document.body.classList.toggle('no-explain', !cb.checked);
+  });
 }
 
 function head(site) {

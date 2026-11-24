@@ -93,3 +93,28 @@ table.parts { width: 100%; border-collapse: collapse; }
 .offline-bar { position: sticky; top: 0; z-index: 50; padding: .55rem 1rem; background: #7A4B00; color: #fff; font: 14px/1.35 system-ui, sans-serif; text-align: center; }
 .offline-bar[hidden] { display: none; }
 @media print { .offline-bar { display: none !important; } }
+
+/* 3.27: "How this bill is worked out" page */
+.tb-check { display: inline-flex; align-items: center; gap: .35rem; font-size: 13px; margin-right: .75rem; cursor: pointer; }
+body.no-explain .sheet.explain { display: none; }
+.explain .x-wrap { font-size: 9.5pt; line-height: 1.4; color: #1b1f24; }
+.explain h2 { font-size: 14pt; margin: 0 0 1mm; }
+.explain h3 { font-size: 10.5pt; margin: 4mm 0 1.5mm; border-bottom: 1px solid #999; padding-bottom: .5mm; }
+.explain .x-sub { color: #555; margin: 0 0 3mm; font-size: 9pt; }
+.explain p { margin: 1mm 0; }
+.explain table { width: 100%; border-collapse: collapse; margin: 1mm 0 2mm; }
+.explain .x-table th, .explain .x-table td { border: 1px solid #bbb; padding: .8mm 1.5mm; vertical-align: top; text-align: left; }
+.explain .x-table th { background: #f0f0f0; font-weight: 600; }
+.explain .x-table tfoot td { font-weight: 600; background: #fafafa; }
+.explain .num { text-align: right !important; white-space: nowrap; }
+.explain small { display: block; color: #666; font-size: 7.5pt; white-space: normal; }
+.explain .x-sum { width: 60%; font-size: 10.5pt; }
+.explain .x-sum td { padding: .6mm 1.5mm; }
+.explain .x-sum .tot td { border-top: 2px solid #333; font-weight: 700; }
+.explain .x-kv { width: auto; }
+.explain .x-kv th { text-align: left; font-weight: 500; color: #555; padding: .3mm 4mm .3mm 0; }
+.explain .x-kv td { padding: .3mm 0; }
+.explain .x-note { color: #555; font-size: 8.5pt; }
+.explain .x-facts { font-weight: 600; }
+.explain .x-list { margin: 0 0 2mm 5mm; padding: 0; }
+.explain .x-foot { margin-top: 4mm; border-top: 1px solid #999; padding-top: 1.5mm; font-size: 8.5pt; color: #444; }

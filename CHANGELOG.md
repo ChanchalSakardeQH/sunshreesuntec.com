@@ -6,6 +6,57 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.27.0] – 2026-11-25 – "How this bill is worked out": a second page with every bill
+
+### Added
+- **A second page printed with each bill** (`print.html?bill=…`, opened from the member page and the accounts page), for members who ask how the bill and its arrears are calculated:
+  - **The sum:** arrears (balance before this bill) + this month's charges = total payable by the due date.
+  - **1. Your unit, as recorded:** premises, occupancy, carpet area, water inlets, vehicles, construction cost (if recorded), lift, and whether charges follow the General Body's rates or the 2026 Rules' cost sharing, with the Society's basis note.
+  - **2. This month's charges:** each head with how it is worked out (e.g. *₹2.1 per sq ft × 950 sq ft*, *equal share among 61 units using water*, *0.25% p.a. of construction cost*), or *rate fixed by the General Body*; lift costs shared by the units served.
+  - **3. Penal interest:** this month's interest and its base, why it is simple (never on interest already charged), and the rates fixed by the General Body with their dates and the legal ceilings.
+  - **4. Arrears, how they built up:** year by year (April–March) from the first record — audited years 2011-12 to 2017-18, Tally, these accounts — brought forward, charged (with the interest in it), paid, other entries (opening balances, corrections, differences between the records), carried forward, ending at the arrears on the bill; the last payment before the bill and the payments in the 12 months before it; the latest 12 entries with a running balance. Entries recorded after the bill was made (e.g. a payment entered later with an earlier date) are left out, as they were not in the bill; if the figures still differ, the page says by how much and why.
+  - Contact line: questions or corrections within 7 days, quoting the bill number; payments after the bill date appear in the next bill.
+- **Toolbar box** *With "How this bill is worked out"*: ticked for one bill (untick to print the bill alone); for *Print all bills* of a month it is unticked, and ticking it reloads with the page after every bill (`&explain=1`; it reads each unit's whole account, so it takes longer).
+
+### Notes
+- Read from the same records as the member's statement (`units/{id}/ledger`, the unit's Tally history and audited years, the unit's bills); nothing new is stored. No rules or script changes.
+
+Version 3.27.0 is ready: every bill now prints a second page called **How this bill is worked out**. A new test suite (13 checks) and all 25 earlier suites pass.
+
+**What's on the page**
+
+- **The total in one line:** arrears + this month's charges = total payable by the due date.
+
+- **The unit as recorded:** carpet area, occupancy, water inlets, vehicles and lift. It also says whether charges use the General Body's rates or the 2026 Rules' cost sharing, with the Society's basis note.
+
+- **This month's charges:** each head with how it is worked out (for example "₹2.1 per sq ft × 950 sq ft"), or "Rate fixed by the General Body". Lift costs show how they are shared among the units served.
+
+- **Penal interest:** this month's interest and the amount it is charged on. It says interest is simple and never charged on interest already billed, and lists the General Body's rates with their dates and the legal limits.
+
+- How the arrears built up:
+
+   a year-by-year table (April to March) from the first record to this bill. It covers the audited years, then Tally, then the current accounts.
+
+  - Each row shows brought forward, charged, paid, other entries and carried forward, ending exactly at the arrears on the bill.
+  - "Other entries" are opening balances taken over, corrections and differences between the old and new records.
+  - Below the table: the last payment, the total paid in the previous 12 months, and the latest 12 entries with a running balance.
+  - For A-102, this table shows the ₹1,41,400 adding up year by year from the first record.
+
+**Accuracy**
+
+- The page uses the same records as the member's statement, so the figures match what members see online.
+- A payment entered after the bill was made, but dated earlier, is left out, because it wasn't in the bill. If the figures still don't match exactly, the page states the difference and why.
+
+**Printing**
+
+- When you open one bill, the page is included; untick the toolbar box to print the bill alone.
+- **Print all bills** for a month starts with the box unticked. Ticking it adds the explanation page after every bill, but it takes longer because it reads each unit's whole account.
+
+### Tested
+- New suite t327 (13 checks): the sum, the unit, charges with their workings, interest and rates, the year-by-year table from Tally to this bill adding up exactly, a payment entered after the bill left out, this bill's own entry left out, last payment and 12-month payments, running balance, hiding the page, month print without and with the pages, a unit with nothing overdue. All earlier suites pass.
+
+---
+
 ## [3.26.0] – 2026-11-24 – Website settings: backup and restore
 
 ### Added
@@ -19,56 +70,7 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 ### Drive script (version 14)
 - `settingsBackup`, `listSettingsBackups`, `readSettingsBackup` (committee): settings files in *Backups / Settings*. Without version 14 the download and restore-from-file still work.
 
-Version 3.26.0 is ready. You can now back up the website settings as one file and restore them item by item. The new test suite (18 checks) and all 24 earlier suites pass, as do 7 new checks of the Drive script.
-
-**What counts as settings**
-
-- Maintenance charges, billing, interest and the Society's details
-- The website content
-- The member portal agreement (the version in force and every published version), the staff agreement and the committee undertaking
-- Staff access by role and the committee register details
-- Reminder and invitation messages
-- The membership transfer lists
-- The full-backup schedule and the Google Drive connection
-- The Library catalogue, with each entry's guide and the words read from it (the PDFs themselves stay in Drive)
-
-Records such as units, bills, receipts, members and staff are not included; the full backup from 3.25 covers those.
-
-**How it works (Settings → Website settings: backup and restore)**
-
-- **Back up the settings now** saves the file to Drive under Backups → Settings. **Download the settings file** saves it on your computer.
-
-- Restore from the Drive…
-
-   or 
-
-  Restore from a file…
-
-   first compares each item with the live website. Each item shows as one of:
-
-  - same;
-  - different, with the changed fields named;
-  - not on the website now;
-  - only on the website now, which is left alone.
-
-- You tick what to put back and press **Restore the ticked items**.
-
-- Before anything is written, the current settings are saved to Drive marked "before restore". So any restore can be undone the same way.
-
-- Two exceptions:
-
-  - Published agreement versions can't be changed; only a version that has been deleted can be put back.
-  - The Drive connection is never restored from a file that came from another site. This stops the test site being linked to the Society's Drive by mistake.
-
-- The same feature copies your real settings to the test site: download on the real site, then **Restore from a file…** on the test site.
-
-**To go live**
-
-- **If 3.25 is not deployed yet:** push the 3.25 zip and then this one, and follow the 3.25 setup steps using this newer `Code.gs`.
-- **If 3.25 is already live:** push this zip, paste the new `Code.gs`, then Manage deployments → Edit → New version. No new permissions are needed.
-
 ### Rules
-
 - No change (the committee writes settings, the website content and the library; published agreement versions stay permanent).
 
 ### Tested
