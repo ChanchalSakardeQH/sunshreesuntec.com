@@ -31,7 +31,8 @@ import {
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from './defaults.js';
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, safeName, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
-import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS } from './transfers.js';
+import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS, libraryFor } from './transfers.js';
+import { FORMS, CHECKLIST_FORMS, formKeyOf, formLine, guideOf } from './forms.js';
 import { LIB_CATEGORIES, LIB_LANGS, LIB_TYPES, LIB_MAX_BYTES, pdfWords, wordList, saveIndex, setIndexPublic, loadIndex, forgetIndex, searchLibrary, fmtSize, extOf } from './library.js';
 import { POSTS, SINGLE_POSTS, M20_DAYS, DEFAULT_UNDERTAKING, m20Status, undertakingFor, addYears, addDays as cAddDays } from './committee.js';
 import { PREREG_MESSAGE, REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
@@ -1548,7 +1549,7 @@ async function loadTransfers() {
   trChecklists = lists; trLib = lib; trCases = per.flat();
   const canEdit = canDo('unitRecords');
   $('#tr-new').hidden = !canEdit;
-  $$('#trc-save, #trc-reset').forEach((b) => (b.hidden = !canDo('committee')));
+  $$('#trc-save, #trc-reset, #trc-forms').forEach((b) => (b.hidden = !canDo('committee')));
   renderTransfers();
   renderChecklistEditor();
 }
@@ -1612,12 +1613,13 @@ function trTypeChanged() {
   if (!$('#tr-start').hidden) { trCurrent.type = type; trCurrent.items = structuredClone(trChecklists[type].items); renderTrItems(); }
 }
 function renderTrItems() {
-  const c = trCurrent, got = c.got || {}, lib = new Map(trLib.map((e) => [e.id, e]));
+  const c = trCurrent, got = c.got || {};
   $('#tr-items').innerHTML = (c.items || []).map((i) => {
     const g = got[i.id] || {}, files = (c.files || []).filter((x) => x.item === i.id);
+    const le = libraryFor(i, trLib), gl = le ? guideOf(le) : FORMS[i.formKey];
     const fmt = i.letter && LETTERS[i.letter] ? `<button class="btn btn-small" type="button" data-tr-letter="${esc(i.letter)}">Print letter</button>`
-      : i.libraryId && lib.get(i.libraryId)?.file ? `<button class="btn btn-small" type="button" data-tr-lib="${esc(i.libraryId)}">Blank form</button>` : '<span class="muted">—</span>';
-    return `<tr data-item="${esc(i.id)}"><td><strong>${esc(i.name)}</strong>${i.note ? `<span class="sub">${esc(i.note)}</span>` : ''}${g.by ? `<span class="sub">Recorded by ${esc(g.byName || '')}</span>` : ''}</td>
+      : le ? `<button class="btn btn-small" type="button" data-tr-lib="${esc(le.id)}">Blank form</button>` : i.formKey ? '<span class="muted">Not in the Library yet</span>' : '<span class="muted">—</span>';
+    return `<tr data-item="${esc(i.id)}"><td><strong>${esc(i.name)}</strong>${i.note ? `<span class="sub">${esc(i.note)}</span>` : ''}${gl ? `<span class="sub tr-form-line">${esc(formLine(gl))}</span>` : ''}${g.by ? `<span class="sub">Recorded by ${esc(g.byName || '')}</span>` : ''}</td>
       <td><input type="date" name="on_${esc(i.id)}" value="${esc(g.on || '')}" aria-label="${esc(i.name)} received on"></td>
       <td><input type="checkbox" name="na_${esc(i.id)}" ${g.na ? 'checked' : ''} aria-label="${esc(i.name)} not needed"></td>
       <td>${files.map((x) => `<button class="btn btn-small" type="button" data-tr-file="${esc(x.id)}" title="${esc(x.name)}">Open</button>`).join(' ')}<input type="file" name="file_${esc(i.id)}" accept="image/*,application/pdf" multiple></td>
@@ -1684,18 +1686,26 @@ async function saveTransfer(complete) {
   });
 }
 function renderChecklistEditor() {
-  const ed = canDo('committee'), libOpts = (sel) => `<option value="">—</option>${trLib.filter((e) => e.file).map((e) => `<option value="${esc(e.id)}" ${sel === e.id ? 'selected' : ''}>${esc(e.title)}</option>`).join('')}`;
+  const ed = canDo('committee');
+  const libOpts = (sel) => `<option value="">—</option>${trLib.filter((e) => e.file).sort((a, b) => Number(!a.formKey) - Number(!b.formKey) || Object.keys(FORMS).indexOf(a.formKey) - Object.keys(FORMS).indexOf(b.formKey) || String(a.title).localeCompare(String(b.title)))
+    .map((e) => `<option value="${esc(e.id)}" ${sel === e.id ? 'selected' : ''}>${esc(e.title)}</option>`).join('')}`;
   const letOpts = (sel) => `<option value="">—</option>${Object.entries(LETTERS).map(([k, L]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${esc(L.title)}</option>`).join('')}`;
   $('#trc-lists').innerHTML = ['death', 'sale'].map((t) => {
     const L = trChecklists[t];
     return `<div class="trc-list" data-list="${t}"><h3>${esc(TRANSFER_TYPES[t])}</h3>
       <label>Title<input type="text" data-k="title" value="${esc(L.title)}" ${ed ? '' : 'disabled'}></label>
       <div class="table-scroll"><table><thead><tr><th>Document</th><th>Note (stamp paper etc.)</th><th>Society’s letter</th><th>Blank form in the Library</th><th></th></tr></thead><tbody>
-      ${L.items.map((i) => `<tr data-id="${esc(i.id)}"><td><input type="text" data-k="name" value="${esc(i.name)}" ${ed ? '' : 'disabled'}></td><td><input type="text" data-k="note" value="${esc(i.note || '')}" ${ed ? '' : 'disabled'}></td>
-        <td><select data-k="letter" ${ed ? '' : 'disabled'}>${letOpts(i.letter)}</select></td><td><select data-k="libraryId" ${ed ? '' : 'disabled'}>${libOpts(i.libraryId)}</select></td>
+      ${L.items.map((i) => `<tr data-id="${esc(i.id)}" data-form="${esc(i.formKey || '')}"><td><input type="text" data-k="name" value="${esc(i.name)}" ${ed ? '' : 'disabled'}></td><td><input type="text" data-k="note" value="${esc(i.note || '')}" ${ed ? '' : 'disabled'}></td>
+        <td><select data-k="letter" ${ed ? '' : 'disabled'}>${letOpts(i.letter)}</select></td><td><select data-k="libraryId" ${ed ? '' : 'disabled'}>${libOpts(libraryFor(i, trLib)?.id || '')}</select>${i.formKey && FORMS[i.formKey] ? `<span class="sub">${esc(FORMS[i.formKey].no)}${libraryFor(i, trLib) ? '' : ' — not in the Library yet'}</span>` : ''}</td>
         <td>${ed ? '<button class="btn btn-small" type="button" data-trc-del>Remove</button>' : ''}</td></tr>`).join('')}
       </tbody></table></div>${ed ? `<button class="btn btn-small" type="button" data-trc-add="${t}">Add a document</button>` : ''}</div>`;
   }).join('');
+}
+/** The blank form chosen for a document: the Library entry, and its bye-law form key (kept if none is chosen). */
+function trFormOf(tr) {
+  const id = $('[data-k=libraryId]', tr).value, ent = trLib.find((e) => e.id === id);
+  const formKey = id ? ent?.formKey || '' : tr.dataset.form || '';
+  return { ...(id ? { libraryId: id } : {}), ...(formKey ? { formKey } : {}) };
 }
 function readChecklists() {
   const out = {};
@@ -1703,7 +1713,7 @@ function readChecklists() {
     const t = box.dataset.list;
     out[t] = { title: $('[data-k=title]', box).value.trim(), intro: trChecklists[t].intro || '', items: $$('tbody tr', box).map((tr) => ({
       id: tr.dataset.id, name: $('[data-k=name]', tr).value.trim(), note: $('[data-k=note]', tr).value.trim(),
-      ...($('[data-k=letter]', tr).value ? { letter: $('[data-k=letter]', tr).value } : {}), ...($('[data-k=libraryId]', tr).value ? { libraryId: $('[data-k=libraryId]', tr).value } : {}) })).filter((i) => i.name) };
+      ...($('[data-k=letter]', tr).value ? { letter: $('[data-k=letter]', tr).value } : {}), ...trFormOf(tr) })).filter((i) => i.name) };
   }
   return out;
 }
@@ -1754,9 +1764,36 @@ function wireTransfers() {
     const next = readChecklists();
     if (!next.death.items.length || !next.sale.items.length) return setMsg($('#trc-box'), 'Each list needs at least one document.');
     await busy(e.currentTarget, async () => {
-      try { await F.setDoc(F.doc(db, 'settings', 'transferChecklists'), { ...next, updatedAt: F.serverTimestamp(), updatedBy: uid }); trChecklists = next; const m = $('#trc-msg'); m.className = 'form-msg ok'; m.textContent = 'Saved. New transfers use these lists; members see them on their page.'; }
+      try {
+        await F.setDoc(F.doc(db, 'settings', 'transferChecklists'), { ...next, updatedAt: F.serverTimestamp(), updatedBy: uid }); trChecklists = next;
+        // The transfers in progress keep their documents, but can take the forms now linked to them.
+        const byId = new Map(['death', 'sale'].flatMap((t) => next[t].items.map((i) => [`${t}/${i.id}`, i])));
+        const open = trCases.filter((c) => c.status === 'open' && (c.items || []).some((i) => { const n = byId.get(`${c.type}/${i.id}`); return n && ((n.libraryId || '') !== (i.libraryId || '') || (n.formKey || '') !== (i.formKey || '')); }));
+        let upd = 0;
+        if (open.length && confirm(`Use the forms now linked in the ${open.length} transfer${open.length === 1 ? '' : 's'} in progress too? (Their documents and what was received stay as they are.)`)) {
+          for (const c of open) {
+            const items = c.items.map((i) => { const n = byId.get(`${c.type}/${i.id}`); if (!n) return i; const o = { ...i }; delete o.libraryId; delete o.formKey; return { ...o, ...(n.libraryId ? { libraryId: n.libraryId } : {}), ...(n.formKey ? { formKey: n.formKey } : {}) }; });
+            await F.updateDoc(F.doc(db, 'units', c.unit, 'transfers', c.id), { items, updatedAt: F.serverTimestamp(), updatedBy: uid }); upd++;
+          }
+          await loadTransfers();
+        }
+        const m = $('#trc-msg'); m.className = 'form-msg ok'; m.textContent = `Saved. New transfers use these lists; members see them on their page.${upd ? ` ${upd} transfer${upd === 1 ? '' : 's'} in progress updated.` : ''}`;
+      }
       catch (err) { const m = $('#trc-msg'); m.className = 'form-msg'; m.textContent = errorText(err); }
     });
+  });
+  $('#trc-forms').addEventListener('click', () => {
+    trChecklists = readChecklists();
+    let linked = 0; const missing = new Set();
+    for (const L of Object.values(trChecklists)) for (const i of L.items) {
+      const key = CHECKLIST_FORMS[i.id] && (DEFAULT_CHECKLISTS.death.items.concat(DEFAULT_CHECKLISTS.sale.items).find((d) => d.id === i.id)?.name === i.name) ? CHECKLIST_FORMS[i.id] : i.formKey;
+      if (!key) continue;
+      const ent = trLib.find((e) => e.formKey === key && e.file);
+      if (ent) { i.formKey = key; i.libraryId = ent.id; linked++; } else { i.formKey = key; delete i.libraryId; missing.add(FORMS[key]?.no || key); }
+    }
+    renderChecklistEditor();
+    const m = $('#trc-msg'); m.className = missing.size ? 'form-msg' : 'form-msg ok';
+    m.textContent = `${linked} document${linked === 1 ? '' : 's'} linked to the bye-law forms in the Library.${missing.size ? ` Not in the Library yet: ${[...missing].join(', ')} (add them under Library → Add the bye-law forms).` : ''} Save the checklists to keep this.`;
   });
   $('#trc-reset').addEventListener('click', () => { if (confirm('Put back the standard lists in the editor? Nothing changes until you save.')) { trChecklists = structuredClone(DEFAULT_CHECKLISTS); renderChecklistEditor(); } });
 }
@@ -1867,6 +1904,69 @@ function wirePrereg() {
 /* ----- 3.20: Rules, GRs and forms library ----- */
 let libDocs = [], libEdit = null;
 const libIndexes = new Map();
+/* 3.24: add the model bye-law forms (appendices) in one go, each with its guide */
+let libsetFiles = [];
+function renderLibrarySet() {
+  const have = new Map(libDocs.filter((e) => !e.removed && e.formKey).map((e) => [e.formKey, e]));
+  const seen = new Set();
+  libsetFiles = [...$('#libset-files').files].map((file) => {
+    const key = formKeyOf(file.name);
+    const st = !key ? 'unknown' : have.has(key) ? 'have' : seen.has(key) ? 'dup' : file.type && file.type !== 'application/pdf' ? 'type' : 'add';
+    if (key) seen.add(key);
+    return { file, key, st };
+  });
+  const order = (x) => (x.key ? Object.keys(FORMS).indexOf(x.key) : 999);
+  libsetFiles.sort((a, b) => order(a) - order(b));
+  $('#libset-rows').innerHTML = libsetFiles.map((x) => { const fm = FORMS[x.key];
+    return `<tr class="${x.st === 'add' ? '' : 'muted'}"><td>${esc(x.file.name)}<span class="sub">${fmtSize(x.file.size)}</span></td><td>${fm ? `<strong>${esc(fm.no)}</strong>${fm.aka ? ` <span class="muted">(${esc(fm.aka)})</span>` : ''}<span class="sub">${esc(fm.title)}</span>` : '—'}</td><td>${esc(fm?.law || '')}</td>
+      <td>${{ add: 'To add', have: 'Already in the library', dup: 'Same form twice', unknown: 'Not recognised: add it with the form below', type: 'Not a PDF' }[x.st]}</td></tr>`; }).join('');
+  const n = libsetFiles.filter((x) => x.st === 'add').length;
+  $('#libset-add').disabled = !n;
+  $('#libset-add').textContent = n ? `Add ${n} form${n === 1 ? '' : 's'}` : 'Add the forms';
+}
+function wireLibrarySet() {
+  const { F, db } = fb;
+  $('#libset-files').addEventListener('change', renderLibrarySet);
+  $('#libset-add').addEventListener('click', async (e) => {
+    const todo = libsetFiles.filter((x) => x.st === 'add'), isPublic = $('#libset-public').checked, msg = $('#libset-msg');
+    const prog = (t) => { $('#libset-progress').textContent = t; };
+    msg.textContent = '';
+    await busy(e.currentTarget, async () => {
+      let done = 0, noWords = [];
+      try {
+        await loadDriveCfg(fb);
+        if (!driveReady()) throw new Error('Connect the Society’s Google Drive first (Expenses → Set-up).');
+        for (const x of todo) {
+          const fm = FORMS[x.key], label = `${done + 1} of ${todo.length}: ${fm.no}`;
+          prog(`${label} — saving in the Society’s Google Drive…`);
+          const category = fm.category || 'Statutory form', title = fm.category ? fm.title : `${fm.no}: ${fm.title}`;
+          const r = await driveCall(fb, 'upload', { kind: 'library', category, name: `${safeName(fm.category ? fm.title : `${fm.no} - ${fm.title}`, 150)}.pdf`,
+            mimeType: 'application/pdf', data: await toBase64(x.file), note: fm.law || '' });
+          const guide = {};
+          for (const k of LIB_GUIDE_KEYS) if (fm[k]) guide[k] = fm[k];
+          const keywords = [fm.no, fm.aka, 'model bye-laws', fm.category ? '' : 'form', ...(fm.no.match(/\d+[A-Za-z]?/g) || []).map((n) => `appendix ${n}`)].filter(Boolean);
+          const ref = await F.addDoc(F.collection(db, 'libraryDocs'), { title, category, issuer: '', number: fm.category ? '' : fm.no, date: '', year: '', lang: fm.lang || 'English',
+            keywords: [...new Set(keywords)], description: fm.use, link: '', public: isPublic, removed: false, formKey: x.key, guide,
+            file: r.file, textWords: 0, pages: 0, addedBy: uid, addedByName: me?.name || '', addedAt: F.serverTimestamp(), updatedAt: F.serverTimestamp(), updatedBy: uid, updatedByName: me?.name || '' });
+          try {
+            const w = await indexLibraryPdf(ref.id, new Uint8Array(await x.file.arrayBuffer()), isPublic, (t) => prog(`${label} — ${t}`));
+            if (!w.count) noWords.push(fm.no);
+          } catch (err) { console.warn('pdf words', err); noWords.push(fm.no); }
+          x.st = 'have'; done++;
+        }
+        msg.className = 'form-msg ok';
+        msg.textContent = `${done} form${done === 1 ? '' : 's'} added to the library.${noWords.length ? ` No words could be read from ${noWords.join(', ')} (scanned?); they are still found by their number and title.` : ''} Link them to the transfer lists under Transfers → The checklists and their formats → Use the bye-law forms.`;
+      } catch (err) {
+        msg.className = 'form-msg';
+        msg.textContent = `${done ? `${done} added; then: ` : ''}${errorText(err)}`;
+      }
+      prog('');
+      await loadLibraryAdmin();
+      renderLibrarySet();
+    });
+  });
+}
+
 async function loadLibraryAdmin() {
   const { F, db } = fb;
   const snap = await F.getDocs(F.collection(db, 'libraryDocs'));
@@ -1876,6 +1976,7 @@ async function loadLibraryAdmin() {
     f.category.innerHTML = LIB_CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join('');
     f.lang.innerHTML = LIB_LANGS.map((c) => `<option>${esc(c)}</option>`).join('');
     $('#lib-cat').innerHTML = '<option value="">All</option>' + LIB_CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join('');
+    f.formKey.innerHTML = '<option value="">— not a bye-law form —</option>' + Object.entries(FORMS).map(([k, x]) => `<option value="${k}">${esc(x.no)}: ${esc(x.title)}</option>`).join('');
   }
   renderLibraryAdmin();
 }
@@ -1887,7 +1988,7 @@ async function renderLibraryAdmin() {
   $('#lib-count').textContent = `(${libDocs.filter((e) => !e.removed).length})`;
   $('#lib-rows').innerHTML = hits.map(({ e, inside }) => `<tr class="${e.removed ? 'lib-removed' : ''}">
       <td><strong>${esc(e.title)}</strong>${e.number ? `<span class="sub">${esc(e.number)}</span>` : ''}<span class="sub">${esc([e.issuer, e.lang, extOf(e) && `${extOf(e)} ${fmtSize(e.file?.size)}`].filter(Boolean).join(' · '))}</span>
-        ${(e.keywords || []).length ? `<span class="sub">Keywords: ${esc(e.keywords.join(', '))}</span>` : ''}${inside ? '<span class="sub">Found inside the document</span>' : ''}
+        ${e.formKey || e.guide?.no ? `<span class="sub lib-guide-line">${esc(formLine(guideOf(e)))}</span>` : ''}${(e.keywords || []).length ? `<span class="sub">Keywords: ${esc(e.keywords.join(', '))}</span>` : ''}${inside ? '<span class="sub">Found inside the document</span>' : ''}
         <span class="sub">${e.public ? 'Public' : 'Members and team only'}${e.removed ? ` · Removed ${whenShort(e.removedAt)}` : ''}${e.addedByName ? ` · Added by ${esc(e.addedByName)}` : ''}</span></td>
       <td>${esc(e.category)}</td><td>${e.date ? dmy(e.date) : ''}</td>
       <td>${e.textWords ? `${e.textWords.toLocaleString('en-IN')} words${e.pages ? `<span class="sub">${e.pages} pages</span>` : ''}` : e.file?.mime === 'application/pdf' ? '<span class="warn">No text (scanned?)</span>' : '<span class="muted">—</span>'}</td>
@@ -1897,10 +1998,10 @@ async function renderLibraryAdmin() {
 }
 function libProgress(t) { $('#lib-progress').textContent = t; }
 /** Reads the words of a PDF (bytes) and saves them with the entry. */
-async function indexLibraryPdf(id, bytes, isPublic) {
-  libProgress('Reading the words in the PDF…');
-  const r = await pdfWords(bytes, (p, n) => libProgress(`Reading the words: page ${p} of ${n}…`));
-  libProgress('Saving the word list…');
+async function indexLibraryPdf(id, bytes, isPublic, progress = libProgress) {
+  progress('Reading the words in the PDF…');
+  const r = await pdfWords(bytes, (p, n) => progress(`Reading the words: page ${p} of ${n}…`));
+  progress('Saving the word list…');
   await saveIndex(fb, id, r.words, isPublic);
   forgetIndex(id); libIndexes.delete(id);
   await fb.F.updateDoc(fb.F.doc(fb.db, 'libraryDocs', id), { textWords: r.count, pages: r.pages, indexedAt: fb.F.serverTimestamp() });
@@ -1913,6 +2014,17 @@ function resetLibForm() {
   $('#lib-cancel').hidden = true; $('#lib-keep-wrap').hidden = true;
   libSourceChanged();
 }
+const LIB_GUIDE_KEYS = ['no', 'aka', 'law', 'signedBy', 'stamp', 'use', 'attach'];
+function readLibGuide(f) {
+  const g = {};
+  for (const k of LIB_GUIDE_KEYS) { const v = f[`g_${k}`].value.trim(); if (v) g[k] = v; }
+  return g;
+}
+/** Puts an entry's guide in the form; blanks are filled from the bye-law form chosen. */
+function fillLibGuide(f, g, key) {
+  const base = FORMS[key] || {};
+  for (const k of LIB_GUIDE_KEYS) f[`g_${k}`].value = g[k] || base[k] || '';
+}
 function libSourceChanged() {
   const v = $('#lib-form').source.value;
   $('#lib-file-wrap').hidden = v !== 'file'; $('#lib-url-wrap').hidden = v !== 'link';
@@ -1924,6 +2036,15 @@ function wireLibraryAdmin() {
   f.url.addEventListener('change', () => { if (!f.link.value) f.link.value = f.url.value; });
   ['#lib-q', '#lib-cat', '#lib-show-removed'].forEach((id) => $(id).addEventListener(id === '#lib-q' ? 'input' : 'change', () => renderLibraryAdmin()));
   $('#lib-cancel').addEventListener('click', resetLibForm);
+  f.formKey.addEventListener('change', () => {
+    const x = FORMS[f.formKey.value];
+    if (!x) return;
+    fillLibGuide(f, readLibGuide(f), f.formKey.value);
+    if (!f.title.value.trim()) f.title.value = `${x.no}: ${x.title}`;
+    if (!f.description.value.trim()) f.description.value = x.use;
+    if (!libEdit) f.category.value = x.category || 'Statutory form';
+  });
+  wireLibrarySet();
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
     const source = f.source.value, file = f.file.files[0], title = f.title.value.trim();
@@ -1935,7 +2056,8 @@ function wireLibraryAdmin() {
     if (f.link.value && !/^https?:\/\/\S+$/i.test(f.link.value.trim())) return setMsg(f, 'The official source must be a web address starting with https://');
     const meta = { title, category: f.category.value, issuer: f.issuer.value.trim(), number: f.number.value.trim(), date: f.date.value || '', year: f.date.value ? f.date.value.slice(0, 4) : '',
       lang: f.lang.value, keywords: f.keywords.value.split(',').map((k) => k.trim()).filter(Boolean).slice(0, 30), description: f.description.value.trim(),
-      link: f.link.value.trim(), public: f.public.checked, removed: false, updatedAt: F.serverTimestamp(), updatedBy: uid, updatedByName: me?.name || '' };
+      link: f.link.value.trim(), public: f.public.checked, removed: false, updatedAt: F.serverTimestamp(), updatedBy: uid, updatedByName: me?.name || '',
+      formKey: f.formKey.value, guide: readLibGuide(f) };
     await busy($('#lib-save'), async () => {
       try {
         await loadDriveCfg(fb);
@@ -1991,6 +2113,7 @@ function wireLibraryAdmin() {
         libEdit = ent;
         f.title.value = ent.title || ''; f.category.value = ent.category; f.issuer.value = ent.issuer || ''; f.number.value = ent.number || ''; f.date.value = ent.date || '';
         f.lang.value = ent.lang || 'English'; f.keywords.value = (ent.keywords || []).join(', '); f.description.value = ent.description || ''; f.link.value = ent.link || ''; f.public.checked = ent.public === true;
+        f.formKey.value = ent.formKey || ''; fillLibGuide(f, ent.guide || {}, ent.formKey);
         $('#lib-keep-wrap').hidden = !ent.file; f.source.value = ent.file ? 'keep' : 'file'; libSourceChanged();
         $('#lib-form-title').textContent = `Change: ${ent.title}`; $('#lib-save').textContent = 'Save changes'; $('#lib-cancel').hidden = false;
         f.scrollIntoView({ behavior: 'smooth' });

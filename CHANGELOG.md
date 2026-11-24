@@ -6,6 +6,28 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.24.0] – 2026-11-24 – Bye-law forms in the Library, with a plain guide to each and "Which forms do I need?"
+
+### Added
+- **The model bye-law forms (appendices) in the Library**, kept in the Society's Drive (*Library › Statutory form*), each with a **guide**: form number (and the other number it goes by), what it is for in plain words, the bye-law / section / rule it is under, who signs it, stamp paper, what to attach.
+  - **Library → Add the bye-law forms (appendices) in one go:** choose the PDF files; each recognised by its file name (*appendix-15.pdf*, *appendix-20-1.pdf*, *model-bye-laws.pdf* …) is listed in bye-law order with its number and law, then uploaded, given its title, number, keywords and guide, made public (optional), and its words read for the search. Files already in the library are skipped; files not recognised are shown, to add with the usual form.
+  - **Catalogue** (`forms.js`): Appendices 1–19, 20(1) and 20(2), 21–29 (29 = Form M-20), the model bye-laws, the MCS Rules 1961 and the housing society election rules. The numbering of Appendices 2–10 and 28 differs between editions; the other number is shown (e.g. *Appendix 4 — Appendix 3 / Form No. 3 in the 2014 booklet*), and searching either finds it. Appendices 20(1) and 20(2) (*Form 20A / 20B*) are taken from the model bye-laws.
+  - **Library add / edit form:** a *Guide for members* section: choose the bye-law form (fills the guide and, if empty, the title, description and category) and change any of it.
+- **Library page → Which forms do I need?** Ten tasks: death with a nomination, death without a nomination, sale / purchase, direct membership, joint (associate) member, letting the flat, nomination, resignation, more than one flat, elected to the committee. Each shows the law it is under, a short explanation, the forms in order (with *if …* where a form applies only sometimes), each with its guide and *Open the form* (members) / *Sign in to open* (visitors) / *Issued by the Society* / *Ask the Society office*, and what else is needed. Every library entry that is a form shows its guide too.
+- **Transfers: the lists use the forms.** Each standard document that is a bye-law form knows which (*Form No. 15* → Appendix 15; *Form No. 3* and *Form 03* → Appendix 4; *Form No. 4* → Appendix 5; *New nomination* → Appendix 14; *Appendix 13*; *Form 20A / 20B* → 20(1) / 20(2); *Form 21-1* → 21; *Form 23*; *Form 25* → 25; *Form 26* → 26), so its blank form is found in the Library without linking it by hand. **Use the bye-law forms from the Library** (checklist editor) links them all at once and lists the forms not yet in the Library; saving asks whether to use the new links in the transfers in progress too (what was received stays as it is). The case window and the member page show each form's number, law, signer and stamp paper; the member's lists also explain each in plain words and point to *Which forms do I need?*.
+
+### Not linked automatically
+- *Affidavit on ₹500 stamp paper, notarised* (death) and *Undertaking from the prospective member on ₹500 stamp paper* (sale) are the Society's own formats, not appendices: add the Society's format to the Library (category *Society's own format*) and link it in the checklist.
+
+### Rules
+- No change: `libraryDocs` carries the new `formKey` and `guide` fields under the existing rules.
+
+### Tested
+- New suite t324 (26 checks): recognising the files (order, other names, already there, unknown), adding three real forms (Drive category, title, number, guide, public, words read), guide line and search by *Form 20A*, editing a guide; linking the transfer lists (replacing links to the Rules by hand, unlinked documents left alone, missing forms listed), saving and updating the transfer in progress, the case and member page showing each form's guide and opening the blank form; *Which forms do I need?* for a member (order, law, missing ones) and a visitor (sign in to open, issued by the Society).
+- All earlier suites pass.
+
+---
+
 ## [3.23.0] – 2026-11-24 – Membership transfer documents (death and sale), tracked unit by unit
 
 ### Added
@@ -28,51 +50,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 - New suite t323 (28 checks): tracker, start a sale case from a unit with no transfer, death list and labels, letters printed filled in, received / not-needed / scan (uploaded as kind *transfers*, backed up), still-to-come, checklist editor (library link, note, new item; the case keeps its own list), completion with resolution and endorsement, completed read-only, view-only staff, watchman without the tab, member view (own unit only, scan via *memberFetch*, blank form from the Library, application letter with their name).
 - 6 new Drive script checks (142 in all); all earlier suites pass.
 
-**New "Transfers" tab in the admin page**
-
-- **Tracker:** a list of every unit with its transfer, for example "4 of 12" documents and a bar. It names the next documents still to come and whether the transfer is in progress or completed, with the committee resolution and the date the share certificate was endorsed.
-
-- **Filter:** you can list *units with no transfer recorded*. That is the list for chasing the owners who never applied.
-
-- A transfer:
-
-   start one on a unit as 
-
-  sale
-
-   or 
-
-  death
-
-   and enter the old and new member and the dates. For each document you record:
-
-  - the date it was received, or that it is not needed;
-  - a scan, which is kept in that unit's folder under *Membership transfer*.
-
-- **Finishing:** add the resolution number and the date the certificate was endorsed, then mark it completed. A completed transfer can no longer be changed.
-
-- **Your lists:** the two lists are exactly as in your message (10 documents for death, 12 for sale). The committee can rename, add or remove documents. A transfer already started keeps the list it began with.
-
-**Templates**
-
-- Printable letters:
-
-   four letters print with the unit, names, deed number and the list of enclosures already filled in:
-
-  - the application to the Managing Committee;
-  - the submission letter;
-  - the possession letter;
-  - the resignation of the old member.
-
-- **The numbered forms and stamp-paper documents:** I didn't write these (Forms 15, 3, 4, 20A, 20B, 21-1, 23, 25, 26, 03, Appendix 13, the affidavit and the undertaking), because their wording is set under the bye-laws. Upload the Society's blank copies to the Library and link each one in the list. Members then get a *Blank form* button next to it.
-
-**Member page**
-
-- Under *Membership transfer documents*, members see their own unit's transfer: what has been received, the scans and the resolution.
-- Below that are both full lists, each with *Print letter* or *Blank form*.
-- If no transfer is recorded for their unit, a note asks them to submit the list that applies if the share certificate is not yet in their name.
-
-If no transfer is recorded for their unit, a note asks them to submit the list that applies if the share certificate is not yet in their name.
 ---
 
 ## [3.22.0] – 2026-11-24 – Pre-register members by email; agreement declaration instead of tick boxes

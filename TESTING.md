@@ -160,6 +160,14 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 3 | *Print letter* on the submission letter | Letter with the unit, names, deed no. and the enclosures |
 | 4 | Sign in as the test owner of that unit | *Membership transfer documents* shows the case and the scan opens |
 
+### Bye-law forms (3.24)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Library → Add the bye-law forms in one go → choose all the PDFs of the set | Each listed with its number and law; *Add n forms* |
+| 2 | Add them | Saved in *TEST … › Library › Statutory form*; words read |
+| 3 | Transfers → checklists → *Use the bye-law forms from the Library* → Save | Forms linked; asks to update transfers in progress |
+| 4 | Library page → *Which forms do I need?* → *Selling or buying a flat* | Forms in order with their guide; *Open the form* when signed in |
+
 ---
 
 ## D. Clearing the test copy

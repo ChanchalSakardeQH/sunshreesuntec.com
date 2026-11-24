@@ -398,3 +398,12 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .tr-items input[type="file"] { max-width: 13rem; font-size: .8rem; }
 .trc-list { border: 1px solid var(--line); border-radius: 8px; padding: .6rem .8rem; margin: .75rem 0; }
 .trc-list table input, .trc-list table select { width: 100%; }
+
+/* 3.24: bye-law forms */
+fieldset.lib-guide { border: 1px solid var(--line); border-radius: 8px; padding: .5rem .8rem; margin: .6rem 0; }
+.lib-guide .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .5rem 1rem; }
+.lib-guide-line, .tr-form-line { color: var(--ink-2, #444); }
+#libset-box { border: 1px solid var(--line); border-radius: 8px; padding: .6rem .8rem; margin: .8rem 0 1rem; }
+#libset-box summary { cursor: pointer; font-weight: 600; }
+.libset-table td { vertical-align: top; }
+.libset-table .sub { display: block; font-size: .82rem; color: var(--muted); }

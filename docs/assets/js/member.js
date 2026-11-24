@@ -12,7 +12,8 @@ import { loadAuditYears, listArchive, openArchiveDoc, archiveBlob, yearEndRows }
 import { agreementHTML, MEMBER_DECLARATION } from './memberagreement.js';
 import { RATE_HISTORY } from './defaults.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
-import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS } from './transfers.js';
+import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS, libraryFor } from './transfers.js';
+import { FORMS, formLine, guideOf } from './forms.js';
 import { loadDriveCfg, driveReady, driveCall, prepareFile, toBase64, safeName } from './drive.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -709,9 +710,12 @@ async function loadMyTransfers() {
     F.getDocs(F.collection(db, 'libraryDocs')).then((s) => s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => !e.removed && e.file)).catch(() => [])]);
   mtCases = cases.filter((c) => c.status !== 'cancelled').sort((a, b) => String(b.startedOn || '').localeCompare(String(a.startedOn || '')));
   mtLib = lib;
-  const libIds = new Set(lib.map((e) => e.id));
-  const fmtBtn = (i, caseId = '') => i.letter && LETTERS[i.letter] ? `<button class="btn btn-small" type="button" data-mt-letter="${esc(i.letter)}" data-case="${esc(caseId)}">Print letter</button>`
-    : i.libraryId && libIds.has(i.libraryId) ? `<button class="btn btn-small" type="button" data-mt-lib="${esc(i.libraryId)}">Blank form</button>` : /form|affidavit|undertaking|appendix|letter|application|resignation/i.test(i.name) ? '<span class="muted">Format from the office</span>' : '';
+  // 3.24: the blank form of each document (linked, or the bye-law form of the same key) and its guide
+  const fmtBtn = (i, caseId = '') => { const le = libraryFor(i, lib);
+    return i.letter && LETTERS[i.letter] ? `<button class="btn btn-small" type="button" data-mt-letter="${esc(i.letter)}" data-case="${esc(caseId)}">Print letter</button>`
+      : le ? `<button class="btn btn-small" type="button" data-mt-lib="${esc(le.id)}">Blank form</button>` : /form|affidavit|undertaking|appendix|letter|application|resignation/i.test(i.name) ? '<span class="muted">Format from the office</span>' : ''; };
+  const guide = (i, full) => { const le = libraryFor(i, lib), g = le ? guideOf(le) : FORMS[i.formKey];
+    return g ? `<span class="sub mt-form">${esc(formLine(g))}</span>${full && g.use ? `<span class="sub">${esc(g.use)}</span>` : ''}` : ''; };
   $('#mt-cases').innerHTML = mtCases.map((c) => {
     const p = caseProgress(c), got = c.got || {};
     return `<div class="mt-case"><p><strong>${esc(TRANSFER_TYPES[c.type] || c.type)}</strong> — ${esc(c.from || '…')} → ${esc(c.to || '…')}.
@@ -719,7 +723,7 @@ async function loadMyTransfers() {
       ${c.resolutionOn ? `<span class="sub">Committee resolution ${ddmmyyyy(c.resolutionOn)}${c.resolutionRef ? `, ${esc(c.resolutionRef)}` : ''}${c.endorsedOn ? `; share certificate endorsed ${ddmmyyyy(c.endorsedOn)}` : ''}</span>` : ''}</p>
       <div class="table-scroll"><table><thead><tr><th scope="col">Document</th><th scope="col">Received</th><th scope="col">Scan</th><th scope="col">Format</th></tr></thead><tbody>
       ${(c.items || []).map((i) => { const g = got[i.id] || {}, files = (c.files || []).filter((x) => x.item === i.id);
-        return `<tr><td>${esc(i.name)}${i.note ? `<span class="sub">${esc(i.note)}</span>` : ''}</td>
+        return `<tr><td>${esc(i.name)}${i.note ? `<span class="sub">${esc(i.note)}</span>` : ''}${guide(i, false)}</td>
         <td>${g.na ? '<span class="muted">Not needed</span>' : g.on ? `<span class="doc-pill ok">${ddmmyyyy(g.on)}</span>` : '<span class="doc-pill warn">Not yet</span>'}</td>
         <td>${files.map((x) => `<button class="file-link" type="button" data-mt-file="${esc(c.id)}" data-fid="${esc(x.id)}" title="${esc(x.name)}">📎 ${esc(shortName(x.name))}</button>`).join('<br>') || '—'}</td>
         <td>${fmtBtn(i, c.id)}</td></tr>`; }).join('')}
@@ -728,8 +732,8 @@ async function loadMyTransfers() {
   $('#mt-lists').innerHTML = ['sale', 'death'].map((t) => {
     const L = lists[t] || DEFAULT_CHECKLISTS[t];
     return `<details class="mt-list"><summary>${esc(L.title)} — ${L.items.length} documents</summary>${L.intro ? `<p class="small-note">${esc(L.intro)}</p>` : ''}
-      <ol>${L.items.map((i) => `<li><span>${esc(i.name)}${i.note ? ` <span class="muted">(${esc(i.note)})</span>` : ''}</span> ${fmtBtn(i)}</li>`).join('')}</ol>
-      <p class="small-note">Hand the signed documents to the Society office; the committee records each one here as it is received.</p></details>`;
+      <ol>${L.items.map((i) => `<li><span>${esc(i.name)}${i.note ? ` <span class="muted">(${esc(i.note)})</span>` : ''}</span> ${fmtBtn(i)}${guide(i, true)}</li>`).join('')}</ol>
+      <p class="small-note">Hand the signed documents to the Society office; the committee records each one here as it is received. All the bye-law forms, by what you want to do: <a href="#library">Library → Which forms do I need?</a></p></details>`;
   }).join('');
   mtLists = lists;
 }

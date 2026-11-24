@@ -4,6 +4,8 @@
  * (Membership transfer). The checklists are the Society's own (settings/transferChecklists) and the committee can
  * change them; each item may point to a blank form kept in the Library, or to one of the letters below.
  */
+import { CHECKLIST_FORMS } from './forms.js';
+
 export const TRANSFER_TYPES = { death: 'Transmission on the death of a member', sale: 'Transfer on sale of the unit' };
 
 export const DEFAULT_CHECKLISTS = {
@@ -42,6 +44,20 @@ export const DEFAULT_CHECKLISTS = {
     ]
   }
 };
+
+// 3.24: each standard document that is a bye-law form knows which (formKey), so its blank form in the Library is
+// found without linking it by hand.
+for (const list of Object.values(DEFAULT_CHECKLISTS)) for (const i of list.items) if (CHECKLIST_FORMS[i.id]) i.formKey = CHECKLIST_FORMS[i.id];
+
+/**
+ * The Library entry with the blank form of a checklist document: the one linked by hand, else the bye-law form of
+ * the same key. `lib` is the list of library entries (not removed, with a file).
+ */
+export function libraryFor(item, lib) {
+  if (!item) return null;
+  if (item.libraryId) { const e = lib.find((x) => x.id === item.libraryId && !x.removed && x.file); if (e) return e; }
+  return item.formKey ? lib.find((x) => x.formKey === item.formKey && !x.removed && x.file) || null : null;
+}
 
 /** Progress of a case: items received (or not applicable) out of all items. */
 export function caseProgress(c) {

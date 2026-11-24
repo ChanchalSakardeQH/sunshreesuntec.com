@@ -449,3 +449,17 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 .my-transfers .mt-list ol { padding-left: 1.4rem; }
 .my-transfers .mt-list li { margin: .35rem 0; }
 .my-transfers .mt-list li > span { margin-right: .4rem; }
+
+/* 3.24: bye-law forms — guide and "Which forms do I need?" */
+.lib-tasks { border: 1px solid var(--line, #ddd); border-radius: 12px; padding: .9rem 1rem; margin: 1rem 0 1.4rem; background: var(--paper-2, #faf8f3); }
+.lib-tasks h2 { margin-top: 0; font-size: 1.2rem; }
+.lib-task-buttons { display: flex; flex-wrap: wrap; gap: .45rem; margin: .5rem 0; }
+.lib-task-card { margin-top: .8rem; border-top: 1px solid var(--line, #ddd); padding-top: .6rem; }
+.lib-task-card h3 { margin: 0 0 .2rem; }
+.lib-task-forms { padding-left: 1.3rem; }
+.lib-task-forms > li { margin: .7rem 0; }
+.lib-task-forms p { margin: .15rem 0; }
+dl.lib-guide { display: grid; grid-template-columns: max-content 1fr; gap: .15rem .8rem; font-size: .9rem; margin: .4rem 0; }
+dl.lib-guide dt { color: var(--muted, #666); }
+dl.lib-guide dd { margin: 0; }
+.my-transfers .mt-form { color: var(--ink-2, #444); }

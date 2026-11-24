@@ -607,10 +607,10 @@
 
       <details class="mt" id="trc-box">
         <summary>The checklists and their formats</summary>
-        <p class="small-note">The documents asked for in each kind of transfer. Each can point to a blank form in the <a href="#library">Library</a> (add the Society’s blank forms there first, e.g. under <em>Statutory form</em>), or to one of the Society’s letters, which print filled in with the case’s details. Only the committee changes the lists; transfers already started keep the list they started with.</p>
+        <p class="small-note">The documents asked for in each kind of transfer. Each can point to a blank form in the <a href="#library">Library</a> (add the bye-law forms there first: <em>Library → Add the bye-law forms in one go</em>; then <strong>Use the bye-law forms from the Library</strong> links them), or to one of the Society’s letters, which print filled in with the case’s details. Only the committee changes the lists; transfers already started keep the list they started with.</p>
         <div id="trc-lists"></div>
         <p class="form-msg" id="trc-msg" role="alert"></p>
-        <div class="form-actions"><button class="btn btn-primary" type="button" id="trc-save" data-committee>Save the checklists</button><button class="btn" type="button" id="trc-reset" data-committee>Back to the standard lists</button></div>
+        <div class="form-actions"><button class="btn btn-primary" type="button" id="trc-save" data-committee>Save the checklists</button><button class="btn" type="button" id="trc-forms" data-committee>Use the bye-law forms from the Library</button><button class="btn" type="button" id="trc-reset" data-committee>Back to the standard lists</button></div>
       </details>
 
       <dialog id="tr-dialog" class="wide-dialog">
@@ -657,6 +657,17 @@
       <h1>Rules, GRs and forms library</h1>
       <p class="muted">Acts, Rules, bye-laws, Government Resolutions, circulars, judgments, statutory forms and application formats, kept in the Society’s Google Drive (<em>Library › category</em>). Entries marked <strong>public</strong> are listed to everyone on the website’s <em>Library</em> page; members and the team see all of them and open the Society’s copies. The words inside each PDF are read when it is added, so the search finds documents by what they say (scanned pages have no words: add keywords).</p>
 
+      <details class="mt" id="libset-box">
+        <summary>Add the bye-law forms (appendices) in one go</summary>
+        <p class="small-note">Choose the PDF files of the model bye-law forms (named like <em>appendix-15.pdf</em>, <em>appendix-20-1.pdf</em>, <em>model-bye-laws.pdf</em>). Each one recognised is added with its title, form number, the bye-law or rule it is under, who signs it, stamp paper and a short note on what it is for, which members see on the Library page, on their page and in the membership transfer lists. Files already in the library are skipped.</p>
+        <label>The files<input type="file" id="libset-files" accept=".pdf,application/pdf" multiple></label>
+        <div class="table-scroll"><table class="libset-table"><thead><tr><th>File</th><th>Form</th><th>Under</th><th></th></tr></thead><tbody id="libset-rows"></tbody></table></div>
+        <label class="check"><input type="checkbox" id="libset-public" checked> Public: list them to everyone on the website’s Library page (they are standard formats; opening the Society’s copies still needs a member sign-in)</label>
+        <p class="small-note" id="libset-progress" aria-live="polite"></p>
+        <p class="form-msg" id="libset-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="button" id="libset-add" disabled>Add the forms</button></div>
+      </details>
+
       <form id="lib-form" class="form wide-form lib-form" novalidate>
         <h2 id="lib-form-title">Add a document</h2>
         <fieldset class="lib-source">
@@ -678,6 +689,19 @@
         <label>Keywords <span class="muted">(comma separated; English and Marathi)</span><input type="text" name="keywords" maxlength="500" placeholder="MCS Rules, election, M-20, सहकारी संस्था नियम"></label>
         <label>What it is about <span class="muted">(optional)</span><textarea name="description" rows="2" maxlength="1000"></textarea></label>
         <label>Official source <span class="muted">(optional web address, shown to readers)</span><input type="url" name="link" placeholder="https://"></label>
+        <fieldset class="lib-guide">
+          <legend>Guide for members <span class="muted">(for forms: shown with the form on the Library page, the member page and the transfer lists)</span></legend>
+          <div class="form-grid">
+            <label>Bye-law form<select name="formKey"></select></label>
+            <label>Form number<input type="text" name="g_no" maxlength="60" placeholder="Appendix 15"></label>
+            <label>Also known as<input type="text" name="g_aka" maxlength="80" placeholder="Form No. 15"></label>
+            <label>Under (bye-law, section, rule)<input type="text" name="g_law" maxlength="160" placeholder="Bye-law 34; MCS Act, Section 154B-13"></label>
+            <label>Signed by<input type="text" name="g_signedBy" maxlength="120"></label>
+            <label>Stamp paper<input type="text" name="g_stamp" maxlength="120" placeholder="₹100 stamp paper"></label>
+          </div>
+          <label>What it is for, in plain words<textarea name="g_use" rows="2" maxlength="600"></textarea></label>
+          <label>To attach<input type="text" name="g_attach" maxlength="300"></label>
+        </fieldset>
         <label class="check"><input type="checkbox" name="public" checked> Public: list it to everyone on the website (members and the team always see it)</label>
         <datalist id="lib-issuers"><option>Co-operation Department, Government of Maharashtra</option><option>Commissioner for Co-operation and Registrar, Pune</option><option>Deputy Registrar, Co-operative Societies, Pune</option><option>Maharashtra State Co-operative Housing Federation</option><option>High Court of Bombay</option><option>Supreme Court of India</option><option>Sunshree Suntec CHS (Managing Committee)</option></datalist>
         <p class="small-note" id="lib-progress" aria-live="polite"></p>
@@ -1545,7 +1569,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.23.0</p>
+    <p class="muted mt" id="version-note">Software version 3.24.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

@@ -100,7 +100,8 @@ export const forgetIndex = (id) => indexCache.delete(id);
 
 /** The text of an entry's details, for searching. */
 export function entryText(e) {
-  return [e.title, e.category, e.issuer, e.number, e.date, e.year, e.lang, (e.keywords || []).join(' '), e.description, e.file?.name].filter(Boolean).join(' ');
+  const g = e.guide || {};
+  return [e.title, e.category, e.issuer, e.number, e.date, e.year, e.lang, (e.keywords || []).join(' '), e.description, e.file?.name, g.no, g.aka, g.law, g.use].filter(Boolean).join(' ');
 }
 /**
  * Searches entries: every word typed must be found (as the start of a word) in the entry's details or, when its word

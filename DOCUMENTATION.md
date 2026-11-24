@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.23.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.24.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -38,6 +38,7 @@ This document explains what the system does, where the data lives, how every amo
 12-6. Test copy for trying roles safely (3.21)
 12-7. Pre-registering members by email (3.22)
 12-8. Membership transfer documents: death and sale (3.23)
+12-9. Bye-law forms and "Which forms do I need?" (3.24)
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
@@ -144,10 +145,10 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `committeeUndertakings/{id}` (3.19) | Each acceptance of the committee undertaking with the exact text accepted (title, intro, the post's responsibilities, undertakings, closing), signed name, post, unit, date taking office, server time, device, PDF copy and whether emailed. Never deleted | The committee member (own); PDF fields by the committee |
 | `settings/committeeUndertaking` (3.19) | Current committee undertaking (versioned; the standard text is used until one is published) | Committee |
 | `settings/committeeRegister` (3.19) | Date the committee was formed, date the Registrar was informed, letter reference and copy | Committee |
-| `libraryDocs/{id}` (3.20) | Library entry: title, category, issued by, number / reference, date, year, language, keywords, description, official source, public, the file in the Drive (id, name, type, size), words read and pages, removed, who added and changed it | Committee and staff with *library* |
+| `libraryDocs/{id}` (3.20) | Library entry: title, category, issued by, number / reference, date, year, language, keywords, description, official source, public, the file in the Drive (id, name, type, size), words read and pages, removed, who added and changed it; for bye-law forms (3.24) `formKey` (e.g. appendix-15) and `guide` (no, aka, law, signedBy, stamp, use, attach) | Committee and staff with *library* |
 | `libraryDocs/{id}/index/{n}` (3.20) | The words inside the document (space-separated, unique, lower case), in chunks of up to 700 KB, with the entry's public flag | Same |
 | `units/{id}/transfers/{caseId}` (3.23) | A membership transfer of the unit: type (death / sale), the list of documents as it was when started (`items`: id, name, note, letter, libraryId), what was received (`got`: date or not needed, by whom), scans (`files` with the item they belong to), outgoing and new member(s), date of the deed or of death, deed no., possession date, share certificate no., committee resolution date and reference, certificate endorsed on, new certificate no., notes, status (open / completed / cancelled), who started and changed it | Read: *view* and the unit's approved members; write: *maintain unit files*; delete: committee |
-| `settings/transferChecklists` (3.23) | The Society's two lists (death, sale): title, introduction and documents (name, note, Society letter, Library blank form) | Read: approved members and the team; write: committee |
+| `settings/transferChecklists` (3.23) | The Society's two lists (death, sale): title, introduction and documents (name, note, Society letter, Library blank form, bye-law form key (3.24)) | Read: approved members and the team; write: committee |
 | `memberInvites/{email}` (3.22) | Members pre-registered by the committee: email (lower case, the document id), unit, name, relation, access, mobile, status (open / used / cancelled), who and when, who used it and when | *approve members*; the person themselves marks it used |
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
 | `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time; and (3.17) the name, unit and mobile typed in the registration form when Google was opened from it. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
@@ -585,6 +586,17 @@ When a member dies, or a unit is sold, the new member submits a set of documents
 - **Lists:** the standard lists follow the Society's circular (see the changelog for 3.23.0). Under *The checklists and their formats* the committee can change them, for example if the 2026 Rules or the new bye-laws change a form or a fee. A transfer keeps the list it was started with.
 - **Formats:** link each numbered form or stamp-paper document to the Society's blank copy in the **Library** (add it there first, under *Statutory form* or *Application*). Four letters are built in and print filled in with the case: the application to the committee (transmission), the submission of documents, the letter of possession and the resignation from membership. The software does not draft the prescribed forms themselves; use the formats under the Society's bye-laws.
 - **Members** see their unit's transfer, the scans and both lists with *Blank form* and *Print letter* on the member page, under *Membership transfer documents*.
+
+## 12-9. Bye-law forms and "Which forms do I need?" (3.24)
+
+The forms (appendices) of the model bye-laws are kept in the Library like any document, each with a short **guide** for members: the form number (and the number it has in other editions), what it is for in plain words, the bye-law / section / rule it is under, who signs it, stamp paper and what to attach.
+
+- **Adding them:** Accounts → Library → *Add the bye-law forms (appendices) in one go* → choose the PDFs (the Society's set, named *appendix-1.pdf* … *appendix-29.pdf*, *appendix-20-1.pdf*, *appendix-20-2.pdf*, *model-bye-laws.pdf*, *maharashtra-cooperative-society-rules-1961.pdf*, *new-housing-society-election-rules.pdf*). Recognised files are listed with their number and law; *Add n forms* saves them in the Drive (*Library › Statutory form*, the bye-laws and rules under their own categories), reads their words and marks them public if ticked. Files already added are skipped.
+- **Editing a guide:** *Edit* on the entry → *Guide for members*. Choosing a bye-law form fills the guide from the catalogue; anything changed is kept with the entry (`libraryDocs.guide`).
+- **Numbering:** editions of the model bye-laws number Appendices 2–10 and 28 differently. The Society's set follows the later edition; the guide shows the other number (*Appendix 4 — Appendix 3 / Form No. 3 in the 2014 booklet*) and the search finds either.
+- **Which forms do I need?** (Library page) lists, for each task, the forms in order with their guide and *Open the form* for members. Visitors see the list and sign in to open the Society's copies.
+- **Transfers:** the standard documents know their form (see the changelog for 3.24.0), so the blank form is found automatically once it is in the Library. *Use the bye-law forms from the Library* in the checklist editor links them all and replaces earlier links made by hand; saving offers to update the transfers in progress. The two ₹500 stamp-paper documents are the Society's own formats: add them to the Library and link them by hand.
+- **Fees and stamp duty** printed on the forms are those when they were printed (e.g. entrance fee ₹100; the 2026 amendment of the MCS Rules changed fees). The guide says so; the office tells members the current amounts.
 
 ## 12A. Staff: roles, access and agreement
 
