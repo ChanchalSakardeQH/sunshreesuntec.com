@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.24.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.25.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -148,6 +148,8 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `libraryDocs/{id}` (3.20) | Library entry: title, category, issued by, number / reference, date, year, language, keywords, description, official source, public, the file in the Drive (id, name, type, size), words read and pages, removed, who added and changed it; for bye-law forms (3.24) `formKey` (e.g. appendix-15) and `guide` (no, aka, law, signedBy, stamp, use, attach) | Committee and staff with *library* |
 | `libraryDocs/{id}/index/{n}` (3.20) | The words inside the document (space-separated, unique, lower case), in chunks of up to 700 KB, with the entry's public flag | Same |
 | `units/{id}/transfers/{caseId}` (3.23) | A membership transfer of the unit: type (death / sale), the list of documents as it was when started (`items`: id, name, note, letter, libraryId), what was received (`got`: date or not needed, by whom), scans (`files` with the item they belong to), outgoing and new member(s), date of the deed or of death, deed no., possession date, share certificate no., committee resolution date and reference, certificate endorsed on, new certificate no., notes, status (open / completed / cancelled), who started and changed it | Read: *view* and the unit's approved members; write: *maintain unit files*; delete: committee |
+| `settings/fullBackup` (3.25) | Written by the storage script: last full backup (ok, kind, by, at, docs, users, bytes, file name, seconds, copies removed, records per collection), a failure (failedAt, error), the last restore | Read: *view*; written by the script with the Society account's access |
+| `settings/fullBackupConfig` (3.25) | Schedule: frequency (daily, weekly, off), hour, weekday, keepDays | Read: *view*; write: committee |
 | `settings/transferChecklists` (3.23) | The Society's two lists (death, sale): title, introduction and documents (name, note, Society letter, Library blank form, bye-law form key (3.24)) | Read: approved members and the team; write: committee |
 | `memberInvites/{email}` (3.22) | Members pre-registered by the committee: email (lower case, the document id), unit, name, relation, access, mobile, status (open / used / cancelled), who and when, who used it and when | *approve members*; the person themselves marks it used |
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
@@ -780,11 +782,25 @@ Bills keep the amounts they were issued with, even if rates change later. Receip
 
 ## 15. Backups and exports
 
-- Monthly: Payments → Download CSV; Bills → Print all bills (PDF).
-- Before the AGM: Settings → Preview → Download CSV.
-- Full export: Firebase console → Firestore → Import/Export needs the paid Blaze plan; on the free plan, keep the monthly CSV and PDF files in the society's Google Drive.
-- Unit files (3.12): each unit's backup and documents are in the Society's Google Drive (Units › wing › unit); Settings → *Back up all unit files now* monthly.
-- Code: every change is in GitHub history; `CHANGELOG.md` lists what changed and when.
+- **Full backup (3.25), the main one:** Settings → *Full backups*. The storage script saves every document in the database and the sign-in accounts to *Sunshree Suntec Society Records / Backups / Full* on the schedule set there (default every day at 2 am India time; daily copies kept 30 days; the 1st of each month kept always). Works on the free Firebase plan (it reads the database through its REST interface with the Society account's own access). Status, *Back up everything now*, list and restore on the same card.
+- Unit files (3.12): each unit's own copy (`<unit> unit file backup.json`) and its scans are in Units › wing › unit; made when a record of the unit is saved, or with *Back up all unit files now*. Handy to read one unit's history; the full backup covers it too.
+- Correspondence register: one JSON per financial year, after each change (3.14).
+- Monthly: Payments → Download CSV; Bills → Print all bills (PDF). Before the AGM: Settings → Preview → Download CSV.
+- Code: every change is in the GitHub history; `CHANGELOG.md` lists what changed and when.
+- The Drive itself: deleted files stay in the Drive's Bin for 30 days. Once a year, download the whole *Sunshree Suntec Society Records* folder (Google Takeout or Drive → Download) and keep it offline.
+
+### 15A. Disaster recovery (3.25)
+
+| What happened | What to do |
+|---|---|
+| Some records deleted or wrongly changed | Settings → Full backups → *Show the backups…* → choose a backup from before the mistake → *Restore…* → **Only what is missing** (deleted records come back) or **Everything as it was**, for the parts concerned (e.g. *units*, *payments*). Then reload. |
+| One unit's records | Settings → *Restore a unit's records from its backup* (3.12) also still works. |
+| The website (pages) is down or broken | The data is not affected. Re-publish from GitHub (revert the last change, or re-run Pages); the code's history is in GitHub. |
+| The accounts page can't be used, data damaged | Storage script editor → run **restoreLatestBackup** (puts back what is missing). |
+| The Firebase project is lost or unusable | New Firebase project (Firestore asia-south1, Google sign-in, domains authorised, rules published) → its id and web API key in the storage script's Script properties → sunshreesuntec@gmail.com as Editor → run **restoreLatestBackupEverything** (documents and sign-in accounts with the same ids) → new `firebase-config.js` on the website → for the monthly bills, a new service-account key in the GitHub secret. Details: `tools/drive-upload/README.md`. |
+| The Society's Google account is lost | Keep its recovery phone and email up to date, and two committee members aware of the recovery; keep the yearly offline copy of the records folder. |
+
+Practise once a year in the test copy (3.21): move the test copy's own backups out of its *Backups/Full* folder, copy a real backup in and run restoreLatestBackupEverything there.
 
 ---
 

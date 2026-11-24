@@ -6,6 +6,78 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.25.0] – 2026-11-24 – Scheduled full backups and disaster recovery
+
+### Added
+- **Full backups of all the website's data, on a schedule.** Every document in the database (units, bills, receipts, ledgers, members, staff, expenses, correspondence, documents' records, library, settings…) and the list of sign-in accounts, saved by the storage script as one compressed file in the Society's Drive (*Backups / Full*, `Full backup 2026-11-25 0200.json.gz`). Values are kept exactly as stored (dates, numbers, references), so they come back unchanged.
+  - **Schedule (Settings → Full backups):** every day or every week (day), at an hour (India time), keeping daily copies 7–90 days; the copy of the 1st of each month is always kept. The script checks every hour and backs up when due; *Off* stops it.
+  - **Status:** last backup (when, scheduled or by whom, records, sign-in accounts, size), a failed attempt in red with the reason (also emailed to the Society), a warning when no backup is newer than the schedule, the last restore, and whether the storage script needs updating.
+  - **Back up everything now** (committee).
+- **Restore (committee).** *Show the backups…* lists them (newest first, monthly copies marked); *Restore…* shows what a backup holds (records per part, sign-in accounts) and puts back **only what is missing** (deleted records return; nothing existing changes), or **everything as it was** (type RESTORE; changes made since are undone, records added since are kept), for all parts or only those ticked. Every restore is recorded and emailed to the Society.
+- **Disaster recovery without the website** (storage script editor): *restoreLatestBackup* puts back what is missing from the newest backup; *restoreLatestBackupEverything* rebuilds a new Firebase project from it, including the sign-in accounts with the same ids, so members and staff keep their records. Can be practised in the test copy.
+- The unit file's *not saved yet* note explains when a unit's own copy is made and that all units are in the full backup.
+
+### Drive script (version 13)
+- `fullBackup`, `listBackups`, `restoreBackup` (committee); `scheduledBackup` (hourly trigger), `setupBackups`, `restoreLatestBackup`, `restoreLatestBackupEverything` (run from the editor). These use the script owner's own Google access to the Firebase project (sunshreesuntec@gmail.com must be its Editor), not a member's sign-in: reading everything needs it. New permissions in `appsscript.json`: database, sign-in accounts (Identity Toolkit) and triggers.
+- Status in `settings/fullBackup`; the schedule in `settings/fullBackupConfig` (committee; read with *view*, as other settings).
+
+Version 3.25.0 adds scheduled backups of everything and a way to recover after a disaster. All website test suites pass, plus 27 new checks of the Drive script (169 in all). I could only test against simulated Google services, though. So run step 3 below and check that a real backup appears before you rely on it.
+
+**What the two unit lines meant**
+
+- Each unit's own backup file is saved only when one of that unit's records is saved, or when you press *Back up now*.
+- "Not saved yet" just means nothing has changed in that unit since 3.12. *Settings → Back up all unit files now* creates them all.
+- Those per-unit files stay. The new full backup below now covers every unit as well.
+
+**Scheduled full backup**
+
+- **What's in it:** everything in the website's database, plus the list of sign-in accounts. It is one compressed file in the Society Drive, under Backups → Full.
+- **Schedule (Settings → Full backups):** every day or once a week, at an hour you choose, India time. The default is 2 am daily.
+- **How long copies are kept:** daily copies are kept for 7 to 90 days (your choice). The copy from the 1st of each month is always kept.
+- **Status:** the card shows the last backup with the number of records, accounts and file size. A failed backup shows in red and is also emailed to [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com). There is also a **Back up everything now** button.
+
+**Recovery**
+
+- Records deleted or changed by mistake:
+
+   in Settings, use 
+
+  Show the backups… → Restore…
+
+  . You pick a backup from before the mistake, then either:
+
+  - **Only what is missing:** deleted records come back and nothing else changes; or
+  - **Everything as it was:** you must type RESTORE first.
+
+  You can restore everything or only some parts (for example units or payments). Only the committee can restore, and every restore is emailed to the Society account.
+
+- **Accounts page not usable:** in the storage script editor, run `restoreLatestBackup`.
+
+- **Firebase project lost:** create a new project and run `restoreLatestBackupEverything`. It writes back all the data and recreates the sign-in accounts with the same IDs, so members keep their records.
+
+- **Website pages broken:** the data isn't affected; republish from GitHub.
+
+The full plan is in DOCUMENTATION section 15A. It also covers keeping one offline copy of the Drive folder a year.
+
+**To go live** (these steps are also in `tools/drive-upload/README.md`, under 3.25)
+
+1. In the Firebase console, open ⚙ Project settings → Users and permissions. Make sure [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com) is **Owner or Editor**. Reading everything on a schedule needs this, because there's no member signed in at 2 am.
+2. Push `website-3.25.0-changed-files.zip`. In Apps Script, replace both `appsscript.json` and `Code.gs`. This adds permissions for the database, the sign-in accounts and the schedule.
+3. Run **setupBackups** once and allow the permissions with **Select all**. It starts the schedule and makes the first backup straight away. The log should say "First backup made".
+4. Use **Manage deployments → Edit → New version** to publish the script, as before. Then check Settings → Full backups.
+
+Once a year, practise a full restore in your test copy; the steps are in TESTING.md.
+
+### Rules
+- No change.
+
+### Tested
+- New suite t325 (15 checks): status before the first backup, defaults, weekly schedule saved, back up now, list, restore window, RESTORE required, restore request, status with a backup, a failed one, an old storage script.
+- 27 new Drive script checks (169 in all): committee only, everything backed up with typed values and accounts, compressed in Backups/Full, owner access with the project for quota, status, paging past 300 records, setupBackups (one trigger), schedule (hour, done today, weekly, off), pruning (monthly kept, Bin), list, restore info, missing-only, everything with RESTORE for one part, restore recorded and emailed, files outside the folder refused, staff refused, rebuild in a new project with sign-in accounts, no access (clear error and email), accounts unreadable (documents still saved).
+- All earlier suites pass.
+
+---
+
 ## [3.24.0] – 2026-11-24 – Bye-law forms in the Library, with a plain guide to each and "Which forms do I need?"
 
 ### Added
@@ -18,49 +90,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ### Not linked automatically
 - *Affidavit on ₹500 stamp paper, notarised* (death) and *Undertaking from the prospective member on ₹500 stamp paper* (sale) are the Society's own formats, not appendices: add the Society's format to the Library (category *Society's own format*) and link it in the checklist.
-
-Version 3.24.0 is ready: your appendix forms go into the Library on Google Drive, each with a short plain-language note, and the transfer lists open the right blank form. A new test suite (26 checks) and all the earlier suites pass.
-
-**What members see**
-
-- **Each form's note:** the form number, what it is for, the bye-law, section or rule it falls under, who signs it, any stamp paper and what to attach. For example, Appendix 15 (Form No. 15) is under Bye-law 34 and MCS Act Section 154B-13, is signed by the nominee(s), and needs the death certificate, an indemnity bond and an undertaking.
-
-- Library → "Which forms do I need?":
-
-   members pick a task and get the forms in order, with a note where a form applies only sometimes and a list of what else to bring. There are ten tasks:
-
-  - death with a nomination, or without one
-  - sale or purchase
-  - becoming a member directly
-  - adding a joint member
-  - giving the flat on rent
-  - making or changing a nomination
-  - resigning
-  - holding more than one flat
-  - being elected to the committee
-
-- **Who can open the forms:** signed-in members open them directly. Visitors see the list and are asked to sign in.
-
-- **Membership transfer documents** on the member page now show the same note beside each document, with a **Blank form** button.
-
-**Adding the forms (one time)**
-
-1. Push `website-3.24.0-changed-files.zip`. There are no rules or Drive script changes this time.
-2. Unzip `SocietyForms-ready.zip`. Then go to Accounts → Library → **Add the bye-law forms (appendices) in one go**, select all 34 PDFs and add them. They are saved in Drive under Library › Statutory form, and the words inside are read so the search can find them.
-3. Go to Transfers → The checklists and their formats → **Use the bye-law forms from the Library** → Save. This replaces the links to the MCS Rules 1961 PDF that show in your screenshot. When it asks, say yes to updating the transfers already in progress.
-
-**Please check how I matched your list to the forms**
-
-- Your numbers:
-  - Form 15 is Appendix 15.
-  - Form 13 is Appendix 13.
-  - Form 21-1 is Appendix 21.
-  - Forms 23, 25 and 26 are Appendices 23, 25 and 26.
-  - The new nomination form is Appendix 14.
-- **The numbering differs for Appendices 2 to 10.** Your "Form No. 3" and "Form 03" (₹100 stamp) match the undertaking to use the flat. In your zip that file is Appendix 4, but in the 2014 bye-laws booklet it is Appendix 3. Your "Form No. 4" matches Appendix 5 (the undertaking by the person a non-earning member depends on). Both numbers are shown, and searching "Form 3" finds it. If the Society means different forms, change them in the checklist editor.
-- **Forms 20A and 20B were missing from your zip.** I took them from pages 78 and 79 of `model-bye-laws.pdf` as Appendix 20(1), the notice of intention to transfer, and 20(2), the buyer's consent.
-- **Two documents are not standard forms:** the ₹500 notarised affidavit (death set) and the ₹500 undertaking from the prospective member (sale set). Add the Society's own wording to the Library and link them by hand.
-- **Fees and stamp values:** the forms show the amounts at the time they were printed (₹100 entrance fee, ₹100 or ₹200 stamp paper). The 2026 rules changed some fees, so each note says the office will confirm the current amount.
 
 ### Rules
 - No change: `libraryDocs` carries the new `formKey` and `guide` fields under the existing rules.

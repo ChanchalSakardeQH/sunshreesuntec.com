@@ -1442,6 +1442,44 @@
         <p class="form-msg" id="pr-msg" role="alert"></p>
       </div>
 
+      <div class="callout" id="fb-box">
+        <h2>Full backups of the website’s data (scheduled)</h2>
+        <p>Everything in the website’s database — units, bills, receipts, ledgers, members, staff, expenses, correspondence, documents’ records, library, settings — and the list of sign-in accounts, saved as one file in the Society’s Google Drive (<strong>Sunshree Suntec Society Records → Backups → Full</strong>) on the schedule below. If data is lost or damaged, put it back from here; if the website itself cannot be used, the committee can restore from the storage script (see the documentation, <em>Disaster recovery</em>). The scans themselves are files in the Drive and are not affected.</p>
+        <p class="fb-status" id="fb-status" aria-live="polite">…</p>
+        <form id="fb-form" class="form" novalidate>
+          <div class="form-grid fb-grid">
+            <label>How often<select name="frequency"><option value="daily">Every day</option><option value="weekly">Every week</option><option value="off">Off</option></select></label>
+            <label id="fb-day-label">On<select name="weekday"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label>
+            <label>At (India time)<select name="hour"></select></label>
+            <label>Keep daily copies for<select name="keepDays"><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option></select></label>
+          </div>
+          <p class="small-note">The copy made on the 1st of each month is always kept.</p>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" data-committee>Save the schedule</button>
+            <button class="btn" type="button" id="fb-now" data-committee>Back up everything now</button>
+            <button class="btn" type="button" id="fb-list" data-committee>Show the backups…</button>
+          </div>
+        </form>
+        <div id="fb-backups" hidden>
+          <div class="table-scroll"><table class="fb-table"><thead><tr><th>Backup</th><th>Size</th><th></th></tr></thead><tbody id="fb-rows"></tbody></table></div>
+        </div>
+        <dialog id="fb-dialog">
+          <form id="fb-restore" class="form" method="dialog" novalidate>
+            <h2>Restore from <span id="fb-r-name"></span></h2>
+            <p class="small-note" id="fb-r-info"></p>
+            <fieldset><legend>What to put back</legend>
+              <label class="check"><input type="radio" name="mode" value="missing" checked> <span><strong>Only what is missing</strong> — documents deleted since this backup come back; nothing that exists is changed. Safe.</span></label>
+              <label class="check"><input type="radio" name="mode" value="all"> <span><strong>Everything as it was</strong> — every document in the backup is put back as it was then, undoing changes made since (documents added since are kept).</span></label>
+            </fieldset>
+            <fieldset><legend>Which parts <span class="muted">(none ticked = all)</span></legend><div id="fb-r-cols" class="fb-cols"></div></fieldset>
+            <label id="fb-r-confirm-wrap" hidden>Type RESTORE to confirm<input type="text" name="confirm" autocomplete="off"></label>
+            <p class="form-msg" role="alert"></p>
+            <div class="form-actions"><button class="btn btn-primary" type="submit" id="fb-r-go">Restore</button><button class="btn" type="button" data-close>Cancel</button></div>
+          </form>
+        </dialog>
+      </div>
+
       <div class="callout" id="ufb-box">
         <h2>Unit files in Google Drive: backup and restore</h2>
         <p>Each unit has a folder in the Society’s Google Drive (<strong>Sunshree Suntec Society Records → Units → wing → unit</strong>) holding its scans (members and shares, tenants and agreements, communication, electricity, property tax) and <strong>“unit file backup.json”</strong>: everything about the unit, including details, member and tenant records, communication, electricity and tax records, ledger, bills, receipts and old receipts. The backup is updated by itself whenever a unit record is saved. Back up all units at least once a month, and before any big change.</p>
@@ -1569,7 +1607,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.24.0</p>
+    <p class="muted mt" id="version-note">Software version 3.25.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

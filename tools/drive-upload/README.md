@@ -72,6 +72,37 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.25 (script version 13): full backups on a schedule, and restore.** Needs new permissions and one setting in Firebase:
+1. **Give the Society's account access to the database.** Firebase console → the Society's project → ⚙ *Project settings*
+   → *Users and permissions*. If sunshreesuntec@gmail.com is listed as *Owner* or *Editor*, nothing to do. If not:
+   *Add member* → sunshreesuntec@gmail.com → role **Editor** → *Add member*, and accept the invitation in that mailbox.
+2. In the Apps Script editor, replace `appsscript.json` with the new [`appsscript.json`](appsscript.json) (adds the
+   database, sign-in accounts and triggers permissions) and `Code.gs` with the new one; save.
+3. Choose the function **setupBackups** and press **Run**. Allow the new permissions (tick **Select all**). It starts the
+   schedule (it looks every hour, and backs up at the time set on the website) and makes the first backup at once. The
+   log shows *First backup made: Full backup … — n documents, m sign-in accounts*.
+4. Deploy a new version (Manage deployments → pencil → *New version* → Deploy).
+5. On the website: Settings → **Full backups** shows the backup; set how often, the time and how long daily copies are kept.
+
+The backups are in *Sunshree Suntec Society Records / Backups / Full*, one compressed file each
+(`Full backup 2026-11-25 0200.json.gz`). Copies older than the days chosen are moved to the Bin, except the 1st of each
+month, which stays. A failed backup emails the Society's mailbox.
+
+**Disaster recovery from this editor** (when the website can't be used):
+- *Records deleted or damaged:* run **restoreLatestBackup**: puts back, from the newest backup, every document that is
+  missing; nothing that exists is changed. (On the website the committee can also choose an older backup, only some
+  parts, or "everything as it was".)
+- *Firebase project lost:* create a new Firebase project (Firestore in asia-south1, Google sign-in on, the website's
+  domains authorised), publish `firestore.rules`, put the new project's id and web API key in this script's
+  Script properties (FIREBASE_PROJECT_ID, FIREBASE_API_KEY), add sunshreesuntec@gmail.com as Editor, then run
+  **restoreLatestBackupEverything**: it writes every document and recreates the sign-in accounts with the same ids, so
+  members and staff keep their records. Then point the website's `firebase-config.js` at the new project.
+- *Practice first* in the test copy: move the test copy's own backups out of *TEST …/Backups/Full*, copy a backup file
+  from the real *Backups/Full* folder into it and run restoreLatestBackupEverything there: it restores into the TEST project.
+
+If a backup fails with *Database 403 … add … as Editor*, do step 1. If it fails with *Cloud Firestore API has not been
+used in project …*, the account lacks the *Service Usage Consumer* permission in the Firebase project (Editor includes it).
+
 **3.23 (script version 12):** membership transfer scans go to the unit's folder *Membership transfer*, and members can
 open their own unit's transfer scans. No new permission: paste Code.gs, then Manage deployments → Edit → New version.
 
@@ -131,6 +162,8 @@ The URL stays the same, so nothing changes on the website.
 | *Please accept the staff agreement* | The staff member must sign in to the accounts page and accept the agreement first. |
 | *Bill storage isn't connected yet* | Step 7. |
 | Uploads fail after the script was edited | Deploy a **new version** (see *Updating*). |
+| *Full backup failed: Database 403* | sunshreesuntec@gmail.com is not an Editor of the Firebase project: *Updating*, 3.25, step 1. |
+| No backups for days | Run **setupBackups** again (the schedule may have been removed); check Settings → Full backups → *How often* is not *Off*. |
 
 Moving the records folder elsewhere in the Drive is fine (the script remembers it by its ID). Don't delete it, and
 don't delete or rename the files inside; the vouchers point to them.

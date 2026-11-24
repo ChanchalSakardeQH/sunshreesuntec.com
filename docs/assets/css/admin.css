@@ -407,3 +407,12 @@ fieldset.lib-guide { border: 1px solid var(--line); border-radius: 8px; padding:
 #libset-box summary { cursor: pointer; font-weight: 600; }
 .libset-table td { vertical-align: top; }
 .libset-table .sub { display: block; font-size: .82rem; color: var(--muted); }
+
+/* 3.25: full backups */
+.fb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .6rem 1rem; }
+.fb-status { padding: .5rem .75rem; border-radius: 8px; background: var(--paper-2, #f6f4ee); }
+.fb-status.bad { background: #fdecea; color: #8c1d18; }
+.fb-status.ok { background: #e8f4ec; }
+.fb-cols { display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
+.fb-table td { vertical-align: top; }
+#fb-dialog { width: min(40rem, 94vw); }

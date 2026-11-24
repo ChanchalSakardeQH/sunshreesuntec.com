@@ -3100,6 +3100,7 @@ async function loadSettings() {
   $('#ufb-box').hidden = !units.length;
   $('#ufr-unit').innerHTML = unitOptions(false);
   if (!driveReady()) setMsg($('#ufb-box'), 'Connect the Society’s Google Drive first: Expenses → Set-up.');
+  loadFullBackups().catch((err) => console.warn('full backups', err));
   const mf = $('#mmc-form');
   const mmc = billing.mmc || MMC_TEMPLATE;
   mf.method.value = billing.method || 'agm';
@@ -4355,7 +4356,7 @@ async function showBackupNote() {
   const at = b?.at?.toDate ? b.at.toDate() : null;
   $('#uf-backup').textContent = !driveReady() ? 'Google Drive backup: the Drive isn’t connected yet (Expenses → Set-up).'
     : at ? `Google Drive backup: saved ${at.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${b.byName ? ` by ${b.byName}` : ''}.`
-      : 'Google Drive backup: not saved yet.';
+      : 'Google Drive backup: not saved yet for this unit (it is made when one of its records is saved, or with Back up now; all units are also in the scheduled full backup, Settings → Full backups).';
   $('#uf-backup-now').hidden = !driveReady() || !canDo('unitRecords');
 }
 
@@ -4484,9 +4485,116 @@ function wireUnitFile() {
   });
 }
 
+/* ---------- Settings: full backups (3.25) ---------- */
+const FB_NEEDED = 13;
+let fbList = [], fbPick = null;
+const fbWhen = (iso) => { if (!iso) return ''; const d = new Date(iso.toDate ? iso.toDate() : iso); return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' }); };
+async function loadFullBackups() {
+  const { F, db } = fb, f = $('#fb-form'), st = $('#fb-status');
+  if (!f.hour.options.length) f.hour.innerHTML = Array.from({ length: 24 }, (_, h) => `<option value="${h}">${h === 0 ? '12 midnight' : h < 12 ? `${h} am` : h === 12 ? '12 noon' : `${h - 12} pm`}</option>`).join('');
+  const [cfgSnap, stSnap] = await Promise.all([F.getDoc(F.doc(db, 'settings', 'fullBackupConfig')).catch(() => null), F.getDoc(F.doc(db, 'settings', 'fullBackup')).catch(() => null)]);
+  const c = { frequency: 'daily', hour: 2, weekday: 0, keepDays: 30, ...(cfgSnap?.exists() ? cfgSnap.data() : {}) };
+  f.frequency.value = c.frequency; f.hour.value = String(c.hour); f.weekday.value = String(c.weekday); f.keepDays.value = String(c.keepDays);
+  fbFreqChanged();
+  const ed = canDo('committee');
+  $$('#fb-box [data-committee]').forEach((b) => (b.hidden = !ed));
+  $$('select', f).forEach((x) => (x.disabled = !ed));
+  const s = stSnap?.exists() ? stSnap.data() : null;
+  const ver = driveReady() ? await driveScriptVersion() : -1;
+  st.className = 'fb-status';
+  if (ver !== -1 && ver < FB_NEEDED) {
+    st.className = 'fb-status bad';
+    st.textContent = `Not set up yet: the storage script needs to be updated (version ${FB_NEEDED}; it is ${ver || 'not answering'}), given access to the database and its schedule started — see the storage script’s README, “3.25”.`;
+    return;
+  }
+  if (!s) { st.className = 'fb-status bad'; st.textContent = driveReady() ? 'No full backup has been made yet. After updating the storage script, run setupBackups once in its editor (it makes the first backup and starts the schedule).' : 'Connect the Society’s Google Drive first: Expenses → Set-up.'; return; }
+  const parts = [];
+  if (s.at) parts.push(`Last full backup: ${fbWhen(s.at)} (${s.kind === 'scheduled' ? 'scheduled' : `by ${s.by || 'request'}`}) — ${s.docs} records, ${s.users ?? 0} sign-in accounts, ${fmtSize(s.bytes)}.`);
+  if (s.ok === false) parts.push(`The last attempt FAILED on ${fbWhen(s.failedAt)}: ${s.error}`);
+  if (s.at && Date.now() - new Date(s.at.toDate ? s.at.toDate() : s.at).getTime() > (c.frequency === 'weekly' ? 8 : 2) * 864e5 && c.frequency !== 'off') parts.push('No backup for longer than the schedule: check the storage script’s schedule (setupBackups).');
+  if (s.usersNote) parts.push(`Sign-in accounts were not saved (${s.usersNote}).`);
+  if (s.lastRestore) parts.push(`Last restore: ${fbWhen(s.lastRestore.at)} by ${s.lastRestore.by} from ${s.lastRestore.file} (${s.lastRestore.mode === 'all' ? 'everything' : 'missing only'}; ${s.lastRestore.restored} put back).`);
+  if (c.frequency === 'off') parts.push('Scheduled backups are OFF.');
+  st.className = `fb-status ${s.ok === false || c.frequency === 'off' || parts.some((p) => p.startsWith('No backup')) ? 'bad' : 'ok'}`;
+  st.textContent = parts.join(' ');
+}
+function fbFreqChanged() { $('#fb-day-label').hidden = $('#fb-form').frequency.value !== 'weekly'; }
+async function fbShowList() {
+  const r = await driveCall(fb, 'listBackups');
+  fbList = r.backups || [];
+  $('#fb-backups').hidden = false;
+  $('#fb-rows').innerHTML = fbList.map((b, i) => `<tr><td>${esc(b.name.replace(/^Full backup /, '').replace(/\.json\.gz$/, '').replace(/ (\d\d)(\d\d)$/, ' $1:$2'))}${i === 0 ? ' <span class="muted">(newest)</span>' : ''}${/-01 /.test(b.name) ? ' <span class="muted">(monthly, kept)</span>' : ''}</td><td>${fmtSize(b.bytes)}</td>
+    <td><button class="btn btn-small" type="button" data-fb-restore="${esc(b.id)}">Restore…</button></td></tr>`).join('') || '<tr><td colspan="3" class="empty">No full backups yet.</td></tr>';
+}
+function wireFullBackups() {
+  const f = $('#fb-form');
+  f.frequency.addEventListener('change', fbFreqChanged);
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!canDo('committee')) return;
+    const { F, db } = fb;
+    await busy(e.submitter || $('#fb-form [type=submit]'), async () => {
+      try {
+        await F.setDoc(F.doc(db, 'settings', 'fullBackupConfig'), { frequency: f.frequency.value, hour: Number(f.hour.value), weekday: Number(f.weekday.value), keepDays: Number(f.keepDays.value), updatedAt: F.serverTimestamp(), updatedBy: uid, updatedByName: me?.name || '' });
+        setMsg(f, f.frequency.value === 'off' ? 'Saved: scheduled backups are off.' : `Saved: ${f.frequency.value === 'weekly' ? `every ${f.weekday.selectedOptions[0].text}` : 'every day'} at ${f.hour.selectedOptions[0].text}.`, true);
+        await loadFullBackups();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#fb-now').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    setMsg(f, 'Backing up everything… (this can take a minute)', true);
+    try {
+      await loadDriveCfg(fb);
+      const r = await driveCall(fb, 'fullBackup');
+      setMsg(f, `Backed up: ${r.backup.fileName} — ${r.backup.docs} records, ${r.backup.users} sign-in accounts, ${fmtSize(r.backup.bytes)}, in ${r.backup.seconds} s.`, true);
+      await loadFullBackups();
+      if (!$('#fb-backups').hidden) await fbShowList();
+    } catch (err) { setMsg(f, esc(errorText(err))); }
+  }));
+  $('#fb-list').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try { await loadDriveCfg(fb); await fbShowList(); } catch (err) { setMsg(f, esc(errorText(err))); }
+  }));
+  $('#fb-rows').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-fb-restore]');
+    if (!b) return;
+    fbPick = fbList.find((x) => x.id === b.dataset.fbRestore);
+    const rf = $('#fb-restore');
+    rf.reset(); setMsg(rf, ''); $('#fb-r-confirm-wrap').hidden = true;
+    $('#fb-r-name').textContent = fbPick.name.replace(/\.json\.gz$/, '');
+    $('#fb-r-info').textContent = 'Reading the backup…'; $('#fb-r-cols').innerHTML = '';
+    $('#fb-dialog').showModal();
+    try {
+      const r = await driveCall(fb, 'restoreBackup', { fileId: fbPick.id, info: true });
+      const cnt = r.info.counts || {};
+      $('#fb-r-info').textContent = `Made ${fbWhen(r.info.createdAt)}: ${Object.values(cnt).reduce((a, n) => a + n, 0)} records, ${r.info.users} sign-in accounts.`;
+      $('#fb-r-cols').innerHTML = Object.keys(cnt).sort().map((k) => `<label class="check"><input type="checkbox" value="${esc(k)}"> ${esc(k)} <span class="muted">(${cnt[k]})</span></label>`).join('');
+    } catch (err) { $('#fb-r-info').textContent = errorText(err); }
+  });
+  const rf = $('#fb-restore');
+  rf.addEventListener('change', () => { $('#fb-r-confirm-wrap').hidden = rf.mode.value !== 'all'; });
+  $('#fb-dialog [data-close]').addEventListener('click', () => $('#fb-dialog').close());
+  rf.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const mode = rf.mode.value, cols = $$('#fb-r-cols input:checked').map((x) => x.value);
+    if (mode === 'all' && rf.confirm.value.trim() !== 'RESTORE') return setMsg(rf, 'Type RESTORE to put everything back as it was.');
+    if (!confirm(`${mode === 'all' ? 'Put EVERYTHING back as it was' : 'Put back what is missing'} from ${fbPick.name}${cols.length ? ` (only: ${cols.join(', ')})` : ''}?`)) return;
+    await busy($('#fb-r-go'), async () => {
+      try {
+        setMsg(rf, 'Restoring… (this can take a few minutes; keep this page open)', true);
+        const r = await driveCall(fb, 'restoreBackup', { fileId: fbPick.id, mode, collections: cols, confirm: rf.confirm.value.trim() });
+        const x = r.restore;
+        $('#fb-dialog').close();
+        setMsg(f, `Restored from ${fbPick.name}: ${x.restored} records put back, ${x.existed} already there${x.failed ? `, ${x.failed} failed (${esc(x.errors.join('; '))})` : ''}. Reload the page to see them.`, !x.failed);
+        await loadFullBackups();
+      } catch (err) { setMsg(rf, esc(errorText(err))); }
+    });
+  });
+}
+
 /* ---------- Settings: unit files in Google Drive (3.12) ---------- */
 let ufrFound = null;
 function wireDriveBackups() {
+  wireFullBackups();
   $('#ufb-all').addEventListener('click', (e) => busy(e.currentTarget, async () => {
     const box = $('#ufb-box'), prog = $('#ufb-progress');
     setMsg(box, '');

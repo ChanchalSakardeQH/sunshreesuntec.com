@@ -168,6 +168,14 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 3 | Transfers → checklists → *Use the bye-law forms from the Library* → Save | Forms linked; asks to update transfers in progress |
 | 4 | Library page → *Which forms do I need?* → *Selling or buying a flat* | Forms in order with their guide; *Open the form* when signed in |
 
+### Full backups and restore drill (3.25)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Test copy of the storage script: new `appsscript.json` and `Code.gs`; the Society account Editor of the TEST Firebase project; run **setupBackups** | Log: *First backup made* with the TEST project's counts; file in *TEST …/Backups/Full* |
+| 2 | Test site → Settings → Full backups | Status shows that backup; set weekly, save |
+| 3 | Delete a test payment, then *Restore… → Only what is missing* | The payment is back; nothing else changes |
+| 4 | Move the test copy's own backups out of *TEST …/Backups/Full*, copy a real backup in, and run **restoreLatestBackupEverything** in the test copy | The TEST project holds the real data (the drill); clear it afterwards (section D) |
+
 ---
 
 ## D. Clearing the test copy
