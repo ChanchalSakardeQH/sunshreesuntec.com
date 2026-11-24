@@ -28,29 +28,50 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 - New suite t323 (28 checks): tracker, start a sale case from a unit with no transfer, death list and labels, letters printed filled in, received / not-needed / scan (uploaded as kind *transfers*, backed up), still-to-come, checklist editor (library link, note, new item; the case keeps its own list), completion with resolution and endorsement, completed read-only, view-only staff, watchman without the tab, member view (own unit only, scan via *memberFetch*, blank form from the Library, application letter with their name).
 - 6 new Drive script checks (142 in all); all earlier suites pass.
 
-New "Transfers" tab in the admin page
+**New "Transfers" tab in the admin page**
 
-Tracker: a list of every unit with its transfer, for example "4 of 12" documents and a bar. It names the next documents still to come and whether the transfer is in progress or completed, with the committee resolution and the date the share certificate was endorsed.
-Filter: you can list units with no transfer recorded. That is the list for chasing the owners who never applied.
-A transfer: start one on a unit as sale or death and enter the old and new member and the dates. For each document you record:
-the date it was received, or that it is not needed;
-a scan, which is kept in that unit's folder under Membership transfer.
-Finishing: add the resolution number and the date the certificate was endorsed, then mark it completed. A completed transfer can no longer be changed.
-Your lists: the two lists are exactly as in your message (10 documents for death, 12 for sale). The committee can rename, add or remove documents. A transfer already started keeps the list it began with.
+- **Tracker:** a list of every unit with its transfer, for example "4 of 12" documents and a bar. It names the next documents still to come and whether the transfer is in progress or completed, with the committee resolution and the date the share certificate was endorsed.
 
-Templates
+- **Filter:** you can list *units with no transfer recorded*. That is the list for chasing the owners who never applied.
 
-Printable letters: four letters print with the unit, names, deed number and the list of enclosures already filled in:
-the application to the Managing Committee;
-the submission letter;
-the possession letter;
-the resignation of the old member.
-The numbered forms and stamp-paper documents: I didn't write these (Forms 15, 3, 4, 20A, 20B, 21-1, 23, 25, 26, 03, Appendix 13, the affidavit and the undertaking), because their wording is set under the bye-laws. Upload the Society's blank copies to the Library and link each one in the list. Members then get a Blank form button next to it.
+- A transfer:
 
-Member page
+   start one on a unit as 
 
-Under Membership transfer documents, members see their own unit's transfer: what has been received, the scans and the resolution.
-Below that are both full lists, each with Print letter or Blank form.
+  sale
+
+   or 
+
+  death
+
+   and enter the old and new member and the dates. For each document you record:
+
+  - the date it was received, or that it is not needed;
+  - a scan, which is kept in that unit's folder under *Membership transfer*.
+
+- **Finishing:** add the resolution number and the date the certificate was endorsed, then mark it completed. A completed transfer can no longer be changed.
+
+- **Your lists:** the two lists are exactly as in your message (10 documents for death, 12 for sale). The committee can rename, add or remove documents. A transfer already started keeps the list it began with.
+
+**Templates**
+
+- Printable letters:
+
+   four letters print with the unit, names, deed number and the list of enclosures already filled in:
+
+  - the application to the Managing Committee;
+  - the submission letter;
+  - the possession letter;
+  - the resignation of the old member.
+
+- **The numbered forms and stamp-paper documents:** I didn't write these (Forms 15, 3, 4, 20A, 20B, 21-1, 23, 25, 26, 03, Appendix 13, the affidavit and the undertaking), because their wording is set under the bye-laws. Upload the Society's blank copies to the Library and link each one in the list. Members then get a *Blank form* button next to it.
+
+**Member page**
+
+- Under *Membership transfer documents*, members see their own unit's transfer: what has been received, the scans and the resolution.
+- Below that are both full lists, each with *Print letter* or *Blank form*.
+- If no transfer is recorded for their unit, a note asks them to submit the list that applies if the share certificate is not yet in their name.
+
 If no transfer is recorded for their unit, a note asks them to submit the list that applies if the share certificate is not yet in their name.
 ---
 
