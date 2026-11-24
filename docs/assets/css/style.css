@@ -431,3 +431,12 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 .lib-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .55rem; }
 .lib-item mark { background: color-mix(in srgb, var(--stamp) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 .1rem; }
 .lib-filters select { font: inherit; padding: .4rem .5rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); min-width: 9rem; }
+
+/* 3.22: agreement declaration (in place of tick boxes); pre-registered members' first sign-in */
+.ma-declaration { border: 1px solid var(--line); border-radius: 10px; padding: .75rem 1rem; margin: 0 0 1rem; background: var(--surface); }
+.ma-declaration h3 { margin: 0 0 .35rem; font-size: 1rem; }
+.ma-declaration ol { margin: .4rem 0 0; padding-left: 1.3rem; display: grid; gap: .35rem; }
+.invite-card .form { max-width: 32rem; }
+.invite-facts { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .9rem; margin: .5rem 0 1rem; }
+.invite-facts dt { color: var(--muted); }
+.invite-facts dd { margin: 0; font-weight: 600; }

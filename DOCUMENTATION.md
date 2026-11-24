@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.21.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.22.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -36,6 +36,7 @@ This document explains what the system does, where the data lives, how every amo
 12-4. Managing Committee: posts, undertaking and M-20 bonds (3.19)
 12-5. Rules, GRs and forms library (3.20)
 12-6. Test copy for trying roles safely (3.21)
+12-7. Pre-registering members by email (3.22)
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
@@ -144,6 +145,7 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `settings/committeeRegister` (3.19) | Date the committee was formed, date the Registrar was informed, letter reference and copy | Committee |
 | `libraryDocs/{id}` (3.20) | Library entry: title, category, issued by, number / reference, date, year, language, keywords, description, official source, public, the file in the Drive (id, name, type, size), words read and pages, removed, who added and changed it | Committee and staff with *library* |
 | `libraryDocs/{id}/index/{n}` (3.20) | The words inside the document (space-separated, unique, lower case), in chunks of up to 700 KB, with the entry's public flag | Same |
+| `memberInvites/{email}` (3.22) | Members pre-registered by the committee: email (lower case, the document id), unit, name, relation, access, mobile, status (open / used / cancelled), who and when, who used it and when | *approve members*; the person themselves marks it used |
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
 | `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time; and (3.17) the name, unit and mobile typed in the registration form when Google was opened from it. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
 | `admins/{uid}` | Committee members (no `kind`) and staff (`kind: 'staff'`, role, permissions, active, `agreementRequired` (false = no agreement needed, e.g. auditors), `validUntil` (access ends after this date), `org`, agreement version and acceptance, last sign-in) | First committee member: Firebase console. Staff: created when they claim their invitation, or by the committee approving a request. Committee: Staff tab |
@@ -559,6 +561,17 @@ To try the site as an owner, a tenant, the Accountant, a watchman or the Chairma
 - **Drive:** a copy of the Apps Script project with Script properties for the test project, `ROOT_FOLDER = TEST Sunshree Suntec Records` and `TEST = yes`. Its emails say **[TEST]**, and it never writes into the real folder, even if the copied properties remember it.
 - **People:** sign-ins belong to a project, so any Gmail can play any role in the test copy, whatever it is on the real site. Use separate Chrome profiles to be signed in as several people at once.
 
+## 12-7. Pre-registering members by email (3.22)
+
+To bring members online who don't register themselves, the committee enters them from the Society's records: **Members → Pre-register members by email** (unit, name, relation, their Google email, optionally the mobile, unit account or not). Or use **Reminders → Not registered → Pre-register** for contacts in the unit files, one by one or all at once.
+
+- **Their first sign-in:** when the person signs in on the member page with Google **using that email**, they see *Welcome to the Society portal* with the unit and relation as entered. They confirm their name and mobile under a written declaration and are approved at once. Then they read and accept the member portal agreement, and their account opens.
+- **Rules:** this is allowed only for a verified email matching an open pre-registration, and only exactly as entered (unit, relation, access).
+- **The list:** *Waiting for their first sign-in* / *Signed in (agreement accepted or not yet)*. **WhatsApp** / **Email** send the invitation (*your access is ready: sign in with Google using this email*) and are recorded. **Cancel** withdraws a pre-registration that hasn't been used.
+- **If the email doesn't match:** the email must be a Google account. Someone who signs in with a different email registers and waits for approval as usual.
+
+**Agreement acceptance (3.22).** The member portal agreement has no tick boxes. Its four statements are printed as a declaration above the signature, and typing one's full name and pressing *I accept* accepts both. The statements are kept with the acceptance and printed in the PDF (*Declaration accepted*).
+
 ## 12A. Staff: roles, access and agreement
 
 ### Staff and officials asking for access (3.6)
@@ -787,6 +800,7 @@ See `README.md` for step-by-step instructions. Summary:
 | *Email the selected from the Society's account* is greyed out | Drive script older than version 6 | Deploy the new `Code.gs` |
 | A committee member is stuck on the committee undertaking | A new version was published | Read, tick, sign, accept. If saving fails (rules not published), *Continue for now*, then publish `firestore.rules` |
 | *Make committee member* doesn't list someone | They aren't an approved member, or already have a committee or staff login | Approve them in Members; remove a staff login first |
+| A pre-registered member gets the normal registration form | They signed in with a different email, the email isn't verified, or the pre-registration was cancelled | Check the email in Members → Pre-register; they must use Google with that email |
 | The red TEST COPY banner is missing on the test copy | `testFirebaseConfig` not in `firebase-config.js`, or the address isn't `localhost` or in `testSites` | See TESTING.md step A.2 |
 | *Save a copy from its official web address* fails | The site needs a browser, refuses scripts, or the address is a web page | Open it, download the PDF, add the file |
 | A library PDF shows *No text (scanned?)* | The PDF is pictures of pages, or uses an old Marathi font | Add keywords (English and Marathi) |
@@ -808,6 +822,8 @@ See `README.md` for step-by-step instructions. Summary:
 **Is interest charged on interest?** No. Interest is simple, on unpaid principal only, maximum 12% p.a., and only if the General Body has fixed a rate.
 
 **What is BPM?** Builder Pending Maintenance from the builder period, shown separately and not added to the member's balance.
+
+**The committee says my access is ready. What do I do?** Open the member page, press *Sign in with Google* and choose the email the committee used. Confirm your mobile number and accept the agreement.
 
 **Who can see my maintenance amount?** You see your own. Other members see it only if the Chairman, Secretary, Treasurer or Accountant has allowed them to see all units' amounts; visitors see masks (x,xxx). The committee and the accounts staff see all.
 

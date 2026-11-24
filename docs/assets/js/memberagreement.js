@@ -145,8 +145,8 @@ export const DEFAULT_MEMBER_AGREEMENT = {
     {
       "heading": "Electronic acceptance and record of the Agreement",
       "clauses": [
-        "The user may accept this Agreement electronically by ticking the acceptance confirmations and typing their full name, or by another authentication process approved by the Society.",
-        "The Portal shall record the user’s name and registered email address, the unit, the date and time of acceptance, the Agreement version, the confirmations ticked and the sign-in used.",
+        "The user may accept this Agreement electronically by reading it with the declaration at its end and typing their full name as their signature, or by another authentication process approved by the Society.",
+        "The Portal shall record the user’s name and registered email address, the unit, the date and time of acceptance, the Agreement version, the declaration accepted and the sign-in used.",
         "Electronic acceptance is governed by applicable law, including section 10A of the Information Technology Act, 2000.",
         "A copy of the accepted Agreement shall be emailed to the user’s registered email address, with a copy to the Society’s official email address, and kept in the Society’s records for the unit. The user may also download it from the Portal or ask the Society’s office for a copy.",
         "Acceptance by a person who is not the member applies to that person’s own use of the Portal within the authority granted. It does not, by itself, amend or replace the member’s statutory obligations."
@@ -228,3 +228,15 @@ export function agreementHTML(ag, person = {}, accepted = null) {
     <p><strong>${esc(ag.closing || '')}</strong></p>
     ${accepted ? `<p class="meta-line"><strong>Accepted electronically</strong> by ${esc(accepted.signedName)} (${esc(person.email || '')}) on ${esc(accepted.when)}, version ${esc(ag.version)}.</p>` : ''}`;
 }
+
+/**
+ * 3.22: the declaration printed above the signature (it replaces the four tick boxes). Typing one's full name and
+ * pressing "I accept" accepts the agreement and this declaration; the statements are saved with the acceptance and
+ * printed in the PDF copy.
+ */
+export const MEMBER_DECLARATION = [
+  'I have read the whole agreement and I accept it.',
+  'I will pay my dues on time and keep my unit’s records updated on the portal (title documents with Index II, rental agreements, police verification, occupant details), with physical copies at the Society office against acknowledgment.',
+  'I will first write to the Society about any grievance, and will not defame the Society, its committee, staff or service personnel by any means, including social media.',
+  'I consent to the Society keeping and using my personal data and documents as described in the agreement.'
+];

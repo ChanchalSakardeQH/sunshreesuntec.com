@@ -73,6 +73,8 @@ service cloud.firestore {
             || (me().get('kind', '') == 'staff' && me().get('role', '') == 'Accountant'
                 && (me().get('agreementRequired', true) == false || agreementOk())));
     }
+    // 3.22: the pre-registration for the signed-in person's email, if any.
+    function inviteFor() { return get(/databases/$(database)/documents/memberInvites/$(request.auth.token.email.lower())).data; }
     function viewFields() { return ['seeAllDues', 'societyAccounts', 'accountsUntil', 'accessBy', 'accessByName', 'accessAt']; }
     // Any approved member with a confirmed email (any unit, full or basic access), not removed.
     function approvedMember() {
@@ -166,7 +168,20 @@ service cloud.firestore {
         && request.resource.data.unit is string && request.resource.data.unit.size() <= 12
         && request.resource.data.mobile is string && request.resource.data.mobile.matches('^[6-9][0-9]{9}$')
         && request.resource.data.email == request.auth.token.email
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        // 3.22: someone the committee pre-registered by email: their first sign-in with that (verified) email creates
+        // an approved record exactly as the committee entered it (unit, relation, access); they confirm the mobile.
+        || (signedIn() && request.auth.uid == uid && request.auth.token.email_verified == true
+            && exists(/databases/$(database)/documents/memberInvites/$(request.auth.token.email.lower()))
+            && inviteFor().status == 'open'
+            && request.resource.data.keys().hasOnly(['name', 'unit', 'mobile', 'email', 'status', 'createdAt', 'provider', 'relation', 'access', 'decidedAt', 'decidedBy', 'decidedByEmail', 'invited'])
+            && request.resource.data.status == 'approved' && request.resource.data.invited == true
+            && request.resource.data.unit == inviteFor().unit && request.resource.data.relation == inviteFor().relation
+            && request.resource.data.access == inviteFor().access && request.resource.data.decidedBy == inviteFor().createdBy
+            && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 120
+            && request.resource.data.mobile is string && request.resource.data.mobile.matches('^[6-9][0-9]{9}$')
+            && request.resource.data.email == request.auth.token.email
+            && request.resource.data.createdAt == request.time && request.resource.data.decidedAt == request.time);
       allow read: if (signedIn() && request.auth.uid == uid) || perm('members') || perm('directory') || accessApprover();
       // 3.18: the permissions to see other units' amounts and the Society's accounts are changed only by the approvers.
       allow update: if (perm('members') && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(viewFields()) || accessApprover()))
@@ -471,6 +486,30 @@ service cloud.firestore {
     match /auditYears/{fy} {
       allow read: if perm('view') || seesAccounts();
       allow write: if isCommittee();
+    }
+
+    // 3.22: members pre-registered by the committee from the Society's records (document id = email in lower case).
+    // The person reads their own when they first sign in with that email, and marks it used once their record exists.
+    match /memberInvites/{email} {
+      allow read: if perm('members') || (signedIn() && request.auth.token.email_verified == true && request.auth.token.email.lower() == email);
+      allow create: if perm('members')
+        && request.resource.data.email == email && email.matches('^[^@ ]+@[^@ ]+[.][a-z]{2,}$')
+        && request.resource.data.status == 'open'
+        && request.resource.data.relation in ['owner', 'jointOwner', 'family', 'tenant', 'caretaker']
+        && request.resource.data.access in ['full', 'basic']
+        && request.resource.data.unit is string && request.resource.data.unit.size() >= 1 && request.resource.data.unit.size() <= 12
+        && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 120
+        && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
+      allow update: if (perm('members') && resource.data.status != 'used'
+            && request.resource.data.status in ['open', 'cancelled'] && request.resource.data.email == email
+            && request.resource.data.relation in ['owner', 'jointOwner', 'family', 'tenant', 'caretaker']
+            && request.resource.data.access in ['full', 'basic'])
+        || (signedIn() && request.auth.token.email_verified == true && request.auth.token.email.lower() == email
+            && resource.data.status == 'open'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'usedBy', 'usedAt'])
+            && request.resource.data.status == 'used' && request.resource.data.usedBy == request.auth.uid && request.resource.data.usedAt == request.time
+            && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)));
+      allow delete: if false;
     }
 
     // 3.20: the Rules, GRs and forms library. Entries marked public are listed to everyone; members and the team see

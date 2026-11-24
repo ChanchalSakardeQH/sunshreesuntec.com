@@ -72,6 +72,9 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.22 (script version 11):** the member agreement PDF says *Declaration accepted* (the website shows the
+declaration as text instead of tick boxes). No new permission.
+
 **3.21 (script version 10):** a **test copy** of this script (see TESTING.md): make a copy of the project, set its
 Script properties to the test Firebase project, `ROOT_FOLDER = TEST Sunshree Suntec Records`, `SITE_ADDRESS` to the test
 site and `TEST = yes`. Its emails are marked [TEST] and it never writes into the real folder. The real script only needs

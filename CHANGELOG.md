@@ -6,6 +6,36 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.22.0] – 2026-11-24 – Pre-register members by email; agreement declaration instead of tick boxes
+
+### Added
+- **Members → Pre-register members by email.** For owners, family members and tenants whose email is in the Society's records but who don't register themselves.
+  - **What the committee enters:** the unit, name, relation, their Google email and (optionally) the mobile, plus whether they see the unit account. This is saved as a pre-registration (`memberInvites/{email in lower case}`).
+  - **Their first sign-in:** when they sign in on the member page with Google **using that email** (verified), they see *Welcome to the Society portal* with the unit and relation as entered. They only confirm their name and mobile, under a written declaration, and are **approved at once** (`users.invited`, decided by the committee member who pre-registered them).
+  - **Then the agreement:** they go straight to the member portal agreement.
+  - **The list:** pre-registrations show as *Waiting for their first sign-in* or *Signed in (agreement accepted / not yet)*, with **WhatsApp** / **Email** invitation buttons (*your access … is ready: sign in with Google using this email*, recorded) and **Cancel** / **Reopen**.
+  - **Checks:** the email must not already be a member, a waiting request or a used pre-registration.
+  - **Approved list:** pre-registered members are marked *Pre-registered*.
+  - **If the email doesn't match:** someone signing in with another email, or whose pre-registration was cancelled, registers and waits for approval as before.
+- **Reminders → Not registered:**
+  - **Pre-register** on each contact with an email in the unit file (relation taken from the record: tenant, joint member, family, otherwise owner);
+  - **Pre-register everyone listed with an email** at once;
+  - pre-registered contacts are marked and get the *access is ready* message instead of *please register*.
+
+### Changed
+- **Member portal agreement: no tick boxes.** The four statements are printed as a **Declaration** above the signature ("By typing my full name below and pressing I accept, I declare that: …"). Typing one's name and pressing *I accept* accepts the agreement and the declaration. The statements are saved with the acceptance as before (`confirmations`), and the PDF copy says *Declaration accepted* (Drive script version 11).
+- The standard agreement text says acceptance is by reading the agreement with its declaration and typing one's name. To show this wording to members, publish it as a new version (Members → Member portal agreement).
+
+### Rules
+- `memberInvites`: created and changed by *approve members* (email as id, valid relation and access); read by the person signing in with that verified email, who marks it *used* once their record exists. Never deleted.
+- `users`: besides a pending request, a person with an open pre-registration for their verified email may create an **approved** record that matches it exactly (unit, relation, access, decided by), with a valid mobile and server time.
+
+### Tested
+- New suite t322 (20 checks): pre-register by form (email in lower case, access from the relation); invitation text and record; existing member and bad email refused; from the unit files one by one and all at once (joint member → joint owner, no email skipped); the first sign-in confirms the mobile (typed with +91 and spaces), is approved as entered, the pre-registration is used, then the agreement with the declaration and no tick boxes, accepted by typing the name; the committee sees *Signed in, agreement accepted*; cancelling; a cancelled or unverified email gets no shortcut.
+- t313 and t3153 updated for the declaration; 1 new Drive script check (136 in all).
+
+---
+
 ## [3.21.0] – 2026-11-21 – Test copy: try every role without touching the Society's records
 
 ### Added

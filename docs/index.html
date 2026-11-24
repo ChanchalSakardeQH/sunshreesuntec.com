@@ -287,13 +287,11 @@
           </div>
           <article class="agreement-doc" id="ma-doc" tabindex="0" aria-label="Member portal agreement"></article>
           <form id="ma-form" class="form agreement-form" novalidate>
-            <fieldset>
-              <legend>Please confirm</legend>
-              <label class="check"><input type="checkbox" name="c1" value="I have read the whole agreement and I accept it."> I have read the whole agreement and I accept it.</label>
-              <label class="check"><input type="checkbox" name="c2" value="I will pay my dues on time and keep my unit’s records (title documents with Index II, rental agreements, police verification, occupant details) updated on the portal, with physical copies at the Society office against acknowledgment."> I will pay my dues on time and keep my unit’s records updated on the portal (title documents with Index II, rental agreements, police verification, occupants), with physical copies at the Society office against acknowledgment.</label>
-              <label class="check"><input type="checkbox" name="c3" value="I will first write to the Society about any grievance, and will not defame the Society, its committee, staff or service personnel by any means, including social media."> I will first write to the Society about any grievance, and will not defame the Society, its committee, staff or service personnel by any means, including social media.</label>
-              <label class="check"><input type="checkbox" name="c4" value="I consent to the Society keeping and using my personal data and documents as described in the agreement."> I consent to the Society keeping and using my personal data and documents as described in the agreement.</label>
-            </fieldset>
+            <div class="ma-declaration">
+              <h3>Declaration</h3>
+              <p>By typing my full name below and pressing <strong>I accept</strong>, I declare that:</p>
+              <ol id="ma-declaration"></ol>
+            </div>
             <label>Type your full name as your signature<input type="text" name="sign" autocomplete="name" maxlength="120" required></label>
             <p class="form-msg" role="alert"></p>
             <div class="form-actions">

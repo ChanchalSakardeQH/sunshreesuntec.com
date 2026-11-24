@@ -33,7 +33,7 @@ import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, safeName, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
 import { LIB_CATEGORIES, LIB_LANGS, LIB_TYPES, LIB_MAX_BYTES, pdfWords, wordList, saveIndex, setIndexPublic, loadIndex, forgetIndex, searchLibrary, fmtSize, extOf } from './library.js';
 import { POSTS, SINGLE_POSTS, M20_DAYS, DEFAULT_UNDERTAKING, m20Status, undertakingFor, addYears, addDays as cAddDays } from './committee.js';
-import { REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
+import { PREREG_MESSAGE, REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
 import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { initCorrespondence, loadCorrespondence, lettersForUnit, statusText as letterStatus } from './correspondence.js';
@@ -300,6 +300,7 @@ function wireOnce() {
   wireMembers();
   wireReminders();
   wireAccessApps();
+  wirePrereg();
   wireCommittee();
   wireLibraryAdmin();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
@@ -1140,13 +1141,14 @@ async function loadMembers() {
   knownUids = new Set([...memberDocs.map((m) => m.id), ...sr.docs.map((d) => d.id), ...ad.docs.map((d) => d.id)]);
   knownMobiles = new Set([...memberDocs, ...sr.docs.map((d) => d.data()), ...ad.docs.map((d) => d.data())].map((x) => tenDigits(x.mobile)).filter(Boolean));
   rmLog = await loadReminderLog();
+  await loadInvites().catch((err) => console.warn('pre-registered', err));
   const pend = memberDocs.filter((m) => m.status === 'pending').sort((a, b) => (tsDate(a.createdAt) || 0) - (tsDate(b.createdAt) || 0));
   const appr = memberDocs.filter((m) => m.status === 'approved').sort((a, b) => memberUnitLabel(a.unit).localeCompare(memberUnitLabel(b.unit), 'en', { numeric: true }));
   const rej = memberDocs.filter((m) => m.status === 'rejected').sort((a, b) => (tsDate(b.decidedAt) || 0) - (tsDate(a.decidedAt) || 0));
   const approvedByUnit = {};
   appr.forEach((p) => (approvedByUnit[p.unit] ??= []).push(`${p.name} (${relationLabel(p.relation)})`));
   const contact = (p) => `<td>${p.mobile ? `<a href="tel:+91${esc(p.mobile)}">+91 ${esc(p.mobile)}</a>` : ''}</td><td><a href="mailto:${esc(p.email)}">${esc(p.email)}</a></td>`;
-  const gpill = (p) => `${p.relation ? ` <span class="rel-pill">${esc(relationLabel(p.relation))}</span>` : ''}${p.provider === 'google' ? ' <span class="status-pill">Google</span>' : ''}`;
+  const gpill = (p) => `${p.relation ? ` <span class="rel-pill">${esc(relationLabel(p.relation))}</span>` : ''}${p.provider === 'google' ? ' <span class="status-pill">Google</span>' : ''}${p.invited ? ' <span class="status-pill">Pre-registered</span>' : ''}`;
 
   $('#pending-rows').innerHTML = pend.map((p) => {
     const dup = approvedByUnit[p.unit];
@@ -1273,16 +1275,20 @@ async function renderReminders() {
     rmKind === 'invite' ? 'Taken from the Members and Tenants records in each unit file (current ones with a mobile or email). To invite someone not listed, add their mobile or email in their unit file.' : '',
     hidden ? `${hidden} reminded within the last ${gap} days ${hidden === 1 ? 'is' : 'are'} not shown.` : ''].filter(Boolean).join(' ');
   const tpl = rmTemplate(), sender = { name: me?.name, role: me?.role };
+  $('#rm-prereg-all').hidden = rmKind !== 'invite' || !canDo('members') || !rmRows.some((p) => validEmail(p.email) && !invitesByEmail.get(p.email.toLowerCase()));
   $('#rm-rows').innerHTML = rmRows.map((p, i) => {
-    const msg = fillReminder(tpl, p, sender), wa = waNumber(p.mobile), em = validEmail(p.email);
+    // 3.22: someone already pre-registered gets the "your access is ready" message instead of "please register".
+    const inv = rmKind === 'invite' && p.email ? invitesByEmail.get(String(p.email).toLowerCase()) : null;
+    const msg = fillReminder(inv?.status === 'open' ? PREREG_MESSAGE : tpl, p, sender), wa = waNumber(p.mobile), em = validEmail(p.email);
     const log = rmLastFor(rmKind, p), last = log[0];
     return `<tr><td><input type="checkbox" data-rm-pick="${i}" ${em ? '' : 'disabled title="No email address"'} aria-label="Select ${esc(p.name)}"></td>
       <td class="unit">${esc(p.unitLabel)}</td><td>${esc(p.name)}${p.relation ? `<span class="sub">${esc(relationLabel(p.relation))}</span>` : ''}</td>
       <td class="rm-contact">${p.mobile ? `+91 ${esc(tenDigits(p.mobile) || p.mobile)}` : '<span class="muted">no mobile</span>'}<span class="sub">${em ? esc(p.email) : 'no email'}</span></td>
-      <td data-l="Status">${esc(p.status)}</td>
+      <td data-l="Status">${esc(p.status)}${inv?.status === 'open' ? `<span class="sub">Pre-registered ${whenShort(inv.createdAt)}: waiting for their first sign-in</span>` : ''}</td>
       <td data-l="Last reminded">${last ? `${esc(RM_CHANNEL[last.channel] || last.channel)}<span class="sub">${whenShort(last.at)}${last.byName ? `, ${esc(last.byName)}` : ''}${log.length > 1 ? ` · ${log.length} times` : ''}</span>` : '<span class="muted">Never</span>'}</td>
       <td><div class="rm-send-cell">${wa ? `<a class="btn btn-small" href="${esc(waLink(p.mobile, msg))}" target="_blank" rel="noopener" data-rm-go="whatsapp" data-i="${i}">WhatsApp</a>` : ''}
-        ${em ? `<a class="btn btn-small" href="${esc(mailLink(p.email, msg))}" data-rm-go="email" data-i="${i}">Email</a>` : ''}</div></td></tr>`;
+        ${em ? `<a class="btn btn-small" href="${esc(mailLink(p.email, msg))}" data-rm-go="email" data-i="${i}">Email</a>` : ''}
+        ${rmKind === 'invite' && em && !inv && canDo('members') ? `<button class="btn btn-small btn-primary" type="button" data-rm-prereg="${i}">Pre-register</button>` : ''}</div></td></tr>`;
   }).join('') || `<tr><td colspan="7" class="empty">${rmKind === 'invite' ? 'Nobody to invite: everyone with a mobile or email in the unit files has registered.' : rmKind === 'visit' ? 'Every approved member has visited in this period.' : 'Nobody waiting: every approved member has accepted the current agreement.'}</td></tr>`;
   $('#rm-all').checked = false;
   const ok = rmScriptVer >= REMINDER_SCRIPT_NEEDED;
@@ -1310,6 +1316,15 @@ function wireReminders() {
   $('#rm-box').addEventListener('click', async (e) => {
     const tab = e.target.closest('.rm-tab');
     if (tab) { rmKind = tab.dataset.rm; fillRmTemplate(); await renderReminders(); return; }
+    const pr = e.target.closest('[data-rm-prereg]');
+    if (pr) {
+      const p = rmRows[Number(pr.dataset.rmPrereg)];
+      const msg = $('#rm-msg');
+      try { await savePrereg(contactToPrereg(p)); msg.className = 'form-msg ok'; msg.textContent = `${p.name} (${p.unitLabel}) pre-registered with ${p.email}. Send the invitation with WhatsApp or Email.`; }
+      catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+      await loadInvites(); await renderReminders();
+      return;
+    }
     const go = e.target.closest('[data-rm-go]');
     if (go) {
       const p = rmRows[Number(go.dataset.i)];
@@ -1513,6 +1528,109 @@ async function saveMemberDialog() {
       const fresh = memberDocs.find((x) => x.id === m.id);
       showNotify(fresh || { ...m, ...patch }, action);
     } catch (err) { setMsg(form, esc(errorText(err))); }
+  });
+}
+
+/* ----- 3.22: members pre-registered by email (memberInvites/{email}) ----- */
+let invites = [], invitesByEmail = new Map();
+const PR_RELATIONS = ['owner', 'jointOwner', 'family', 'tenant', 'caretaker'];
+async function loadInvites() {
+  if (!canDo('members')) return;
+  const { F, db } = fb;
+  const snap = await F.getDocs(F.collection(db, 'memberInvites')).catch(() => ({ docs: [] }));
+  invites = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (tsDate(b.createdAt) || 0) - (tsDate(a.createdAt) || 0));
+  invitesByEmail = new Map(invites.filter((i) => i.status !== 'cancelled').map((i) => [i.id, i]));
+  renderInvites();
+}
+function renderInvites() {
+  const f = $('#prereg-form');
+  if (!f.unit.options.length) {
+    const list = (units.length ? units : dues.units).slice().sort((a, b) => String(a.unit).localeCompare(String(b.unit), 'en', { numeric: true }));
+    f.unit.innerHTML = '<option value="">Choose…</option>' + list.map((u) => `<option value="${esc(u.id)}">${esc(u.unit)}${u.name ? ` – ${esc(u.name)}` : ''}</option>`).join('');
+    f.relation.innerHTML = PR_RELATIONS.map((r) => `<option value="${r}">${esc(relationLabel(r))}</option>`).join('');
+  }
+  const sender = { name: me?.name, role: me?.role };
+  const usedBy = new Map(memberDocs.map((m) => [m.id, m]));
+  $('#prereg-rows').innerHTML = invites.map((i) => {
+    const p = { name: i.name, unit: i.unit, unitLabel: memberUnitLabel(i.unit), email: i.email, mobile: i.mobile };
+    const m = fillReminder(PREREG_MESSAGE, p, sender);
+    const log = rmLog.filter((r) => r.kind === 'invite' && r.key === `pre:${i.id}`), last = log[0];
+    const member = i.usedBy ? usedBy.get(i.usedBy) : null;
+    const status = i.status === 'used' ? `<span class="ag-ok">Signed in ${whenShort(i.usedAt)}</span><span class="sub">${member ? `${member.agreementVersion ? 'Agreement accepted' : 'Agreement not yet accepted'}` : ''}</span>`
+      : i.status === 'cancelled' ? '<span class="muted">Cancelled</span>'
+      : `<span class="m20-due">Waiting for their first sign-in</span><span class="sub">Since ${whenShort(i.createdAt)}${i.createdByName ? `, by ${esc(i.createdByName)}` : ''}</span>`;
+    return `<tr><td>${esc(i.email)}</td><td class="unit">${esc(memberUnitLabel(i.unit))}</td><td>${esc(i.name)}<span class="sub">${esc(relationLabel(i.relation))}${i.mobile ? ` · +91 ${esc(i.mobile)}` : ''}</span></td>
+      <td>${status}</td><td>${last ? `${esc(RM_CHANNEL[last.channel] || last.channel)}<span class="sub">${whenShort(last.at)}${log.length > 1 ? ` · ${log.length} times` : ''}</span>` : '<span class="muted">Not sent</span>'}</td>
+      <td><div class="mc-actions">${i.status === 'open' ? `${waNumber(i.mobile) ? `<a class="btn btn-small" href="${esc(waLink(i.mobile, m))}" target="_blank" rel="noopener" data-pr-go="whatsapp" data-pr="${esc(i.id)}">WhatsApp</a>` : ''}
+        <a class="btn btn-small" href="${esc(mailLink(i.email, m))}" data-pr-go="email" data-pr="${esc(i.id)}">Email</a>
+        <button class="btn btn-small btn-danger" type="button" data-pr-cancel="${esc(i.id)}">Cancel</button>`
+        : i.status === 'cancelled' ? `<button class="btn btn-small" type="button" data-pr-reopen="${esc(i.id)}">Reopen</button>` : ''}</div></td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">Nobody pre-registered yet.</td></tr>';
+}
+/** A contact from the unit files (Reminders → Not registered) as a pre-registration. */
+function contactToPrereg(c) {
+  const rel = /tenant/i.test(c.as) ? 'tenant' : /joint/i.test(c.as) ? 'jointOwner' : /family/i.test(c.as) ? 'family' : 'owner';
+  return { unit: c.unit, name: c.name, relation: rel, email: c.email, mobile: tenDigits(c.mobile), access: defaultAccess(rel) };
+}
+/** Saves a pre-registration after checking the email isn't already a member, a request or someone pre-registered. */
+async function savePrereg(d) {
+  const { F, db } = fb;
+  const email = String(d.email || '').trim().toLowerCase();
+  if (!validEmail(email)) throw new Error('Enter a valid email address.');
+  if (!d.unit) throw new Error('Choose the unit.');
+  if (String(d.name || '').trim().length < 3) throw new Error('Enter the name.');
+  const mobile = d.mobile ? tenDigits(d.mobile) : '';
+  if (d.mobile && !mobile) throw new Error('The mobile number should have 10 digits.');
+  const already = memberDocs.find((m) => String(m.email || '').toLowerCase() === email && m.status !== 'rejected' && !m.removed);
+  if (already) throw new Error(already.status === 'pending' ? `${email} has already asked for access (${memberUnitLabel(already.unit)}): approve the request under Requests waiting.` : `${email} is already a member (${memberUnitLabel(already.unit)}).`);
+  const prev = invitesByEmail.get(email);
+  if (prev?.status === 'used') throw new Error(`${email} has already signed in with this pre-registration.`);
+  await F.setDoc(F.doc(db, 'memberInvites', email), { email, name: String(d.name).trim(), unit: d.unit, relation: d.relation, access: d.access, mobile, status: 'open',
+    createdBy: uid, createdByName: me?.name || '', createdByEmail: me?.email || '', createdAt: F.serverTimestamp() });
+  return email;
+}
+function wirePrereg() {
+  const { F, db } = fb;
+  const f = $('#prereg-form');
+  f.relation.addEventListener('change', () => { f.access.value = defaultAccess(f.relation.value); });
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await busy($('button[type=submit]', f), async () => {
+      try {
+        const email = await savePrereg({ unit: f.unit.value, name: f.name.value, relation: f.relation.value, email: f.email.value, mobile: f.mobile.value, access: f.access.value });
+        f.reset(); f.access.value = 'full'; setMsg(f, '');
+        const msg = $('#prereg-msg'); msg.className = 'form-msg ok';
+        msg.textContent = `Pre-registered ${email}. Send the invitation below; when they sign in with Google using this email, they confirm their mobile and accept the agreement.`;
+        await loadInvites();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#prereg-rows').addEventListener('click', async (e) => {
+    const go = e.target.closest('[data-pr-go]');
+    const i = invites.find((x) => x.id === (go?.dataset.pr || e.target.closest('[data-pr-cancel],[data-pr-reopen]')?.dataset.prCancel || e.target.closest('[data-pr-reopen]')?.dataset.prReopen));
+    if (!i) return;
+    if (go) {
+      const rec = { kind: 'invite', key: `pre:${i.id}`, unit: i.unit, name: i.name, email: i.email, mobile: i.mobile || '', uid: '', channel: go.dataset.prGo, by: uid, byName: me?.name || '', at: F.serverTimestamp() };
+      F.addDoc(F.collection(db, 'memberReminders'), rec).then((ref) => { rmLog.unshift({ ...rec, id: ref.id, at: { toDate: () => new Date() } }); setTimeout(renderInvites, 300); }).catch((err) => console.warn('invitation log', err));
+      return;
+    }
+    const cancel = e.target.closest('[data-pr-cancel]');
+    if (cancel && !confirm(`Cancel the pre-registration of ${i.email}? If they sign in later they will have to register and wait for approval.`)) return;
+    try {
+      await F.setDoc(F.doc(db, 'memberInvites', i.id), { ...Object.fromEntries(Object.entries(i).filter(([k]) => k !== 'id')), status: cancel ? 'cancelled' : 'open', changedBy: uid, changedAt: F.serverTimestamp() });
+      await loadInvites();
+    } catch (err) { const msg = $('#prereg-msg'); msg.className = 'form-msg'; msg.textContent = errorText(err); }
+  });
+  $('#rm-prereg-all').addEventListener('click', async (e) => {
+    const todo = rmRows.filter((p) => validEmail(p.email) && !invitesByEmail.get(p.email.toLowerCase()));
+    if (!todo.length || !confirm(`Pre-register ${todo.length} ${todo.length === 1 ? 'person' : 'people'} with the email in their unit file? Each can then sign in with Google using that email without waiting for approval.`)) return;
+    const msg = $('#rm-msg'); let ok = 0; const bad = [];
+    await busy(e.currentTarget, async () => {
+      for (const p of todo) { try { await savePrereg(contactToPrereg(p)); ok++; } catch (err) { bad.push(`${p.name}: ${errorText(err)}`); } }
+      await loadInvites(); await renderReminders();
+    });
+    msg.className = bad.length ? 'form-msg' : 'form-msg ok';
+    msg.textContent = `Pre-registered ${ok}.${bad.length ? ` Not done: ${bad.join('; ')}.` : ''} Send them the invitation (WhatsApp or Email in the list).`;
   });
 }
 

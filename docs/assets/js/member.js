@@ -9,7 +9,7 @@ import { mergeLedger } from './accounts.js';
 import { SELF_REGISTER_ROLES, rolePolicy, PERM_LABEL } from './staff.js';
 import { loadPastReceipts, preLedger } from './pastreceipts.js';
 import { loadAuditYears, listArchive, openArchiveDoc, archiveBlob, yearEndRows } from './archive.js';
-import { agreementHTML } from './memberagreement.js';
+import { agreementHTML, MEMBER_DECLARATION } from './memberagreement.js';
 import { RATE_HISTORY } from './defaults.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { loadDriveCfg, driveReady, driveCall, prepareFile, toBase64, safeName } from './drive.js';
@@ -169,6 +169,17 @@ async function onUser(user) {
   profile = profSnap.exists() ? profSnap.data() : null;
   let staffReq = staffSnap?.exists() ? staffSnap.data() : null;
 
+  // 3.22: pre-registered by the committee from the Society's records: confirm the mobile and go straight in.
+  if (!profile && !isAdmin && !staffReq && user.emailVerified) {
+    const inv = await F.getDoc(F.doc(db, 'memberInvites', String(user.email || '').toLowerCase())).catch(() => null);
+    if (inv?.exists() && inv.data().status === 'open') {
+      const typed = readPending();
+      if (typed) clearPending();
+      showInvite(user, inv.data(), typed?.mobile || '');
+      return;
+    }
+  }
+
   // Came back from Google while registering: send the request filled in before.
   const pending = readPending();
   if (pending && !profile && !staffReq && !isAdmin) {
@@ -222,6 +233,48 @@ async function onUser(user) {
     return;
   }
   renderStatus(user);
+}
+
+/* ---------- 3.22: pre-registered members ---------- */
+function showInvite(user, inv, typedMobile) {
+  showPanel('status');
+  $('#member-status').innerHTML = `<div class="invite-card">
+    <h2>Welcome to the Society portal</h2>
+    <p>The Managing Committee has registered <strong>${esc(user.email)}</strong> from the Society’s records:</p>
+    <dl class="invite-facts"><dt>Unit</dt><dd>${esc(unitLabel(inv.unit))}</dd><dt>As</dt><dd>${esc(relationLabel(inv.relation))}</dd>
+      <dt>Access</dt><dd>${inv.access === 'basic' ? 'The Society’s notices and documents' : 'The unit’s bills, receipts and balance, and the Society’s notices'}</dd></dl>
+    <form class="form" id="invite-form" novalidate>
+      <label>Your full name<input type="text" name="name" autocomplete="name" maxlength="120" required></label>
+      <label>Mobile number<input type="tel" name="mobile" inputmode="tel" autocomplete="tel" maxlength="18" required placeholder="10 digits"></label>
+      <p class="small-note">By pressing <strong>Confirm and continue</strong> I declare that I am the ${esc(relationLabel(inv.relation).toLowerCase())} of ${esc(unitLabel(inv.unit))} and that these details are correct. The committee may correct or remove this access if they are not. Next you will read and accept the member portal agreement.</p>
+      <p class="form-msg" role="alert"></p>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Confirm and continue</button><button class="btn" type="button" data-signout>Not me, sign out</button></div>
+    </form></div>`;
+  const f = $('#invite-form');
+  f.name.value = inv.name || user.displayName || '';
+  f.mobile.value = typedMobile || inv.mobile || '';
+  f.addEventListener('submit', (e) => confirmInvite(e, user, inv));
+}
+async function confirmInvite(e, user, inv) {
+  e.preventDefault();
+  const f = e.currentTarget, { F, db } = fb;
+  const name = f.name.value.trim().replace(/\s+/g, ' ');
+  let mobile = f.mobile.value.replace(/\D/g, '');
+  if (/^(91|0)[6-9]\d{9}$/.test(mobile)) mobile = mobile.slice(-10);
+  if (name.length < 3) return setMsg(f, 'Write your full name.');
+  if (!/^[6-9]\d{9}$/.test(mobile)) return setMsg(f, 'Enter your 10-digit mobile number.');
+  const provider = user.providerData?.[0]?.providerId === 'password' ? 'password' : 'google';
+  await busy($('button[type=submit]', f), async () => {
+    try {
+      const batch = F.writeBatch(db);
+      batch.set(F.doc(db, 'users', user.uid), { name, unit: inv.unit, mobile, relation: inv.relation, email: user.email, status: 'approved', access: inv.access,
+        provider, invited: true, createdAt: F.serverTimestamp(), decidedAt: F.serverTimestamp(), decidedBy: inv.createdBy, decidedByEmail: inv.createdByEmail || '' });
+      batch.update(F.doc(db, 'memberInvites', String(user.email).toLowerCase()), { status: 'used', usedBy: user.uid, usedAt: F.serverTimestamp() });
+      await batch.commit();
+      logSignIn(fb, { method: 'register', page: 'member', result: 'ok', email: user.email, detail: `pre-registered: ${inv.unit} as ${relationLabel(inv.relation)} (${provider})` });
+      await onUser(user);
+    } catch (err) { setMsg(f, errorText(err)); }
+  });
 }
 
 function renderStaffStatus(user, req) {
@@ -396,6 +449,7 @@ const person = (user) => ({ name: profile.name, email: user.email, unit: unitLab
 function showAgreement(user) {
   $('#ma-doc').innerHTML = agreementHTML(currentAg, person(user));
   $('#ma-email').textContent = user.email;
+  $('#ma-declaration').innerHTML = MEMBER_DECLARATION.map((t) => `<li>${esc(t)}</li>`).join('');
   const f = $('#ma-form');
   f.reset();
   f.sign.value = profile.name || '';
@@ -406,9 +460,7 @@ function showAgreement(user) {
 async function acceptAgreement(e) {
   e.preventDefault();
   const f = e.currentTarget, user = fb.auth.currentUser;
-  const boxes = $$('input[type=checkbox]', f);
   const signed = f.sign.value.trim().replace(/\s+/g, ' ');
-  if (boxes.some((b) => !b.checked)) return setMsg(f, 'Please tick all four boxes to accept the agreement.');
   if (signed.length < 3) return setMsg(f, 'Type your full name as your signature.');
   const { F, db } = fb;
   const v = currentAg.version, id = `${user.uid}_v${v}`;
@@ -418,7 +470,7 @@ async function acceptAgreement(e) {
       batch.set(F.doc(db, 'memberAgreements', id), {
         uid: user.uid, email: user.email, name: profile.name || '', mobile: profile.mobile || '', relation: profile.relation || '',
         unit: profile.unit, unitLabel: plainUnit(profile.unit), wing: wingOf(profile.unit),
-        version: v, title: currentAg.title, signedName: signed, confirmations: boxes.map((b) => b.value),
+        version: v, title: currentAg.title, signedName: signed, confirmations: [...MEMBER_DECLARATION],
         acceptedAt: F.serverTimestamp(), device: navigator.userAgent.slice(0, 180)
       });
       batch.update(F.doc(db, 'users', user.uid), { agreementVersion: v, agreementAcceptedAt: F.serverTimestamp(), agreementId: id });

@@ -769,6 +769,28 @@
         <tbody id="approved-rows"></tbody>
       </table></div>
 
+      <section class="prereg-box" id="prereg-box" aria-labelledby="prereg-title">
+        <h2 class="mt" id="prereg-title">Pre-register members by email</h2>
+        <p class="muted small-note">For owners, family members and tenants whose email is in the Society’s records but who haven’t registered themselves. Enter their details here; when they first sign in on the member page with Google using <strong>that email</strong>, they only confirm their mobile number and accept the member portal agreement, with no waiting for approval. The email must be a Google account (Gmail, or another address registered with Google). Send them the invitation by WhatsApp or email from the list.</p>
+        <form id="prereg-form" class="form wide-form" novalidate>
+          <div class="form-grid">
+            <label>Unit<select name="unit" required></select></label>
+            <label>Name<input type="text" name="name" maxlength="120" required></label>
+            <label>As<select name="relation"></select></label>
+            <label>Email (their Google account)<input type="email" name="email" maxlength="120" required autocomplete="off"></label>
+            <label>Mobile <span class="muted">(optional; they confirm it)</span><input type="tel" name="mobile" maxlength="18" inputmode="tel"></label>
+            <label>Unit account<select name="access"><option value="full">Sees the unit’s bills, receipts and balance</option><option value="basic">Doesn’t see the unit account</option></select></label>
+          </div>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Pre-register</button></div>
+        </form>
+        <div class="table-scroll"><table class="prereg-table">
+          <thead><tr><th>Email</th><th>Unit</th><th>Name</th><th>Status</th><th>Invitation</th><th></th></tr></thead>
+          <tbody id="prereg-rows"></tbody>
+        </table></div>
+        <p class="form-msg" id="prereg-msg" role="status"></p>
+      </section>
+
       <section class="rm-box" id="rm-box">
         <h2 class="mt">Reminders and invitations</h2>
         <p class="muted">Remind registered members who haven’t accepted the portal agreement or don’t visit, and invite owners and tenants whose mobile or email is in their unit file but who haven’t registered. Each reminder sent is recorded below.</p>
@@ -799,6 +821,7 @@
         </table></div>
         <div class="form-actions">
           <button class="btn btn-primary" type="button" id="rm-send">Email the selected from the Society’s account</button>
+          <button class="btn" type="button" id="rm-prereg-all" hidden>Pre-register everyone listed with an email</button>
           <span class="small-note" id="rm-send-note"></span>
         </div>
         <p class="form-msg" id="rm-msg" role="status"></p>
@@ -1458,7 +1481,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.21.0</p>
+    <p class="muted mt" id="version-note">Software version 3.22.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

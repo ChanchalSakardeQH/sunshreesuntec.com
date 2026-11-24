@@ -114,6 +114,14 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 8 | Committee (Chairman, Secretary or Treasurer): Members → Decide → Approve | Owner sees the audited accounts and documents; **[TEST]** decision email |
 | 9 | Library: search a word inside a PDF | Found, with *Found inside the document*; **Open** works |
 
+### Pre-registered member (3.22)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Committee: Members → Pre-register members by email → unit, name, relation, a spare Gmail | Listed as *Waiting for their first sign-in*; Email / WhatsApp invitation buttons |
+| 2 | That Gmail: member page → Sign in with Google | *Welcome to the Society portal* with the unit and relation; confirm mobile |
+| 3 | Confirm and continue | Straight to the agreement: declaration as text, no tick boxes; type name → I accept → account opens |
+| 4 | Committee: Members | *Signed in, Agreement accepted*; the member is marked *Pre-registered* |
+
 ### Tenant or family member
 | # | Do | Expected |
 |---|---|---|

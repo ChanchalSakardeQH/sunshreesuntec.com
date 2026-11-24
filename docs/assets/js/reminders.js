@@ -47,3 +47,9 @@ export const tenDigits = (mobile) => { const w = waNumber(mobile); return w ? w.
 export const validEmail = (e) => /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[A-Za-z]{2,}$/.test(String(e || '').trim());
 export const waLink = (mobile, m) => `https://wa.me/${waNumber(mobile)}?text=${encodeURIComponent(`${m.subject}\n\n${m.body}`)}`;
 export const mailLink = (email, m) => `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
+
+/** 3.22: the invitation for someone the committee pre-registered by email. */
+export const PREREG_MESSAGE = {
+  subject: 'Sunshree Suntec: your access to the Society’s portal for {unit} is ready',
+  body: 'Dear {name},\n\nThe Managing Committee has registered {email} for {unit} on the Society’s portal, from the Society’s records. To start:\n\n1. Open {link}\n2. Press “Sign in with Google” and choose {email}.\n3. Confirm your mobile number and accept the member portal agreement.\n\nYou will then see your bills, receipts and balance and the Society’s notices, and can upload your unit’s documents.\n\n{sign}'
+};
