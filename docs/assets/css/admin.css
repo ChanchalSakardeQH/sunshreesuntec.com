@@ -416,3 +416,12 @@ fieldset.lib-guide { border: 1px solid var(--line); border-radius: 8px; padding:
 .fb-cols { display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
 .fb-table td { vertical-align: top; }
 #fb-dialog { width: min(40rem, 94vw); }
+
+/* 3.26: website settings backup */
+.sb-table td { vertical-align: top; }
+.sb-table .sub { display: block; font-size: .82rem; color: var(--muted); }
+.sb-st { font-size: .85rem; font-weight: 600; }
+.sb-st.same { color: var(--muted); font-weight: 400; }
+.sb-st.different, .sb-st.missing { color: #8a5300; }
+.sb-st.skip, .sb-st.permanent, .sb-st.extra { color: var(--muted); }
+#sb-box .file-btn { cursor: pointer; }

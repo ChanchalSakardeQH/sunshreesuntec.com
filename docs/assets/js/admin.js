@@ -1,5 +1,5 @@
 // Committee accounts: dashboard, monthly bills, payments + receipts, unit ledgers, member access, website content, settings.
-import { initFirebase, errorText, inApp, saveBlob, signOutUser, SITE_VERSION } from './firebase.js';
+import { initFirebase, errorText, inApp, saveBlob, signOutUser, SITE_VERSION, PROJECT_ID } from './firebase.js';
 import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, showMsg } from './signin.js';
 import { initExpenses, loadExpenses, openExpenseById } from './expenses.js';
 import { initOfflineUi, requireOnline } from './offline.js';
@@ -33,6 +33,7 @@ import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, safeName, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
 import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS, libraryFor } from './transfers.js';
 import { FORMS, CHECKLIST_FORMS, formKeyOf, formLine, guideOf } from './forms.js';
+import { collectSettings, checkSettingsFile, compareSettings, restoreSettings, settingsFileName } from './settingsbackup.js';
 import { LIB_CATEGORIES, LIB_LANGS, LIB_TYPES, LIB_MAX_BYTES, pdfWords, wordList, saveIndex, setIndexPublic, loadIndex, forgetIndex, searchLibrary, fmtSize, extOf } from './library.js';
 import { POSTS, SINGLE_POSTS, M20_DAYS, DEFAULT_UNDERTAKING, m20Status, undertakingFor, addYears, addDays as cAddDays } from './committee.js';
 import { PREREG_MESSAGE, REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
@@ -3101,6 +3102,7 @@ async function loadSettings() {
   $('#ufr-unit').innerHTML = unitOptions(false);
   if (!driveReady()) setMsg($('#ufb-box'), 'Connect the Society’s Google Drive first: Expenses → Set-up.');
   loadFullBackups().catch((err) => console.warn('full backups', err));
+  $('#sb-box').hidden = !canDo('committee');
   const mf = $('#mmc-form');
   const mmc = billing.mmc || MMC_TEMPLATE;
   mf.method.value = billing.method || 'agm';
@@ -4593,8 +4595,88 @@ function wireFullBackups() {
 
 /* ---------- Settings: unit files in Google Drive (3.12) ---------- */
 let ufrFound = null;
+/* ---------- Settings: the website's settings as a file (3.26) ---------- */
+const SB_NEEDED = 14;
+let sbFile = null, sbRows = [];
+const sbMsg = (t, ok = true) => { const m = $('#sb-msg'); m.className = `form-msg${ok ? ' ok' : ''}`; m.textContent = t; };
+async function sbCurrent() { return collectSettings(fb, { siteVersion: SITE_VERSION, project: PROJECT_ID, byName: me?.name || '' }); }
+async function sbToDrive(data, note = '') {
+  await loadDriveCfg(fb);
+  if (!driveReady()) throw new Error('Connect the Society’s Google Drive first (Expenses → Set-up).');
+  if ((await driveScriptVersion()) < SB_NEEDED) throw new Error(`Saving settings in the Drive needs the storage script version ${SB_NEEDED}: see its README, 3.26. Use “Download the settings file” meanwhile.`);
+  const name = settingsFileName();
+  return (await driveCall(fb, 'settingsBackup', { name, note, text: JSON.stringify(data) })).file;
+}
+const sbDownload = (data, name = settingsFileName()) => saveBlob(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }), name);
+const SB_TEXT = { same: 'Same', different: 'Different', missing: 'Not on the website now', extra: 'Only on the website now (left as it is)', permanent: 'Different, but a published version can’t be changed', skip: 'From another site: not restored (it would connect this site to that site’s Drive)' };
+async function sbCompare(data, sourceName) {
+  sbFile = checkSettingsFile(data);
+  sbMsg('Reading the website’s settings to compare…');
+  const now = await sbCurrent();
+  sbRows = compareSettings(now, sbFile, PROJECT_ID);
+  const nd = sbRows.filter((r) => r.status === 'different' || r.status === 'missing').length;
+  $('#sb-c-title').textContent = `Compare: ${sourceName}`;
+  $('#sb-c-note').textContent = `Saved ${new Date(sbFile.exportedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' })}${sbFile.by ? ` by ${sbFile.by}` : ''}, website version ${sbFile.siteVersion || '?'}${sbFile.project && sbFile.project !== PROJECT_ID ? `, from ANOTHER site (${sbFile.project})` : ''}. ${nd ? `${nd} item${nd === 1 ? '' : 's'} differ.` : 'Everything is the same as on the website now.'}`;
+  $('#sb-rows').innerHTML = sbRows.map((r, i) => { const can = r.status === 'different' || r.status === 'missing';
+    return `<tr><td>${can ? `<input type="checkbox" data-sb="${i}" aria-label="Restore ${esc(r.label)}">` : ''}</td><td>${esc(r.label)}<span class="sub">${esc(r.path)}</span></td>
+      <td><span class="sb-st ${r.status}">${esc(SB_TEXT[r.status])}</span>${r.changed.length && r.status !== 'extra' ? `<span class="sub">Changed: ${esc(r.changed.slice(0, 8).join(', '))}${r.changed.length > 8 ? '…' : ''}</span>` : ''}</td></tr>`; }).join('');
+  $('#sb-all').checked = false;
+  $('#sb-compare').hidden = false; $('#sb-restore').disabled = true;
+  sbMsg('');
+}
+function wireSettingsBackup() {
+  $('#sb-save').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try { sbMsg('Collecting the settings…'); const f = await sbToDrive(await sbCurrent()); sbMsg(`Saved in the Drive (Backups → Settings): ${f.name}, ${fmtSize(f.bytes)}.`); }
+    catch (err) { sbMsg(errorText(err), false); }
+  }));
+  $('#sb-download').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try { sbMsg('Collecting the settings…'); const d = await sbCurrent(); await sbDownload(d); sbMsg(`Downloaded: ${d.items.length} items. Keep the file private.`); }
+    catch (err) { sbMsg(errorText(err), false); }
+  }));
+  $('#sb-list').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try {
+      await loadDriveCfg(fb);
+      if ((await driveScriptVersion()) < SB_NEEDED) throw new Error(`Needs the storage script version ${SB_NEEDED} (see its README, 3.26). Meanwhile restore from a downloaded file.`);
+      const r = await driveCall(fb, 'listSettingsBackups');
+      if (!r.backups.length) return sbMsg('No settings backups in the Drive yet: use “Back up the settings now”.', false);
+      $('#sb-pick').innerHTML = r.backups.map((b) => `<option value="${esc(b.id)}">${esc(b.name.replace(/\.json$/, ''))} (${fmtSize(b.bytes)})${/before restore/i.test(b.note || '') ? ' – before a restore' : ''}</option>`).join('');
+      $('#sb-drive').hidden = false; sbMsg('');
+    } catch (err) { sbMsg(errorText(err), false); }
+  }));
+  $('#sb-open').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try { const r = await driveCall(fb, 'readSettingsBackup', { fileId: $('#sb-pick').value }); await sbCompare(JSON.parse(r.text), r.name); }
+    catch (err) { sbMsg(errorText(err), false); }
+  }));
+  $('#sb-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    try { await sbCompare(JSON.parse(await file.text()), file.name); }
+    catch (err) { sbMsg(err instanceof SyntaxError ? 'This file is not a website settings file.' : errorText(err), false); }
+  });
+  const ticked = () => $$('#sb-rows [data-sb]:checked').map((x) => sbRows[Number(x.dataset.sb)]);
+  $('#sb-rows').addEventListener('change', () => { $('#sb-restore').disabled = !ticked().length; });
+  $('#sb-all').addEventListener('change', (e) => { $$('#sb-rows [data-sb]').forEach((x) => (x.checked = e.target.checked)); $('#sb-restore').disabled = !ticked().length; });
+  $('#sb-close').addEventListener('click', () => { $('#sb-compare').hidden = true; sbFile = null; });
+  $('#sb-restore').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    const pick = ticked();
+    if (!pick.length || !confirm(`Put back ${pick.length} setting${pick.length === 1 ? '' : 's'} as in the file?\n\n${pick.map((r) => `• ${r.label}`).join('\n')}`)) return;
+    try {
+      // First a copy of the settings as they are now, to undo this if needed.
+      sbMsg('Saving the present settings first…');
+      const before = await sbCurrent();
+      let where = '';
+      try { const f = await sbToDrive(before, 'Before restore'); where = `in the Drive as ${f.name}`; }
+      catch (err) { await sbDownload(before, settingsFileName().replace('.json', ' before restore.json')); where = 'as a downloaded file (the Drive copy could not be saved)'; }
+      const r = await restoreSettings(fb, sbFile, pick.map((x) => x.path), (label) => sbMsg(`Restoring: ${label}…`));
+      sbMsg(`${r.done.length} setting${r.done.length === 1 ? '' : 's'} restored. The settings as they were just before are saved ${where}.${r.failed.length ? ` Not restored: ${r.failed.map((x) => `${x.path} (${x.error})`).join('; ')}.` : ''} Reload the page to use them.`, !r.failed.length);
+      $('#sb-compare').hidden = true;
+    } catch (err) { sbMsg(errorText(err), false); }
+  }));
+}
+
 function wireDriveBackups() {
   wireFullBackups();
+  wireSettingsBackup();
   $('#ufb-all').addEventListener('click', (e) => busy(e.currentTarget, async () => {
     const box = $('#ufb-box'), prog = $('#ufb-progress');
     setMsg(box, '');

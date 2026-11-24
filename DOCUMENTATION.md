@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.25.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.26.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -789,10 +789,13 @@ Bills keep the amounts they were issued with, even if rates change later. Receip
 - Code: every change is in the GitHub history; `CHANGELOG.md` lists what changed and when.
 - The Drive itself: deleted files stay in the Drive's Bin for 30 days. Once a year, download the whole *Sunshree Suntec Society Records* folder (Google Takeout or Drive → Download) and keep it offline.
 
+- **Website settings (3.26):** Settings → *Website settings: backup and restore* → *Back up the settings now* before changing charges, agreements, access by role or the website content. Copies are in *Backups / Settings*; *Download the settings file* keeps one on the computer. Restore compares item by item and puts back only what is ticked, saving the present settings first.
+
 ### 15A. Disaster recovery (3.25)
 
 | What happened | What to do |
 |---|---|
+| A setting changed by mistake (charges, agreement text, access by role, website content, library entry) | Settings → *Website settings* → *Restore from the Drive…* → a copy from before the change → tick the item → *Restore the ticked items*. |
 | Some records deleted or wrongly changed | Settings → Full backups → *Show the backups…* → choose a backup from before the mistake → *Restore…* → **Only what is missing** (deleted records come back) or **Everything as it was**, for the parts concerned (e.g. *units*, *payments*). Then reload. |
 | One unit's records | Settings → *Restore a unit's records from its backup* (3.12) also still works. |
 | The website (pages) is down or broken | The data is not affected. Re-publish from GitHub (revert the last change, or re-run Pages); the code's history is in GitHub. |

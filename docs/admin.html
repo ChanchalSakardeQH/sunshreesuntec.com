@@ -1480,6 +1480,29 @@
         </dialog>
       </div>
 
+      <div class="callout" id="sb-box">
+        <h2>Website settings: backup and restore</h2>
+        <p>The website’s configuration as one small file: maintenance charges, billing and interest; the website’s content; the member, staff and committee agreements and undertaking; staff access by role; reminder messages; membership transfer lists; the backup schedule; the Library’s catalogue (titles, guides and the words read from each document — the documents themselves stay in the Drive). Save a copy before changing settings, restore any item from an earlier copy, or copy the settings to the test site. Records (units, bills, receipts, members, staff…) are in the full backup above.</p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="button" id="sb-save">Back up the settings now</button>
+          <button class="btn" type="button" id="sb-download">Download the settings file</button>
+          <button class="btn" type="button" id="sb-list">Restore from the Drive…</button>
+          <label class="btn file-btn">Restore from a file…<input type="file" id="sb-file" accept=".json,application/json" hidden></label>
+        </div>
+        <p class="form-msg" id="sb-msg" role="status"></p>
+        <div id="sb-drive" hidden>
+          <label>Settings backups in the Drive<select id="sb-pick"></select></label>
+          <button class="btn btn-small" type="button" id="sb-open">Compare with the website</button>
+        </div>
+        <div id="sb-compare" hidden>
+          <h3 id="sb-c-title">Compare</h3>
+          <p class="small-note" id="sb-c-note"></p>
+          <div class="table-scroll"><table class="sb-table"><thead><tr><th><input type="checkbox" id="sb-all" aria-label="Tick all that differ"></th><th>Setting</th><th>Compared with the website now</th></tr></thead><tbody id="sb-rows"></tbody></table></div>
+          <p class="small-note">Ticked items are put back exactly as they are in the file. Before anything is written, the present settings are saved in the Drive (and downloaded), so this can be undone.</p>
+          <div class="form-actions"><button class="btn btn-primary" type="button" id="sb-restore" disabled>Restore the ticked items</button><button class="btn" type="button" id="sb-close">Close</button></div>
+        </div>
+      </div>
+
       <div class="callout" id="ufb-box">
         <h2>Unit files in Google Drive: backup and restore</h2>
         <p>Each unit has a folder in the Society’s Google Drive (<strong>Sunshree Suntec Society Records → Units → wing → unit</strong>) holding its scans (members and shares, tenants and agreements, communication, electricity, property tax) and <strong>“unit file backup.json”</strong>: everything about the unit, including details, member and tenant records, communication, electricity and tax records, ledger, bills, receipts and old receipts. The backup is updated by itself whenever a unit record is saved. Back up all units at least once a month, and before any big change.</p>
@@ -1607,7 +1630,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.25.0</p>
+    <p class="muted mt" id="version-note">Software version 3.26.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

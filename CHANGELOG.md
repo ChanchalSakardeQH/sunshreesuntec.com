@@ -6,6 +6,77 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.26.0] – 2026-11-24 – Website settings: backup and restore
+
+### Added
+- **Settings → Website settings: backup and restore** (committee). The website's configuration as one small file:
+  maintenance charges, billing and interest and the Society's details (`settings/billing`); website content (`public/site`); member portal agreement in force and every published version; staff agreement; staff access by role; committee undertaking; committee register details; reminder and invitation messages; membership transfer lists; full backup schedule; Google Drive connection; the Library catalogue (entries with their guides and the words read from each document — the documents stay in the Drive). Dates are kept as dates.
+  - **Back up the settings now** saves the file in the Drive (*Backups / Settings*, `Website settings 2026-11-24 2318.json`); **Download the settings file** saves it on the computer (keep it private).
+  - **Restore from the Drive…** (choose a saved copy) or **Restore from a file…** first **compares** each item with the website now: *Same*, *Different* (naming the fields that changed; changes only in who / when last saved are ignored), *Not on the website now*, *Only on the website now* (left as it is), *published version can't be changed* (agreement versions are permanent), and *from another site* for the Drive connection (never restored from another Firebase project, so a test site can't be connected to the Society's Drive or the reverse).
+  - Tick what to put back (or all that differ) → **Restore the ticked items**. The present settings are first saved in the Drive as *before restore* (or downloaded if the Drive can't be reached), so a restore can be undone the same way.
+  - Copying the settings to the test site: download on the real site, *Restore from a file…* on the test site.
+
+### Drive script (version 14)
+- `settingsBackup`, `listSettingsBackups`, `readSettingsBackup` (committee): settings files in *Backups / Settings*. Without version 14 the download and restore-from-file still work.
+
+Version 3.26.0 is ready. You can now back up the website settings as one file and restore them item by item. The new test suite (18 checks) and all 24 earlier suites pass, as do 7 new checks of the Drive script.
+
+**What counts as settings**
+
+- Maintenance charges, billing, interest and the Society's details
+- The website content
+- The member portal agreement (the version in force and every published version), the staff agreement and the committee undertaking
+- Staff access by role and the committee register details
+- Reminder and invitation messages
+- The membership transfer lists
+- The full-backup schedule and the Google Drive connection
+- The Library catalogue, with each entry's guide and the words read from it (the PDFs themselves stay in Drive)
+
+Records such as units, bills, receipts, members and staff are not included; the full backup from 3.25 covers those.
+
+**How it works (Settings → Website settings: backup and restore)**
+
+- **Back up the settings now** saves the file to Drive under Backups → Settings. **Download the settings file** saves it on your computer.
+
+- Restore from the Drive…
+
+   or 
+
+  Restore from a file…
+
+   first compares each item with the live website. Each item shows as one of:
+
+  - same;
+  - different, with the changed fields named;
+  - not on the website now;
+  - only on the website now, which is left alone.
+
+- You tick what to put back and press **Restore the ticked items**.
+
+- Before anything is written, the current settings are saved to Drive marked "before restore". So any restore can be undone the same way.
+
+- Two exceptions:
+
+  - Published agreement versions can't be changed; only a version that has been deleted can be put back.
+  - The Drive connection is never restored from a file that came from another site. This stops the test site being linked to the Society's Drive by mistake.
+
+- The same feature copies your real settings to the test site: download on the real site, then **Restore from a file…** on the test site.
+
+**To go live**
+
+- **If 3.25 is not deployed yet:** push the 3.25 zip and then this one, and follow the 3.25 setup steps using this newer `Code.gs`.
+- **If 3.25 is already live:** push this zip, paste the new `Code.gs`, then Manage deployments → Edit → New version. No new permissions are needed.
+
+### Rules
+
+- No change (the committee writes settings, the website content and the library; published agreement versions stay permanent).
+
+### Tested
+- New suite t326 (18 checks): download (name, items, library words, dates; no records), save in the Drive, compare a file from another site (different with fields, missing, only on the website, permanent, Drive connection skipped), only differing items tickable, restore (only ticked; others untouched), the before-restore copy saved first, undo from the Drive copy with dates kept, wrong file refused, old storage script.
+- 7 new Drive script checks (176 in all). All earlier suites pass.
+
+---
+
 ## [3.25.0] – 2026-11-24 – Scheduled full backups and disaster recovery
 
 ### Added
@@ -20,53 +91,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 ### Drive script (version 13)
 - `fullBackup`, `listBackups`, `restoreBackup` (committee); `scheduledBackup` (hourly trigger), `setupBackups`, `restoreLatestBackup`, `restoreLatestBackupEverything` (run from the editor). These use the script owner's own Google access to the Firebase project (sunshreesuntec@gmail.com must be its Editor), not a member's sign-in: reading everything needs it. New permissions in `appsscript.json`: database, sign-in accounts (Identity Toolkit) and triggers.
 - Status in `settings/fullBackup`; the schedule in `settings/fullBackupConfig` (committee; read with *view*, as other settings).
-
-Version 3.25.0 adds scheduled backups of everything and a way to recover after a disaster. All website test suites pass, plus 27 new checks of the Drive script (169 in all). I could only test against simulated Google services, though. So run step 3 below and check that a real backup appears before you rely on it.
-
-**What the two unit lines meant**
-
-- Each unit's own backup file is saved only when one of that unit's records is saved, or when you press *Back up now*.
-- "Not saved yet" just means nothing has changed in that unit since 3.12. *Settings → Back up all unit files now* creates them all.
-- Those per-unit files stay. The new full backup below now covers every unit as well.
-
-**Scheduled full backup**
-
-- **What's in it:** everything in the website's database, plus the list of sign-in accounts. It is one compressed file in the Society Drive, under Backups → Full.
-- **Schedule (Settings → Full backups):** every day or once a week, at an hour you choose, India time. The default is 2 am daily.
-- **How long copies are kept:** daily copies are kept for 7 to 90 days (your choice). The copy from the 1st of each month is always kept.
-- **Status:** the card shows the last backup with the number of records, accounts and file size. A failed backup shows in red and is also emailed to [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com). There is also a **Back up everything now** button.
-
-**Recovery**
-
-- Records deleted or changed by mistake:
-
-   in Settings, use 
-
-  Show the backups… → Restore…
-
-  . You pick a backup from before the mistake, then either:
-
-  - **Only what is missing:** deleted records come back and nothing else changes; or
-  - **Everything as it was:** you must type RESTORE first.
-
-  You can restore everything or only some parts (for example units or payments). Only the committee can restore, and every restore is emailed to the Society account.
-
-- **Accounts page not usable:** in the storage script editor, run `restoreLatestBackup`.
-
-- **Firebase project lost:** create a new project and run `restoreLatestBackupEverything`. It writes back all the data and recreates the sign-in accounts with the same IDs, so members keep their records.
-
-- **Website pages broken:** the data isn't affected; republish from GitHub.
-
-The full plan is in DOCUMENTATION section 15A. It also covers keeping one offline copy of the Drive folder a year.
-
-**To go live** (these steps are also in `tools/drive-upload/README.md`, under 3.25)
-
-1. In the Firebase console, open ⚙ Project settings → Users and permissions. Make sure [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com) is **Owner or Editor**. Reading everything on a schedule needs this, because there's no member signed in at 2 am.
-2. Push `website-3.25.0-changed-files.zip`. In Apps Script, replace both `appsscript.json` and `Code.gs`. This adds permissions for the database, the sign-in accounts and the schedule.
-3. Run **setupBackups** once and allow the permissions with **Select all**. It starts the schedule and makes the first backup straight away. The log should say "First backup made".
-4. Use **Manage deployments → Edit → New version** to publish the script, as before. Then check Settings → Full backups.
-
-Once a year, practise a full restore in your test copy; the steps are in TESTING.md.
 
 ### Rules
 - No change.

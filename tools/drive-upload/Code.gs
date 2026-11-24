@@ -57,6 +57,10 @@
  * script owner's own Google access to the Firebase project (the account must be an Editor of it), not a member's
  * sign-in, so they can read and write everything: they are limited to the committee and every run is recorded in
  * settings/fullBackup and emailed to the Society.
+ *
+ * Version 14 (3.26): the website's settings (billing, agreements, access by role, website content, library catalogue…)
+ * as a small file: settingsBackup saves one in <ROOT_FOLDER>/Backups/Settings, listSettingsBackups and
+ * readSettingsBackup give them back to the committee to compare and restore on the website.
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -84,7 +88,7 @@ function config_() {
 function doGet() {
   var test = false;
   try { test = config_().test; } catch (e) { /* not set up */ }
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 13, test: test });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 14, test: test });
 }
 
 function doPost(e) {
@@ -103,7 +107,8 @@ function doPost(e) {
       var team = teamRecord_(cfg, who, req.idToken);
       var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_,
         backupRegister: backupRegister_, memberMail: memberMail_, accessDecision: accessDecision_, committeeUndertaking: committeeUndertaking_, libraryFromLink: libraryFromLink_,
-        fullBackup: fullBackupAction_, listBackups: listBackups_, restoreBackup: restoreBackupAction_ };
+        fullBackup: fullBackupAction_, listBackups: listBackups_, restoreBackup: restoreBackupAction_,
+        settingsBackup: settingsBackup_, listSettingsBackups: listSettingsBackups_, readSettingsBackup: readSettingsBackup_ };
       var fn = actions[req.action];
       if (!fn) throw new Error('Unknown request.');
       out = fn(cfg, req, who, team);
@@ -1037,6 +1042,38 @@ function restoreLatest_(mode) {
     var u = restoreUsers_(cfg, data.users);
     Logger.log('Sign-in accounts recreated in the new project: ' + u.made + ' of ' + data.users.length + '. ' + u.errors.join(' | '));
   }
+}
+
+/* ---------------- website settings file (3.26) ---------------- */
+
+function settingsFolder_(cfg) { return child_(child_(rootFolder_(cfg), 'Backups'), 'Settings'); }
+
+function settingsBackup_(cfg, req, who, team) {
+  if (!team.committee) throw new Error('Only the committee can back up the website settings.');
+  var text = String(req.text || '');
+  if (!text || text.length > MAX_BACKUP) throw new Error('The settings file is empty or too large.');
+  var data;
+  try { data = JSON.parse(text); } catch (e) { throw new Error('The settings file is not valid.'); }
+  if (!data || data.format !== 'sunshree-suntec-settings' || !Array.isArray(data.items)) throw new Error('This is not a website settings file.');
+  var name = cleanName_(String(req.name || '').replace(/\.json$/i, '') || ('Website settings ' + istNow_())) + '.json';
+  var file = settingsFolder_(cfg).createFile(name, text, 'application/json');
+  file.setDescription((req.note ? req.note + '. ' : '') + 'Website settings (' + data.items.length + ' items), saved by ' + team.name + ' <' + who.email + '>.');
+  return { file: { id: file.getId(), name: name, bytes: file.getSize() } };
+}
+
+function listSettingsBackups_(cfg, req, who, team) {
+  if (!team.committee) throw new Error('Only the committee can see the settings backups.');
+  var it = settingsFolder_(cfg).getFiles(), out = [];
+  while (it.hasNext()) { var f = it.next(); if (/\.json$/i.test(f.getName()) && !f.isTrashed()) out.push({ id: f.getId(), name: f.getName(), bytes: f.getSize(), note: f.getDescription ? f.getDescription() : '' }); }
+  out.sort(function (a, b) { return a.name < b.name ? 1 : -1; });
+  return { backups: out.slice(0, 200) };
+}
+
+function readSettingsBackup_(cfg, req, who, team) {
+  if (!team.committee) throw new Error('Only the committee can restore the website settings.');
+  var f = DriveApp.getFileById(req.fileId), p = f.getParents();
+  if (!p.hasNext() || p.next().getId() !== settingsFolder_(cfg).getId()) throw new Error('That file is not one of the settings backups.');
+  return { name: f.getName(), text: f.getBlob().getDataAsString() };
 }
 
 /* ---------------- helpers ---------------- */

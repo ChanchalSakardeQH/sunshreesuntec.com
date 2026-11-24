@@ -12,6 +12,8 @@ export const TEST_MODE = typeof location !== 'undefined' && Boolean(siteConfig.t
   && !PRODUCTION_HOSTS.includes(location.hostname)
   && (['localhost', '127.0.0.1'].includes(location.hostname) || (siteConfig.testSites || []).some((t) => t && here.startsWith(String(t).replace(/^https?:\/\//, ''))));
 const firebaseConfig = TEST_MODE ? siteConfig.testFirebaseConfig : siteConfig.firebaseConfig;
+/** 3.26: the Firebase project in use (settings files say which project they came from). */
+export const PROJECT_ID = firebaseConfig?.projectId || '';
 if (TEST_MODE && typeof document !== 'undefined') {
   const mark = () => {
     if (document.getElementById('test-banner')) return;
@@ -28,7 +30,7 @@ if (TEST_MODE && typeof document !== 'undefined') {
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
 /** Shown at the foot of the accounts page and stored with each sign-in attempt. */
-export const SITE_VERSION = '3.25.0';
+export const SITE_VERSION = '3.26.0';
 let ready;
 
 /* ---------- Android app ----------

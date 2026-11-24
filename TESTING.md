@@ -176,6 +176,13 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 3 | Delete a test payment, then *Restore… → Only what is missing* | The payment is back; nothing else changes |
 | 4 | Move the test copy's own backups out of *TEST …/Backups/Full*, copy a real backup in, and run **restoreLatestBackupEverything** in the test copy | The TEST project holds the real data (the drill); clear it afterwards (section D) |
 
+### Website settings (3.26)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Real site → Settings → *Download the settings file* | File *Website settings … .json* |
+| 2 | Test site → Settings → *Restore from a file…* → that file | Compare: *Google Drive connection — from another site: not restored*; others Different / Not on the website |
+| 3 | Tick all that differ → Restore | Test site has the real charges, agreements, roles and website content; *before restore* copy in *TEST …/Backups/Settings* |
+
 ---
 
 ## D. Clearing the test copy

@@ -72,6 +72,9 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.26 (script version 14):** website settings files in *Backups / Settings* (Settings → *Website settings*). No new
+permission: paste Code.gs, then Manage deployments → Edit → New version. (Do 3.25 first if not done.)
+
 **3.25 (script version 13): full backups on a schedule, and restore.** Needs new permissions and one setting in Firebase:
 1. **Give the Society's account access to the database.** Firebase console → the Society's project → ⚙ *Project settings*
    → *Users and permissions*. If sunshreesuntec@gmail.com is listed as *Owner* or *Editor*, nothing to do. If not:
