@@ -19,6 +19,49 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 ### Not linked automatically
 - *Affidavit on ₹500 stamp paper, notarised* (death) and *Undertaking from the prospective member on ₹500 stamp paper* (sale) are the Society's own formats, not appendices: add the Society's format to the Library (category *Society's own format*) and link it in the checklist.
 
+Version 3.24.0 is ready: your appendix forms go into the Library on Google Drive, each with a short plain-language note, and the transfer lists open the right blank form. A new test suite (26 checks) and all the earlier suites pass.
+
+**What members see**
+
+- **Each form's note:** the form number, what it is for, the bye-law, section or rule it falls under, who signs it, any stamp paper and what to attach. For example, Appendix 15 (Form No. 15) is under Bye-law 34 and MCS Act Section 154B-13, is signed by the nominee(s), and needs the death certificate, an indemnity bond and an undertaking.
+
+- Library → "Which forms do I need?":
+
+   members pick a task and get the forms in order, with a note where a form applies only sometimes and a list of what else to bring. There are ten tasks:
+
+  - death with a nomination, or without one
+  - sale or purchase
+  - becoming a member directly
+  - adding a joint member
+  - giving the flat on rent
+  - making or changing a nomination
+  - resigning
+  - holding more than one flat
+  - being elected to the committee
+
+- **Who can open the forms:** signed-in members open them directly. Visitors see the list and are asked to sign in.
+
+- **Membership transfer documents** on the member page now show the same note beside each document, with a **Blank form** button.
+
+**Adding the forms (one time)**
+
+1. Push `website-3.24.0-changed-files.zip`. There are no rules or Drive script changes this time.
+2. Unzip `SocietyForms-ready.zip`. Then go to Accounts → Library → **Add the bye-law forms (appendices) in one go**, select all 34 PDFs and add them. They are saved in Drive under Library › Statutory form, and the words inside are read so the search can find them.
+3. Go to Transfers → The checklists and their formats → **Use the bye-law forms from the Library** → Save. This replaces the links to the MCS Rules 1961 PDF that show in your screenshot. When it asks, say yes to updating the transfers already in progress.
+
+**Please check how I matched your list to the forms**
+
+- Your numbers:
+  - Form 15 is Appendix 15.
+  - Form 13 is Appendix 13.
+  - Form 21-1 is Appendix 21.
+  - Forms 23, 25 and 26 are Appendices 23, 25 and 26.
+  - The new nomination form is Appendix 14.
+- **The numbering differs for Appendices 2 to 10.** Your "Form No. 3" and "Form 03" (₹100 stamp) match the undertaking to use the flat. In your zip that file is Appendix 4, but in the 2014 bye-laws booklet it is Appendix 3. Your "Form No. 4" matches Appendix 5 (the undertaking by the person a non-earning member depends on). Both numbers are shown, and searching "Form 3" finds it. If the Society means different forms, change them in the checklist editor.
+- **Forms 20A and 20B were missing from your zip.** I took them from pages 78 and 79 of `model-bye-laws.pdf` as Appendix 20(1), the notice of intention to transfer, and 20(2), the buyer's consent.
+- **Two documents are not standard forms:** the ₹500 notarised affidavit (death set) and the ₹500 undertaking from the prospective member (sale set). Add the Society's own wording to the Library and link them by hand.
+- **Fees and stamp values:** the forms show the amounts at the time they were printed (₹100 entrance fee, ₹100 or ₹200 stamp paper). The 2026 rules changed some fees, so each note says the office will confirm the current amount.
+
 ### Rules
 - No change: `libraryDocs` carries the new `formKey` and `guide` fields under the existing rules.
 
