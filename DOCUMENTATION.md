@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.22.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.23.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -37,6 +37,7 @@ This document explains what the system does, where the data lives, how every amo
 12-5. Rules, GRs and forms library (3.20)
 12-6. Test copy for trying roles safely (3.21)
 12-7. Pre-registering members by email (3.22)
+12-8. Membership transfer documents: death and sale (3.23)
 12A. Staff: roles, access and agreement
 12A-2. Tally ledger history (2018–2026)
 12A-3. Audited accounts 2011-12 to 2017-18 and documents
@@ -145,6 +146,8 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `settings/committeeRegister` (3.19) | Date the committee was formed, date the Registrar was informed, letter reference and copy | Committee |
 | `libraryDocs/{id}` (3.20) | Library entry: title, category, issued by, number / reference, date, year, language, keywords, description, official source, public, the file in the Drive (id, name, type, size), words read and pages, removed, who added and changed it | Committee and staff with *library* |
 | `libraryDocs/{id}/index/{n}` (3.20) | The words inside the document (space-separated, unique, lower case), in chunks of up to 700 KB, with the entry's public flag | Same |
+| `units/{id}/transfers/{caseId}` (3.23) | A membership transfer of the unit: type (death / sale), the list of documents as it was when started (`items`: id, name, note, letter, libraryId), what was received (`got`: date or not needed, by whom), scans (`files` with the item they belong to), outgoing and new member(s), date of the deed or of death, deed no., possession date, share certificate no., committee resolution date and reference, certificate endorsed on, new certificate no., notes, status (open / completed / cancelled), who started and changed it | Read: *view* and the unit's approved members; write: *maintain unit files*; delete: committee |
+| `settings/transferChecklists` (3.23) | The Society's two lists (death, sale): title, introduction and documents (name, note, Society letter, Library blank form) | Read: approved members and the team; write: committee |
 | `memberInvites/{email}` (3.22) | Members pre-registered by the committee: email (lower case, the document id), unit, name, relation, access, mobile, status (open / used / cancelled), who and when, who used it and when | *approve members*; the person themselves marks it used |
 | `memberLog/{id}` | History of decisions on member requests: user, action (approved / rejected / removed / restored / edited / notified), what changed, reason, committee note, who and when. Saved in one batch with the decision. Deleted only with its record, by the committee (*Delete permanently*) | Committee / staff with *approve members* (create) |
 | `signInLog/{id}` | Every sign-in, registration and password-reset attempt, website and app: method, page, website or app (+ app version), result (ok / cancelled / failed), error code and detail (for the app: the app's signing SHA-1), email when known, phone or browser, seconds taken, server time; and (3.17) the name, unit and mobile typed in the registration form when Google was opened from it. Never passwords or tokens | The sign-in screens (create only, strict fields); committee may delete |
@@ -572,6 +575,17 @@ To bring members online who don't register themselves, the committee enters them
 
 **Agreement acceptance (3.22).** The member portal agreement has no tick boxes. Its four statements are printed as a declaration above the signature, and typing one's full name and pressing *I accept* accepts both. The statements are kept with the acceptance and printed in the PDF (*Declaration accepted*).
 
+## 12-8. Membership transfer documents: death and sale (3.23)
+
+When a member dies, or a unit is sold, the new member submits a set of documents for the transfer of the shares and interest and the share certificate. Many units have not submitted them; **Accounts → Transfers** tracks this unit by unit.
+
+- **Who:** everyone with *view* sees the tracker; *maintain unit files* starts and updates transfers; the committee edits the lists and deletes.
+- **Tracker:** filters *Transfers in progress*, *Completed*, *Units with no transfer recorded* (to follow up the units whose certificate may still be in the old member's name), *All units*. Each row shows *n of m* documents and what is still to come.
+- **A transfer:** *Start…* on the unit (or **Start a transfer…**), choose *sale* or *death*, and enter the members and dates. For each document: *received on*, *not needed*, scan (Drive: *Units › wing › unit › Membership transfer*). When the committee approves: resolution date and number, share certificate endorsed on (and the new certificate no. if one is issued), then **Save and mark completed**. Cancelling keeps the case as *cancelled*.
+- **Lists:** the standard lists follow the Society's circular (see the changelog for 3.23.0). Under *The checklists and their formats* the committee can change them, for example if the 2026 Rules or the new bye-laws change a form or a fee. A transfer keeps the list it was started with.
+- **Formats:** link each numbered form or stamp-paper document to the Society's blank copy in the **Library** (add it there first, under *Statutory form* or *Application*). Four letters are built in and print filled in with the case: the application to the committee (transmission), the submission of documents, the letter of possession and the resignation from membership. The software does not draft the prescribed forms themselves; use the formats under the Society's bye-laws.
+- **Members** see their unit's transfer, the scans and both lists with *Blank form* and *Print letter* on the member page, under *Membership transfer documents*.
+
 ## 12A. Staff: roles, access and agreement
 
 ### Staff and officials asking for access (3.6)
@@ -843,6 +857,7 @@ See `README.md` for step-by-step instructions. Summary:
 
 - Maharashtra Co-operative Societies Act, 1960 (Section 154B for housing societies; Section 32 and Section 154B-8: members' right to inspect books and records and get copies).
 - Maharashtra Co-operative Societies Rules, 1961, as amended by the MCS (Amendment) Rules, 2026 (notified 18 June 2026; Gazette 22 June 2026), Chapter XI-B, including Rule 106C-12 on charges.
+- Maharashtra Co-operative Societies Act, 1960, Section 154B-13, and the Society's bye-laws on nomination and on the transfer of shares and interest (on death and on sale): the documents tracked under Accounts → Transfers (3.23).
 - Maharashtra Co-operative Societies Rules, 1961, Rule 58A: bond in Form M-20 by every elected committee member within 15 days of taking office.
 - Model Bye-laws of Co-operative Housing Societies (2014): Bye-laws 13 (funds), 23 (inspection of records and copies), 117 (disqualification for the committee), 138–141 (duties of the Secretary), 43 (non-occupancy), 65–71 (levy of charges, interest), 165 (penalty), 172 (fees for copies).
 - Society resolutions: AGM 25 Jan 2015 (MOM AGM-MOM/20150225), amendment 07 Jul 2015 (AmendmentOfMom/20150707).

@@ -152,6 +152,14 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 1 | Members → Reminders → Agreement not accepted → WhatsApp | WhatsApp opens with the message; *Last reminded* updates |
 | 2 | Accounts → Library → add a PDF from a link | Saved in *TEST … › Library › category*; *n words, p pages* |
 
+### Membership transfers (3.23)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Accounts → Transfers → *Units with no transfer recorded* → Start… on a test unit (sale) | 12 documents; outgoing member prefilled |
+| 2 | Mark two received, one *not needed*, add a scan, Save | *3 of 12*; scan in *TEST … › Units › wing › unit › Membership transfer* |
+| 3 | *Print letter* on the submission letter | Letter with the unit, names, deed no. and the enclosures |
+| 4 | Sign in as the test owner of that unit | *Membership transfer documents* shows the case and the scan opens |
+
 ---
 
 ## D. Clearing the test copy

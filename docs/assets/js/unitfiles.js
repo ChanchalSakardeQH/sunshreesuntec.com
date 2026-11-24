@@ -5,9 +5,9 @@
 import { driveCall, prepareFile, toBase64, safeName } from './drive.js';
 
 /** Unit file records that can carry scans, and the Drive folder each goes to (same names as in Code.gs). */
-export const RECORD_KINDS = ['members', 'tenants', 'comms', 'electricity', 'propertyTax'];
+export const RECORD_KINDS = ['members', 'tenants', 'comms', 'electricity', 'propertyTax', 'transfers'];
 export const RECORD_FOLDER = { members: 'Members and shares', tenants: 'Tenants and agreements', comms: 'Communication',
-  electricity: 'Electricity (MSEB)', propertyTax: 'Property tax (PMC)' };
+  electricity: 'Electricity (MSEB)', propertyTax: 'Property tax (PMC)', transfers: 'Membership transfer' };
 
 export const TARIFFS = ['LT-I Residential', 'LT-II Non-residential / Commercial', 'LT-V Industrial', 'HT (high tension)', 'Other'];
 export const TAX_USES = ['Residential', 'Non-residential / Commercial', 'Mixed (residential and commercial)', 'Open land / other'];

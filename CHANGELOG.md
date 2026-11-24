@@ -6,6 +6,30 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.23.0] – 2026-11-24 – Membership transfer documents (death and sale), tracked unit by unit
+
+### Added
+- **Accounts → Transfers.** The set of documents a unit must submit when a member dies (transmission) or the unit is sold (transfer), tracked for every unit.
+  - **Tracker:** every unit with its transfer: kind, outgoing → new member, *n of m* documents with a bar, what is *still to come*, status (*In progress* / *Completed*, with the committee resolution and the share certificate endorsement). Filters: *in progress*, *completed*, *units with no transfer recorded*, *all units*; search by unit or name. The summary counts each.
+  - **A transfer (case):** started per unit (*Start…*) as *sale* or *death*, with the outgoing / deceased member, the new member(s) or nominee(s) / legal heir(s), date of the deed or of death, deed registration no., possession date, share certificate no. Each document gets a *received on* date or *not needed*, and its scan (PDF or photos, kept in the unit's Drive folder *Membership transfer*; a scan marks the document received today if no date is entered). Then the committee resolution (date, number / meeting), share certificate endorsed on, new certificate no., notes. **Save and mark completed** asks first if documents or the resolution are missing; **Cancel this transfer** keeps it on record as cancelled. A completed case is read-only.
+  - **The standard lists** (as the Society's circular): *death* — Form No. 15; affidavit on ₹500 stamp paper, notarised; Form No. 3 and Form No. 4 on ₹100 stamp paper; new nomination form; application to the Managing Committee; copies of the previous nomination and the death certificate; the original share certificate; ₹100 cheque for the new membership. *Sale* — submission letter; possession letter; Appendix 13; resignation by the outgoing member; Forms 20A, 20B, 21-1, 23; Forms 25, 26 and 03 on ₹100 stamp paper; undertaking from the prospective member on ₹500 stamp paper.
+  - **The checklists and their formats** (committee): rename, add or remove documents, change the notes, and link each to a **blank form in the Library** or to one of the **Society's letters**. Transfers already started keep the list they started with (`items` saved in the case).
+  - **The Society's letters**, printed filled in with the case's details (blanks to write in for the rest) and the list of enclosures: *application to the Managing Committee for transmission*, *submission of documents for transfer*, *letter of possession*, *resignation from membership*. The numbered forms and the documents on stamp paper are the formats prescribed under the bye-laws: keep the Society's blank copies in the Library and link them.
+- **Member page → Membership transfer documents.** Members see their unit's transfer: each document received (date), not yet, or not needed, its scan, the committee resolution and the certificate endorsement. Below, both lists with their formats (*Blank form* from the Library, *Print letter* filled in with their unit and name). With no transfer recorded, a note asks them to submit the list that applies if the share certificate is not in their name.
+
+### Rules
+- `units/{id}/transfers/{caseId}`: read by those who see unit files (*view*) and the unit's approved members; created and changed with *maintain unit files* (`unitRecords`); deleted by the committee only.
+- `settings/transferChecklists`: read by approved members and the team; written by the committee (as other settings).
+
+### Drive script (version 12)
+- Unit records of kind `transfers` keep their scans in *Units › wing › unit › Membership transfer*; members can open their own unit's transfer scans (`memberFetch` with `record: 'transfers'`). The unit backup includes transfer cases.
+
+### Tested
+- New suite t323 (28 checks): tracker, start a sale case from a unit with no transfer, death list and labels, letters printed filled in, received / not-needed / scan (uploaded as kind *transfers*, backed up), still-to-come, checklist editor (library link, note, new item; the case keeps its own list), completion with resolution and endorsement, completed read-only, view-only staff, watchman without the tab, member view (own unit only, scan via *memberFetch*, blank form from the Library, application letter with their name).
+- 6 new Drive script checks (142 in all); all earlier suites pass.
+
+---
+
 ## [3.22.0] – 2026-11-24 – Pre-register members by email; agreement declaration instead of tick boxes
 
 ### Added

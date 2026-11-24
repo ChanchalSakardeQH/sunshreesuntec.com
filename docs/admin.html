@@ -30,6 +30,7 @@
         <a href="#documents" data-need="view">Documents</a>
         <a href="#letters" data-need="letters">Correspondence</a>
         <a href="#library" data-need="library">Library</a>
+        <a href="#transfers" data-need="view">Transfers</a>
         <a href="#members" data-need="membersTab">Members</a>
         <a href="#website" data-need="website">Website</a>
         <a href="#expenses" data-need="expenses">Expenses</a>
@@ -589,6 +590,69 @@
     </section>
 
     <!-- CORRESPONDENCE (3.14): inward / outward register -->
+    <section class="tab" data-tab="transfers" hidden>
+      <h1>Membership transfers</h1>
+      <p class="muted">The set of documents each unit must submit when a member dies (transmission) or the unit is sold (transfer), tracked unit by unit: what has been received, the scans (kept in the unit’s Drive folder, <em>Membership transfer</em>), the committee’s resolution and the endorsed share certificate. Members see their unit’s list and the formats on their page.</p>
+      <div class="filter-row tr-filters">
+        <label>Search<input type="search" id="tr-q" placeholder="Unit, member or new member"></label>
+        <label>Show<select id="tr-show"><option value="open">Transfers in progress</option><option value="done">Completed</option><option value="none">Units with no transfer recorded</option><option value="all">All units</option></select></label>
+        <button class="btn btn-primary" type="button" id="tr-new" data-unitrecords>Start a transfer…</button>
+      </div>
+      <p class="small-note" id="tr-summary"></p>
+      <div class="table-scroll"><table class="tr-table">
+        <thead><tr><th>Unit</th><th>Member on record</th><th>Transfer</th><th>Documents</th><th>Status</th><th></th></tr></thead>
+        <tbody id="tr-rows"></tbody>
+      </table></div>
+      <p class="form-msg" id="tr-msg" role="status"></p>
+
+      <details class="mt" id="trc-box">
+        <summary>The checklists and their formats</summary>
+        <p class="small-note">The documents asked for in each kind of transfer. Each can point to a blank form in the <a href="#library">Library</a> (add the Society’s blank forms there first, e.g. under <em>Statutory form</em>), or to one of the Society’s letters, which print filled in with the case’s details. Only the committee changes the lists; transfers already started keep the list they started with.</p>
+        <div id="trc-lists"></div>
+        <p class="form-msg" id="trc-msg" role="alert"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="button" id="trc-save" data-committee>Save the checklists</button><button class="btn" type="button" id="trc-reset" data-committee>Back to the standard lists</button></div>
+      </details>
+
+      <dialog id="tr-dialog" class="wide-dialog">
+        <form id="tr-form" class="form" method="dialog" novalidate>
+          <h2 id="tr-title">Membership transfer</h2>
+          <div class="form-grid" id="tr-start">
+            <label>Unit<select name="unit"></select></label>
+            <label>Kind<select name="type"><option value="sale">Transfer on sale of the unit</option><option value="death">Transmission on the death of a member</option></select></label>
+          </div>
+          <div class="form-grid">
+            <label id="tr-from-label">Outgoing member<input type="text" name="from" maxlength="160"></label>
+            <label id="tr-to-label">New member(s)<input type="text" name="to" maxlength="200"></label>
+            <label id="tr-date-label">Date of the sale deed<input type="date" name="eventDate"></label>
+            <label class="tr-sale">Registration no. of the deed<input type="text" name="deedNo" maxlength="60"></label>
+            <label class="tr-sale">Possession handed over on<input type="date" name="possessionDate"></label>
+            <label>Share certificate no.<input type="text" name="cert" maxlength="30"></label>
+          </div>
+          <h3>Documents</h3>
+          <div class="table-scroll"><table class="tr-items">
+            <thead><tr><th>Document</th><th>Received on</th><th>Not needed</th><th>Scan</th><th>Format</th></tr></thead>
+            <tbody id="tr-items"></tbody>
+          </table></div>
+          <h3>Decision</h3>
+          <div class="form-grid">
+            <label>Committee resolution on<input type="date" name="resolutionOn"></label>
+            <label>Resolution no. / meeting<input type="text" name="resolutionRef" maxlength="80"></label>
+            <label>Share certificate endorsed on<input type="date" name="endorsedOn"></label>
+            <label>New share certificate no. <span class="muted">(if a new one is issued)</span><input type="text" name="newCert" maxlength="30"></label>
+          </div>
+          <label>Notes<textarea name="notes" rows="2" maxlength="1000"></textarea></label>
+          <p class="small-note" id="tr-progress"></p>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" id="tr-save">Save</button>
+            <button class="btn" type="button" id="tr-complete">Save and mark completed</button>
+            <button class="btn btn-danger" type="button" id="tr-cancel-case">Cancel this transfer</button>
+            <button class="btn" type="button" data-close>Close</button>
+          </div>
+        </form>
+      </dialog>
+    </section>
+
     <section class="tab" data-tab="library" hidden>
       <h1>Rules, GRs and forms library</h1>
       <p class="muted">Acts, Rules, bye-laws, Government Resolutions, circulars, judgments, statutory forms and application formats, kept in the Society’s Google Drive (<em>Library › category</em>). Entries marked <strong>public</strong> are listed to everyone on the website’s <em>Library</em> page; members and the team see all of them and open the Society’s copies. The words inside each PDF are read when it is added, so the search finds documents by what they say (scanned pages have no words: add keywords).</p>
@@ -1481,7 +1545,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.22.0</p>
+    <p class="muted mt" id="version-note">Software version 3.23.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

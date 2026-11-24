@@ -384,3 +384,17 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .prereg-box .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .75rem 1rem; }
 .prereg-table td { vertical-align: top; }
 .prereg-table .sub { display: block; font-size: .82rem; color: var(--muted); }
+
+/* 3.23: membership transfers */
+.tab[data-tab="transfers"] .filter-row { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: end; margin-bottom: .5rem; }
+.tab[data-tab="transfers"] .filter-row label { display: grid; gap: .25rem; }
+.tr-table td, .tr-items td { vertical-align: top; }
+.tr-table .sub, .tr-items .sub { display: block; font-size: .82rem; color: var(--muted); }
+.tr-bar { display: block; height: 6px; border-radius: 3px; background: var(--line); margin-top: .3rem; overflow: hidden; max-width: 9rem; }
+.tr-bar i { display: block; height: 100%; background: var(--credit); }
+.wide-dialog { width: min(68rem, 96vw); }
+#tr-dialog .form-grid, #trc-lists .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .6rem 1rem; }
+.tr-items input[type="date"] { max-width: 10.5rem; }
+.tr-items input[type="file"] { max-width: 13rem; font-size: .8rem; }
+.trc-list { border: 1px solid var(--line); border-radius: 8px; padding: .6rem .8rem; margin: .75rem 0; }
+.trc-list table input, .trc-list table select { width: 100%; }

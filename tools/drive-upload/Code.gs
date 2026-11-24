@@ -44,13 +44,16 @@
  *
  * Version 11 (3.22): the agreement PDF says "Declaration accepted" (the website shows the declaration as text above
  * the signature instead of tick boxes).
+ *
+ * Version 12 (3.23): unit records of kind 'transfers' (membership transfer sets on death or sale) keep their scans in
+ * the unit's folder "Membership transfer"; members can open their own unit's transfer scans (memberFetch, record 'transfers').
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
 var STATUS_FOLDER = { submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected' };
 /* Unit file records → their folder inside the unit's folder. */
 var UNIT_FOLDER = { members: 'Members and shares', tenants: 'Tenants and agreements', comms: 'Communication',
-  electricity: 'Electricity (MSEB)', propertyTax: 'Property tax (PMC)' };
+  electricity: 'Electricity (MSEB)', propertyTax: 'Property tax (PMC)', transfers: 'Membership transfer' };
 var MAX_BACKUP = 20 * 1024 * 1024;
 /* Documents members upload (units/<id>/memberDocs) → folder in the unit's folder. */
 var MEMBER_DOC_FOLDER = { ownership: 'Ownership (sale deeds and Index II)', rental: 'Tenants and agreements', police: 'Tenants and agreements',
@@ -71,7 +74,7 @@ function config_() {
 function doGet() {
   var test = false;
   try { test = config_().test; } catch (e) { /* not set up */ }
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 11, test: test });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 12, test: test });
 }
 
 function doPost(e) {
@@ -602,7 +605,9 @@ function memberFetch_(cfg, req, who, m) {
     list = a.pdf ? [a.pdf] : [];
   } else {
     if (req.unitId !== m.unit || !/^[A-Za-z0-9_-]{1,60}$/.test(String(req.recordId || ''))) throw new Error('You can open only your own unit’s documents.');
-    var d = readDoc_(cfg, req.idToken, 'units/' + encodeURIComponent(req.unitId) + '/memberDocs/' + encodeURIComponent(req.recordId));
+    // 3.23: also the scans of the unit's membership transfer (record 'transfers'); the rules decide who reads it.
+    var rk = req.record === 'transfers' ? 'transfers' : 'memberDocs';
+    var d = readDoc_(cfg, req.idToken, 'units/' + encodeURIComponent(req.unitId) + '/' + rk + '/' + encodeURIComponent(req.recordId));
     if (!d) throw new Error('You can’t see this document.');
     list = d.files || [];
   }

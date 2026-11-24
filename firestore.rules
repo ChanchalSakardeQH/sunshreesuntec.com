@@ -320,11 +320,12 @@ service cloud.firestore {
       }
 
       // Unit file: member register (I & J), tenants / rental history, communication,
-      // electricity (MSEB) and property tax (PMC) records (3.12). Scans are in the Society's Google Drive.
+      // electricity (MSEB) and property tax (PMC) records (3.12), and membership transfer cases (3.23).
+      // Scans are in the Society's Google Drive.
       match /{record}/{recordId} {
-        allow read: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax'] && (perm('view') || approvedFor(unitId));
-        allow create, update: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax'] && perm('unitRecords');
-        allow delete: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax'] && isCommittee();
+        allow read: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax', 'transfers'] && (perm('view') || approvedFor(unitId));
+        allow create, update: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax', 'transfers'] && perm('unitRecords');
+        allow delete: if record in ['members', 'tenants', 'comms', 'electricity', 'propertyTax', 'transfers'] && isCommittee();
       }
     }
 
@@ -591,7 +592,8 @@ service cloud.firestore {
       allow read: if perm('view') || ((docId == 'staffAgreement' || docId == 'files') && isTeam())
         || (docId == 'memberAgreement' && signedIn())
         || (docId == 'files' && approvedMember())
-        || (docId == 'memberReminders' && perm('members'));
+        || (docId == 'memberReminders' && perm('members'))
+        || (docId == 'transferChecklists' && (approvedMember() || (isTeam() && active())));
       allow write: if isCommittee()
         || (docId == 'billing' && perm('generateBills') && changes().hasOnly(['lastRun', 'lastBilledMonth']));
     }

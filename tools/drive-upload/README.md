@@ -72,6 +72,9 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.23 (script version 12):** membership transfer scans go to the unit's folder *Membership transfer*, and members can
+open their own unit's transfer scans. No new permission: paste Code.gs, then Manage deployments → Edit → New version.
+
 **3.22 (script version 11):** the member agreement PDF says *Declaration accepted* (the website shows the
 declaration as text instead of tick boxes). No new permission.
 

@@ -440,3 +440,12 @@ details.glossary summary { cursor: pointer; font-weight: 600; }
 .invite-facts { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .9rem; margin: .5rem 0 1rem; }
 .invite-facts dt { color: var(--muted); }
 .invite-facts dd { margin: 0; font-weight: 600; }
+
+/* 3.23: membership transfer documents on the member page */
+.my-transfers .mt-case { border: 1px solid var(--line, #ddd); border-radius: 10px; padding: .6rem .8rem; margin: .6rem 0; }
+.my-transfers .sub { display: block; font-size: .82rem; color: var(--muted, #666); }
+.my-transfers .mt-list { margin: .5rem 0; }
+.my-transfers .mt-list summary { cursor: pointer; font-weight: 600; }
+.my-transfers .mt-list ol { padding-left: 1.4rem; }
+.my-transfers .mt-list li { margin: .35rem 0; }
+.my-transfers .mt-list li > span { margin-right: .4rem; }

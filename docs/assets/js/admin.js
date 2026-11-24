@@ -31,6 +31,7 @@ import {
 } from './billing-core.js';
 import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from './defaults.js';
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, safeName, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
+import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS } from './transfers.js';
 import { LIB_CATEGORIES, LIB_LANGS, LIB_TYPES, LIB_MAX_BYTES, pdfWords, wordList, saveIndex, setIndexPublic, loadIndex, forgetIndex, searchLibrary, fmtSize, extOf } from './library.js';
 import { POSTS, SINGLE_POSTS, M20_DAYS, DEFAULT_UNDERTAKING, m20Status, undertakingFor, addYears, addDays as cAddDays } from './committee.js';
 import { PREREG_MESSAGE, REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
@@ -42,8 +43,8 @@ import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } 
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'letters', 'library', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { letters: 'letters', library: 'library', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'membersTab', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'letters', 'library', 'transfers', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { letters: 'letters', library: 'library', transfers: 'view', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'membersTab', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
@@ -280,7 +281,7 @@ function route() {
   $('#admin-nav').classList.remove('open');
   $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website', 'directory', 'expenses', 'library'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, letters: loadCorrespondence, library: loadLibraryAdmin, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, letters: loadCorrespondence, library: loadLibraryAdmin, transfers: loadTransfers, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -301,6 +302,7 @@ function wireOnce() {
   wireReminders();
   wireAccessApps();
   wirePrereg();
+  wireTransfers();
   wireCommittee();
   wireLibraryAdmin();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
@@ -1529,6 +1531,234 @@ async function saveMemberDialog() {
       showNotify(fresh || { ...m, ...patch }, action);
     } catch (err) { setMsg(form, esc(errorText(err))); }
   });
+}
+
+/* ----- 3.23: membership transfer sets (units/{id}/transfers/{caseId}) ----- */
+let trCases = [], trChecklists = null, trLib = [], trCurrent = null;
+async function loadTransferChecklists() {
+  const snap = await fb.F.getDoc(fb.F.doc(fb.db, 'settings', 'transferChecklists')).catch(() => null);
+  return snap?.exists() && snap.data().death ? snap.data() : structuredClone(DEFAULT_CHECKLISTS);
+}
+async function loadTransfers() {
+  const { F, db } = fb;
+  const list = (units.length ? units : dues.units);
+  const [lists, lib, per] = await Promise.all([loadTransferChecklists(),
+    F.getDocs(F.collection(db, 'libraryDocs')).then((s) => s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => !e.removed)).catch(() => []),
+    Promise.all(list.map((u) => F.getDocs(F.collection(db, 'units', u.id, 'transfers')).then((s) => s.docs.map((d) => ({ id: d.id, unit: u.id, ...d.data() }))).catch(() => [])))]);
+  trChecklists = lists; trLib = lib; trCases = per.flat();
+  const canEdit = canDo('unitRecords');
+  $('#tr-new').hidden = !canEdit;
+  $$('#trc-save, #trc-reset').forEach((b) => (b.hidden = !canDo('committee')));
+  renderTransfers();
+  renderChecklistEditor();
+}
+function renderTransfers() {
+  const q = $('#tr-q').value.trim().toLowerCase(), show = $('#tr-show').value;
+  const list = (units.length ? units : dues.units).slice().sort((a, b) => String(a.unit).localeCompare(String(b.unit), 'en', { numeric: true }));
+  const byUnit = new Map();
+  for (const c of trCases) (byUnit.get(c.unit) || byUnit.set(c.unit, []).get(c.unit)).push(c);
+  const rows = [];
+  for (const u of list) {
+    const cases = (byUnit.get(u.id) || []).filter((c) => c.status !== 'cancelled').sort((a, b) => String(b.startedOn || '').localeCompare(String(a.startedOn || '')));
+    const match = (c) => !q || [u.unit, u.name, c?.from, c?.to].some((t) => String(t || '').toLowerCase().includes(q));
+    if (show === 'none') { if (!cases.length && match(null)) rows.push({ u, c: null }); continue; }
+    if (show === 'all' && !cases.length) { if (match(null)) rows.push({ u, c: null }); continue; }
+    for (const c of cases) if ((show === 'all' || (show === 'open' ? c.status === 'open' : c.status === 'completed')) && match(c)) rows.push({ u, c });
+  }
+  const open = trCases.filter((c) => c.status === 'open').length, done = trCases.filter((c) => c.status === 'completed').length;
+  const units0 = list.filter((u) => !(byUnit.get(u.id) || []).some((c) => c.status !== 'cancelled')).length;
+  $('#tr-summary').textContent = `${open} in progress · ${done} completed · ${units0} units with no transfer recorded.`;
+  const canEdit = canDo('unitRecords');
+  $('#tr-rows').innerHTML = rows.map(({ u, c }) => {
+    if (!c) return `<tr><td class="unit">${esc(u.unit)}</td><td>${esc(u.name || '')}</td><td colspan="3" class="muted">No transfer recorded</td>
+      <td>${canEdit ? `<button class="btn btn-small" type="button" data-tr-start="${esc(u.id)}">Start…</button>` : ''}</td></tr>`;
+    const p = caseProgress(c);
+    return `<tr><td class="unit">${esc(u.unit)}</td><td>${esc(u.name || '')}</td>
+      <td>${esc(TRANSFER_TYPES[c.type] || c.type)}<span class="sub">${esc(c.from || '…')} → ${esc(c.to || '…')}</span><span class="sub">Started ${dmy(c.startedOn)}</span></td>
+      <td>${p.done} of ${p.total}<span class="tr-bar"><i style="width:${p.total ? Math.round(100 * p.done / p.total) : 0}%"></i></span>${p.missing.length && c.status === 'open' ? `<span class="sub">Still to come: ${esc(p.missing.slice(0, 4).map((i) => i.name).join(', '))}${p.missing.length > 4 ? ` and ${p.missing.length - 4} more` : ''}</span>` : ''}</td>
+      <td>${c.status === 'completed' ? `<span class="ag-ok">Completed ${dmy(c.completedOn)}</span>` : '<span class="m20-due">In progress</span>'}${c.resolutionOn ? `<span class="sub">Resolution ${dmy(c.resolutionOn)}${c.resolutionRef ? `, ${esc(c.resolutionRef)}` : ''}</span>` : ''}${c.endorsedOn ? `<span class="sub">Certificate endorsed ${dmy(c.endorsedOn)}</span>` : ''}</td>
+      <td><button class="btn btn-small${c.status === 'open' ? ' btn-primary' : ''}" type="button" data-tr-open="${esc(c.unit)}/${esc(c.id)}">${canEdit && c.status === 'open' ? 'Update' : 'View'}</button></td></tr>`;
+  }).join('') || `<tr><td colspan="6" class="empty">${show === 'open' ? 'No transfers in progress.' : 'Nothing to show.'}</td></tr>`;
+}
+function trLetterCtx(c, unitLabel) {
+  return { unit: unitLabel, from: c.from, to: c.to, eventDate: c.eventDate, possessionDate: c.possessionDate, deedNo: c.deedNo, cert: c.cert, items: c.items };
+}
+function openTransfer(c, isNew = false) {
+  trCurrent = c;
+  const f = $('#tr-form'), canEdit = canDo('unitRecords') && c.status !== 'completed' && c.status !== 'cancelled';
+  f.reset(); setMsg(f, '');
+  $('#tr-start').hidden = !isNew;
+  const u = (units.length ? units : dues.units).find((x) => x.id === c.unit);
+  $('#tr-title').textContent = isNew ? 'Start a membership transfer' : `${u?.unit || c.unit}: ${TRANSFER_TYPES[c.type]}`;
+  if (isNew) {
+    f.unit.innerHTML = (units.length ? units : dues.units).slice().sort((a, b) => String(a.unit).localeCompare(String(b.unit), 'en', { numeric: true }))
+      .map((x) => `<option value="${esc(x.id)}">${esc(x.unit)}${x.name ? ` – ${esc(x.name)}` : ''}</option>`).join('');
+    f.unit.value = c.unit || f.unit.options[0]?.value; f.type.value = c.type || 'sale';
+  }
+  ['from', 'to', 'eventDate', 'deedNo', 'possessionDate', 'cert', 'resolutionOn', 'resolutionRef', 'endorsedOn', 'newCert', 'notes'].forEach((k) => { f[k].value = c[k] || ''; });
+  trTypeChanged();
+  renderTrItems();
+  $$('input, select, textarea', f).forEach((x) => { if (!x.closest('[data-close]')) x.disabled = !canEdit; });
+  $('#tr-save').hidden = $('#tr-complete').hidden = $('#tr-cancel-case').hidden = !canEdit;
+  $('#tr-cancel-case').hidden ||= isNew;
+  $('#tr-dialog').showModal();
+}
+function trTypeChanged() {
+  const f = $('#tr-form'), type = $('#tr-start').hidden ? trCurrent.type : f.type.value, death = type === 'death';
+  $('#tr-from-label').firstChild.textContent = death ? 'Deceased member' : 'Outgoing member (seller)';
+  $('#tr-to-label').firstChild.textContent = death ? 'Nominee(s) / legal heir(s)' : 'New member(s) (buyer)';
+  $('#tr-date-label').firstChild.textContent = death ? 'Date of death' : 'Date of the sale deed';
+  $$('.tr-sale', f).forEach((x) => (x.hidden = death));
+  if (!$('#tr-start').hidden) { trCurrent.type = type; trCurrent.items = structuredClone(trChecklists[type].items); renderTrItems(); }
+}
+function renderTrItems() {
+  const c = trCurrent, got = c.got || {}, lib = new Map(trLib.map((e) => [e.id, e]));
+  $('#tr-items').innerHTML = (c.items || []).map((i) => {
+    const g = got[i.id] || {}, files = (c.files || []).filter((x) => x.item === i.id);
+    const fmt = i.letter && LETTERS[i.letter] ? `<button class="btn btn-small" type="button" data-tr-letter="${esc(i.letter)}">Print letter</button>`
+      : i.libraryId && lib.get(i.libraryId)?.file ? `<button class="btn btn-small" type="button" data-tr-lib="${esc(i.libraryId)}">Blank form</button>` : '<span class="muted">—</span>';
+    return `<tr data-item="${esc(i.id)}"><td><strong>${esc(i.name)}</strong>${i.note ? `<span class="sub">${esc(i.note)}</span>` : ''}${g.by ? `<span class="sub">Recorded by ${esc(g.byName || '')}</span>` : ''}</td>
+      <td><input type="date" name="on_${esc(i.id)}" value="${esc(g.on || '')}" aria-label="${esc(i.name)} received on"></td>
+      <td><input type="checkbox" name="na_${esc(i.id)}" ${g.na ? 'checked' : ''} aria-label="${esc(i.name)} not needed"></td>
+      <td>${files.map((x) => `<button class="btn btn-small" type="button" data-tr-file="${esc(x.id)}" title="${esc(x.name)}">Open</button>`).join(' ')}<input type="file" name="file_${esc(i.id)}" accept="image/*,application/pdf" multiple></td>
+      <td>${fmt}</td></tr>`;
+  }).join('');
+  const p = caseProgress(c);
+  $('#tr-progress').textContent = `${p.done} of ${p.total} received or not needed.`;
+}
+function readTrForm() {
+  const f = $('#tr-form'), c = { ...trCurrent, items: JSON.parse(JSON.stringify(trCurrent.items || [])), got: JSON.parse(JSON.stringify(trCurrent.got || {})) };
+  ['from', 'to', 'eventDate', 'deedNo', 'possessionDate', 'cert', 'resolutionOn', 'resolutionRef', 'endorsedOn', 'newCert', 'notes'].forEach((k) => { c[k] = f[k].value.trim(); });
+  if (!$('#tr-start').hidden) { c.unit = f.unit.value; c.type = f.type.value; }
+  c.got = c.got || {};
+  for (const i of c.items || []) {
+    const on = f[`on_${i.id}`].value, na = f[`na_${i.id}`].checked, prev = c.got[i.id] || {};
+    if (on !== (prev.on || '') || na !== Boolean(prev.na)) c.got[i.id] = { on, na, by: uid, byName: me?.name || '', at: new Date().toISOString() };
+    if (!on && !na) delete c.got[i.id];
+  }
+  return c;
+}
+async function saveTransfer(complete) {
+  const { F, db } = fb, f = $('#tr-form');
+  const c = readTrForm();
+  if (!c.unit) return setMsg(f, 'Choose the unit.');
+  if (complete) {
+    const p = caseProgress(c);
+    if (p.missing.length && !confirm(`${p.missing.length} document(s) not received yet: ${p.missing.map((i) => i.name).join(', ')}. Mark completed anyway?`)) return;
+    if (!c.resolutionOn && !confirm('No committee resolution date. Mark completed anyway?')) return;
+  }
+  const u = (units.length ? units : dues.units).find((x) => x.id === c.unit);
+  await busy(complete ? $('#tr-complete') : $('#tr-save'), async () => {
+    try {
+      // New scans go to the unit's Drive folder, Membership transfer.
+      const newFiles = [];
+      const picks = (c.items || []).map((i) => [i, [...(f[`file_${i.id}`]?.files || [])]]).filter(([, fs]) => fs.length);
+      if (picks.length) {
+        await loadDriveCfg(fb);
+        if (!driveReady()) throw new Error('Connect the Society’s Google Drive first (Expenses → Set-up) to keep scans.');
+        for (const [i, fs] of picks) {
+          setMsg(f, `Saving the scan of ${esc(i.name)}…`, true);
+          const saved = await uploadUnitScans(fb, { unitId: c.unit, unitLabel: u?.unit || c.unit, wing: blockName(u?.block), kind: 'transfers', title: `${c.type === 'death' ? 'Transmission' : 'Transfer'} - ${i.name}`, files: fs });
+          saved.forEach((x) => newFiles.push({ ...x, item: i.id }));
+          if (!c.got[i.id]?.on) c.got[i.id] = { ...(c.got[i.id] || {}), on: todayISO(), by: uid, byName: me?.name || '', at: new Date().toISOString() };
+        }
+      }
+      const data = { type: c.type, title: TRANSFER_TYPES[c.type], items: c.items, got: c.got, files: [...(c.files || []), ...newFiles],
+        from: c.from, to: c.to, eventDate: c.eventDate, deedNo: c.deedNo, possessionDate: c.possessionDate, cert: c.cert,
+        resolutionOn: c.resolutionOn, resolutionRef: c.resolutionRef, endorsedOn: c.endorsedOn, newCert: c.newCert, notes: c.notes,
+        status: complete ? 'completed' : c.status || 'open', completedOn: complete ? todayISO() : c.completedOn || '',
+        updatedAt: F.serverTimestamp(), updatedBy: uid, updatedByName: me?.name || '' };
+      if (c.id) await F.updateDoc(F.doc(db, 'units', c.unit, 'transfers', c.id), data);
+      else {
+        const ref = await F.addDoc(F.collection(db, 'units', c.unit, 'transfers'), { ...data, startedOn: todayISO(), createdBy: uid, createdByName: me?.name || '', createdAt: F.serverTimestamp() });
+        c.id = ref.id;
+        $('#tr-show').value = 'open';   // show the new case in the list
+      }
+      $('#tr-dialog').close();
+      backupThisUnit(c.unit);
+      const msg = $('#tr-msg'); msg.className = 'form-msg ok';
+      const p = caseProgress({ ...c, got: data.got });
+      msg.textContent = `${u?.unit || c.unit}: ${complete ? 'transfer completed' : `saved (${p.done} of ${p.total} documents)`}.${newFiles.length ? ` ${newFiles.length} scan(s) kept in the unit’s Drive folder.` : ''}`;
+      await loadTransfers();
+    } catch (err) { setMsg(f, esc(errorText(err))); }
+  });
+}
+function renderChecklistEditor() {
+  const ed = canDo('committee'), libOpts = (sel) => `<option value="">—</option>${trLib.filter((e) => e.file).map((e) => `<option value="${esc(e.id)}" ${sel === e.id ? 'selected' : ''}>${esc(e.title)}</option>`).join('')}`;
+  const letOpts = (sel) => `<option value="">—</option>${Object.entries(LETTERS).map(([k, L]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${esc(L.title)}</option>`).join('')}`;
+  $('#trc-lists').innerHTML = ['death', 'sale'].map((t) => {
+    const L = trChecklists[t];
+    return `<div class="trc-list" data-list="${t}"><h3>${esc(TRANSFER_TYPES[t])}</h3>
+      <label>Title<input type="text" data-k="title" value="${esc(L.title)}" ${ed ? '' : 'disabled'}></label>
+      <div class="table-scroll"><table><thead><tr><th>Document</th><th>Note (stamp paper etc.)</th><th>Society’s letter</th><th>Blank form in the Library</th><th></th></tr></thead><tbody>
+      ${L.items.map((i) => `<tr data-id="${esc(i.id)}"><td><input type="text" data-k="name" value="${esc(i.name)}" ${ed ? '' : 'disabled'}></td><td><input type="text" data-k="note" value="${esc(i.note || '')}" ${ed ? '' : 'disabled'}></td>
+        <td><select data-k="letter" ${ed ? '' : 'disabled'}>${letOpts(i.letter)}</select></td><td><select data-k="libraryId" ${ed ? '' : 'disabled'}>${libOpts(i.libraryId)}</select></td>
+        <td>${ed ? '<button class="btn btn-small" type="button" data-trc-del>Remove</button>' : ''}</td></tr>`).join('')}
+      </tbody></table></div>${ed ? `<button class="btn btn-small" type="button" data-trc-add="${t}">Add a document</button>` : ''}</div>`;
+  }).join('');
+}
+function readChecklists() {
+  const out = {};
+  for (const box of $$('#trc-lists .trc-list')) {
+    const t = box.dataset.list;
+    out[t] = { title: $('[data-k=title]', box).value.trim(), intro: trChecklists[t].intro || '', items: $$('tbody tr', box).map((tr) => ({
+      id: tr.dataset.id, name: $('[data-k=name]', tr).value.trim(), note: $('[data-k=note]', tr).value.trim(),
+      ...($('[data-k=letter]', tr).value ? { letter: $('[data-k=letter]', tr).value } : {}), ...($('[data-k=libraryId]', tr).value ? { libraryId: $('[data-k=libraryId]', tr).value } : {}) })).filter((i) => i.name) };
+  }
+  return out;
+}
+function wireTransfers() {
+  const { F, db } = fb;
+  ['#tr-q', '#tr-show'].forEach((id) => $(id).addEventListener(id === '#tr-q' ? 'input' : 'change', renderTransfers));
+  $('#tr-new').addEventListener('click', () => openTransfer({ unit: '', type: 'sale', items: structuredClone(trChecklists.sale.items), got: {}, files: [], status: 'open' }, true));
+  $('#tr-rows').addEventListener('click', (e) => {
+    const st = e.target.closest('[data-tr-start]'), op = e.target.closest('[data-tr-open]');
+    if (st) {
+      const u = (units.length ? units : dues.units).find((x) => x.id === st.dataset.trStart);
+      openTransfer({ unit: u.id, type: 'sale', from: u.name || '', items: structuredClone(trChecklists.sale.items), got: {}, files: [], status: 'open' }, true);
+    }
+    if (op) { const [unit, id] = op.dataset.trOpen.split('/'); const c = trCases.find((x) => x.unit === unit && x.id === id);
+      // Plain copy (times and other Firestore values are not needed in the window).
+      openTransfer({ ...c, items: JSON.parse(JSON.stringify(c.items || [])), got: JSON.parse(JSON.stringify(c.got || {})), files: JSON.parse(JSON.stringify(c.files || [])), createdAt: null, updatedAt: null }); }
+  });
+  $('#tr-form').type.addEventListener('change', trTypeChanged);
+  $('#tr-form').unit.addEventListener('change', (e) => { const u = (units.length ? units : dues.units).find((x) => x.id === e.target.value); if (u && !$('#tr-form').from.value) $('#tr-form').from.value = u.name || ''; });
+  $('#tr-form').addEventListener('submit', (e) => { e.preventDefault(); saveTransfer(false); });
+  $('#tr-complete').addEventListener('click', () => saveTransfer(true));
+  $('#tr-cancel-case').addEventListener('click', async () => {
+    const c = trCurrent;
+    if (!c.id || !confirm('Cancel this transfer? It stays on record as cancelled.')) return;
+    try { await F.updateDoc(F.doc(db, 'units', c.unit, 'transfers', c.id), { status: 'cancelled', updatedAt: F.serverTimestamp(), updatedBy: uid }); $('#tr-dialog').close(); await loadTransfers(); }
+    catch (err) { setMsg($('#tr-form'), esc(errorText(err))); }
+  });
+  $('#tr-dialog [data-close]').addEventListener('click', () => $('#tr-dialog').close());
+  $('#tr-items').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const c = readTrForm(), u = (units.length ? units : dues.units).find((x) => x.id === c.unit);
+    if (b.dataset.trLetter) openLetter(b.dataset.trLetter, trLetterCtx(c, u?.unit || c.unit));
+    else if (b.dataset.trLib) { const ent = trLib.find((x) => x.id === b.dataset.trLib); openDriveCopy({ libraryId: ent.id, fileId: ent.file.id }); }
+    else if (b.dataset.trFile) openDriveCopy({ unitId: c.unit, record: 'transfers', recordId: c.id, fileId: b.dataset.trFile });
+  });
+  $('#trc-lists').addEventListener('click', (e) => {
+    const del = e.target.closest('[data-trc-del]'), add = e.target.closest('[data-trc-add]');
+    if (del) del.closest('tr').remove();
+    if (add) {
+      trChecklists = readChecklists();
+      trChecklists[add.dataset.trcAdd].items.push({ id: `x${Date.now().toString(36)}`, name: 'New document', note: '' });
+      renderChecklistEditor();
+    }
+  });
+  $('#trc-save').addEventListener('click', async (e) => {
+    if (!canDo('committee')) return;
+    const next = readChecklists();
+    if (!next.death.items.length || !next.sale.items.length) return setMsg($('#trc-box'), 'Each list needs at least one document.');
+    await busy(e.currentTarget, async () => {
+      try { await F.setDoc(F.doc(db, 'settings', 'transferChecklists'), { ...next, updatedAt: F.serverTimestamp(), updatedBy: uid }); trChecklists = next; const m = $('#trc-msg'); m.className = 'form-msg ok'; m.textContent = 'Saved. New transfers use these lists; members see them on their page.'; }
+      catch (err) { const m = $('#trc-msg'); m.className = 'form-msg'; m.textContent = errorText(err); }
+    });
+  });
+  $('#trc-reset').addEventListener('click', () => { if (confirm('Put back the standard lists in the editor? Nothing changes until you save.')) { trChecklists = structuredClone(DEFAULT_CHECKLISTS); renderChecklistEditor(); } });
 }
 
 /* ----- 3.22: members pre-registered by email (memberInvites/{email}) ----- */

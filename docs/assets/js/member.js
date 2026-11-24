@@ -12,6 +12,7 @@ import { loadAuditYears, listArchive, openArchiveDoc, archiveBlob, yearEndRows }
 import { agreementHTML, MEMBER_DECLARATION } from './memberagreement.js';
 import { RATE_HISTORY } from './defaults.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
+import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS } from './transfers.js';
 import { loadDriveCfg, driveReady, driveCall, prepareFile, toBase64, safeName } from './drive.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -311,6 +312,7 @@ function renderStatus(user) {
 
 function wireForms() {
   wireMemberDocs();
+  wireMyTransfers();
   const { A, F, auth, db } = fb;
   $('#auth-panels').hidden = false;
   const sayGoogle = (text, kind, details) => showMsg($('#google-box'), text, kind, details);
@@ -697,11 +699,71 @@ function wireMemberDocs() {
   });
 }
 
+/* 3.23: the unit's membership transfer (what has been received) and the Society's lists with their formats */
+let mtCases = [], mtLib = [];
+async function loadMyTransfers() {
+  const { F, db } = fb;
+  const [lists, cases, lib] = await Promise.all([
+    F.getDoc(F.doc(db, 'settings', 'transferChecklists')).then((d) => (d.exists() && d.data().death ? d.data() : DEFAULT_CHECKLISTS)).catch(() => DEFAULT_CHECKLISTS),
+    F.getDocs(F.collection(db, 'units', profile.unit, 'transfers')).then((s) => s.docs.map((d) => ({ id: d.id, ...d.data() }))).catch(() => []),
+    F.getDocs(F.collection(db, 'libraryDocs')).then((s) => s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => !e.removed && e.file)).catch(() => [])]);
+  mtCases = cases.filter((c) => c.status !== 'cancelled').sort((a, b) => String(b.startedOn || '').localeCompare(String(a.startedOn || '')));
+  mtLib = lib;
+  const libIds = new Set(lib.map((e) => e.id));
+  const fmtBtn = (i, caseId = '') => i.letter && LETTERS[i.letter] ? `<button class="btn btn-small" type="button" data-mt-letter="${esc(i.letter)}" data-case="${esc(caseId)}">Print letter</button>`
+    : i.libraryId && libIds.has(i.libraryId) ? `<button class="btn btn-small" type="button" data-mt-lib="${esc(i.libraryId)}">Blank form</button>` : /form|affidavit|undertaking|appendix|letter|application|resignation/i.test(i.name) ? '<span class="muted">Format from the office</span>' : '';
+  $('#mt-cases').innerHTML = mtCases.map((c) => {
+    const p = caseProgress(c), got = c.got || {};
+    return `<div class="mt-case"><p><strong>${esc(TRANSFER_TYPES[c.type] || c.type)}</strong> — ${esc(c.from || '…')} → ${esc(c.to || '…')}.
+      ${c.status === 'completed' ? `<span class="doc-pill ok">Completed ${ddmmyyyy(c.completedOn)}</span>` : `<span class="doc-pill">In progress: ${p.done} of ${p.total} received</span>`}
+      ${c.resolutionOn ? `<span class="sub">Committee resolution ${ddmmyyyy(c.resolutionOn)}${c.resolutionRef ? `, ${esc(c.resolutionRef)}` : ''}${c.endorsedOn ? `; share certificate endorsed ${ddmmyyyy(c.endorsedOn)}` : ''}</span>` : ''}</p>
+      <div class="table-scroll"><table><thead><tr><th scope="col">Document</th><th scope="col">Received</th><th scope="col">Scan</th><th scope="col">Format</th></tr></thead><tbody>
+      ${(c.items || []).map((i) => { const g = got[i.id] || {}, files = (c.files || []).filter((x) => x.item === i.id);
+        return `<tr><td>${esc(i.name)}${i.note ? `<span class="sub">${esc(i.note)}</span>` : ''}</td>
+        <td>${g.na ? '<span class="muted">Not needed</span>' : g.on ? `<span class="doc-pill ok">${ddmmyyyy(g.on)}</span>` : '<span class="doc-pill warn">Not yet</span>'}</td>
+        <td>${files.map((x) => `<button class="file-link" type="button" data-mt-file="${esc(c.id)}" data-fid="${esc(x.id)}" title="${esc(x.name)}">📎 ${esc(shortName(x.name))}</button>`).join('<br>') || '—'}</td>
+        <td>${fmtBtn(i, c.id)}</td></tr>`; }).join('')}
+      </tbody></table></div></div>`;
+  }).join('') || '<p class="small-note">No transfer is recorded for your unit. If your unit was bought, or inherited on a member’s death, and the share certificate is not yet in your name, please submit the documents in the list that applies below.</p>';
+  $('#mt-lists').innerHTML = ['sale', 'death'].map((t) => {
+    const L = lists[t] || DEFAULT_CHECKLISTS[t];
+    return `<details class="mt-list"><summary>${esc(L.title)} — ${L.items.length} documents</summary>${L.intro ? `<p class="small-note">${esc(L.intro)}</p>` : ''}
+      <ol>${L.items.map((i) => `<li><span>${esc(i.name)}${i.note ? ` <span class="muted">(${esc(i.note)})</span>` : ''}</span> ${fmtBtn(i)}</li>`).join('')}</ol>
+      <p class="small-note">Hand the signed documents to the Society office; the committee records each one here as it is received.</p></details>`;
+  }).join('');
+  mtLists = lists;
+}
+let mtLists = DEFAULT_CHECKLISTS;
+function wireMyTransfers() {
+  $('#my-transfers').addEventListener('click', async (e) => {
+    const L = e.target.closest('[data-mt-letter]'), lb = e.target.closest('[data-mt-lib]'), fl = e.target.closest('[data-mt-file]');
+    if (L) {
+      const c = mtCases.find((x) => x.id === L.dataset.case);
+      const type = c?.type || (Object.keys(mtLists).find((t) => mtLists[t].items?.some((i) => i.letter === L.dataset.mtLetter)) || 'sale');
+      if (!openLetter(L.dataset.mtLetter, { unit: unitLabel(profile.unit), from: c?.from, to: c?.to || (type === 'death' ? profile.name : ''), eventDate: c?.eventDate, possessionDate: c?.possessionDate, deedNo: c?.deedNo, cert: c?.cert, items: c?.items || mtLists[type]?.items }))
+        setMsg($('#mt-msg'), 'Allow pop-ups for this site to open the letter.');
+    }
+    if (lb) {
+      const ent = mtLib.find((x) => x.id === lb.dataset.mtLib);
+      setMsg($('#mt-msg'), 'Opening…', true);
+      try {
+        const r = await driveCall(fb, 'libraryFetch', { libraryId: ent.id, fileId: ent.file.id });
+        const bin = atob(r.data), u8 = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        await saveBlob(new Blob([u8], { type: r.mime }), r.name || ent.file.name);
+        setMsg($('#mt-msg'), '');
+      } catch (err) { setMsg($('#mt-msg'), errorText(err)); }
+    }
+    if (fl) openMemberFile({ unitId: profile.unit, record: 'transfers', recordId: fl.dataset.mtFile, fileId: fl.dataset.fid }, fl.textContent, $('#mt-msg'));
+  });
+}
+
 async function loadAccount() {
   const { F, db } = fb;
   const unitId = profile.unit;
   await loadDriveCfg(fb).catch(() => null);
   loadMyDocs().catch((err) => console.warn('unit documents', err));
+  loadMyTransfers().catch((err) => console.warn('transfers', err));
   loadInterestInfo().catch((err) => console.warn('interest info', err));
   $('#account-unit').textContent = unitLabel(unitId);
   $('#account-name').textContent = `${profile.name} · ${relationLabel(profile.relation)}`;
