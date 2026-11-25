@@ -46,7 +46,8 @@ export function waNumber(mobile) {
 export const tenDigits = (mobile) => { const w = waNumber(mobile); return w ? w.slice(2) : ''; };
 export const validEmail = (e) => /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[A-Za-z]{2,}$/.test(String(e || '').trim());
 export const waLink = (mobile, m) => `https://wa.me/${waNumber(mobile)}?text=${encodeURIComponent(`${m.subject}\n\n${m.body}`)}`;
-export const mailLink = (email, m) => `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
+/** 3.28: cc = the Society's own address, so the email is on record in the Society's mailbox too. */
+export const mailLink = (email, m, cc = '') => `mailto:${encodeURIComponent(email)}?${cc && cc.toLowerCase() !== String(email).toLowerCase() ? `cc=${encodeURIComponent(cc)}&` : ''}subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
 
 /** 3.22: the invitation for someone the committee pre-registered by email. */
 export const PREREG_MESSAGE = {

@@ -8,6 +8,8 @@ Website and maintenance accounting for **Sunshree Suntec Co-op. Hsg. Soc. Ltd.**
 - **Accounts (`/admin.html`, committee only):** monthly bills in the Society's bill format, payments with numbered digital receipts, unit ledgers, corrections, member access approvals, notices and contact details.
 - **Test copy:** try every role (owner, tenant, staff, committee) on a separate test project and Drive folder, with a red TEST banner; see `TESTING.md` (3.21).
 - **Membership transfers:** the documents each unit submits on a member's death or on sale, tracked unit by unit with scans, the committee resolution and the share certificate endorsement; members see their unit's list and print the Society's letters (3.23).
+- **Recovery notices:** the Society's bilingual demand / final recovery notice filled in for each unit with dues, printed with the bill and its calculation, registered post numbers and the correspondence register (3.28).
+- **Pause the website:** an emergency *under maintenance* page for visitors and members, without touching the data (3.28).
 - **Bill explanation:** every printed bill comes with *How this bill is worked out*: each charge's calculation, the interest, and how the arrears built up year by year (3.27).
 - **Website settings backup:** the configuration (billing, agreements, access by role, website content, library catalogue…) saved as one file in the Drive or downloaded, compared and restored item by item (3.26).
 - **Full backups:** everything in the database and the sign-in accounts saved to the Society's Drive on a schedule, with restore from the accounts page or, in a disaster, from the storage script (3.25).

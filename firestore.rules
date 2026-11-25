@@ -98,7 +98,9 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isCommittee()
         || (docId == 'dues' && (moneyPerm() || perm('editUnits')))
-        || (docId == 'site' && perm('website'));
+        || (docId == 'site' && perm('website'))
+        // 3.28: pausing the website in an emergency
+        || (docId == 'status' && perm('website'));
     }
 
     // Real amounts: signed-in approved members and committee / staff with view access.
@@ -399,6 +401,13 @@ service cloud.firestore {
         && request.resource.data.receipts.size() > 0 && request.resource.data.receipts.size() <= 60
         && request.resource.data.reason is string && request.resource.data.reason.size() > 0;
       allow update, delete: if false;
+    }
+
+    // 3.28: demand / recovery notices prepared for units with dues (text, units, amounts, registered post numbers).
+    match /noticeRuns/{id} {
+      allow read: if perm('view');
+      allow create, update: if perm('generateBills') || isCommittee();
+      allow delete: if isCommittee();
     }
 
     match /counters/{docId} {

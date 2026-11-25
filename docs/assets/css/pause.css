@@ -1,0 +1,15 @@
+/* 3.28: the website paused by the committee (maintenance page) */
+html.paused body > *:not(#site-paused) { display: none !important; }
+#site-paused { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 1.5rem; background: #f6f3ec; font-family: 'Public Sans', system-ui, sans-serif; color: #1c2430; overflow: auto; }
+#site-paused .sp-card { max-width: 36rem; text-align: center; background: #fff; border: 1px solid #e2ddd2; border-radius: 16px; padding: 2rem 1.6rem; box-shadow: 0 6px 24px rgba(0,0,0,.06); }
+#site-paused h1 { font-size: 1.5rem; margin: .6rem 0 .5rem; }
+#site-paused h2 { font-size: 1.15rem; margin: 1.2rem 0 .4rem; }
+#site-paused p { line-height: 1.55; margin: .3rem 0; }
+#site-paused .sp-soc { font-weight: 700; letter-spacing: .02em; margin-top: .6rem; }
+#site-paused .sp-until { margin-top: 1rem; }
+#site-paused .sp-contact { margin-top: 1rem; }
+#site-paused .sp-admin { margin-top: 1.4rem; font-size: .85rem; }
+#site-paused .sp-admin a { color: #777; }
+#paused-bar { background: #8c1d18; color: #fff; text-align: center; padding: .5rem 1rem; font-weight: 600; font-size: .9rem; }
+#paused-bar a { color: #fff; text-decoration: underline; }
+@media print { #paused-bar { display: none; } }

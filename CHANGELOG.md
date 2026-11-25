@@ -6,6 +6,72 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.28.0] – 2026-11-25 – Recovery notices, pausing the website, library categories, copies of member emails
+
+### Added
+- **Bills → Demand / recovery notices.** The Society's bilingual notice (Marathi page, English page, as sent on 17/01/2026 and 22/10/2026), filled in for every unit with dues and printed as one set per unit: **notice (Marathi) + notice (English) + the unit's bill + How this bill is worked out**.
+  - Form: subject (English / Marathi; default *Final Recovery Notice – Outstanding Society Maintenance Dues* / *थकित सोसायटी मेंटेनन्स भरणा – अंतिम वसुली नोटीस*), letter date, reference (the unit is added: `SSSCHS/MAINT/RP/2026-27/003/C101`), the month whose bills are enclosed, days to pay (7), minimum dues, the earlier notices mentioned (default the 1st Demand Notice of 17/01/2026 and the 2nd of 22/10/2026, by Registered Post), the interest clause in English and Marathi (built from the rate periods: **18% per annum from 13/04/2013 and 12% per annum from 01/07/2026**, replacing the 21% of the earlier letters), and who signs (default the Chairman from the website's committee list, with mobile).
+  - *List the units with dues* shows every unit whose dues today are at least the minimum, with the bill to be enclosed (or *no bill for this month*); untick any; *Prepare the notices* saves them (`noticeRuns/{id}`), with each unit's dues today as the amount (and, when something was paid after the bill, *less ₹… received after the bill*).
+  - Each prepared set: **Open all (one PDF to print)** for posting, and **Open / save PDF** per unit (`print.html?notice=<id>&unit=<unit>`). Shops say *Shop / दुकान*, offices *Office / ऑफिस*, flats *Flat / फ्लॅट*. The English letter gives the amount in words.
+  - After posting: type the **Registered post numbers** and *Save*; **Record in the correspondence register** adds one outward letter per unit (OUT/2026-27/…, mode *Registered post*, reference and post number, the unit linked), so each unit's file lists the notice.
+- **Website → Pause the website (emergency).** Visitors and members (website and app) see only a *Website under maintenance* page, in English and Marathi, with an optional *expected back by* date and the Society's contacts. Nothing is deleted; bills and backups carry on; the accounts page keeps working, with a red bar; signed-in committee and staff still see the website with a red bar. **Resume the website** ends it. Stored in `public/status` (*website* permission).
+- **Library:**
+  - New categories: *Application sent / received*, *Letter sent / received*, *Scanned copy*.
+  - **Move to another category:** tick documents (or all shown) → *Move to* → *Move*; changing the category in *Edit* does the same. The file is moved to the matching Drive folder too (storage script 15; with an older script only the website's category changes, and the page says so).
+  - **Public / private:** each entry's *Public* / *Private* button switches it in one click (with its words, so search follows); *Make public* / *Make private* for the ticked ones.
+- **Emails to members copy the Society:** invitations to pre-registered members, reminders and the other *Email* buttons open the mail with **cc sunshreesuntec@gmail.com**; emails sent from the Society's account by the storage script are copied to it too, so every email to a member is on record in the Society's mailbox.
+
+---
+
+in version 3.28.0. A new test suite (24 checks), all 26 earlier suites and 180 Drive script checks pass, but only against test data. The PDFs themselves must be generated on the live website, because I don't have your members' real figures here.
+
+**7) The 3rd final recovery letter (Bills → Demand / recovery notices)**
+
+- **What prints per unit:** your *Suntec_Final_Notice_Bilingual* letter (Marathi page and English page) filled in with the unit's values, then the unit's bill, then the "How this bill is worked out" page.
+- The letter content:
+  - It says "Final Recovery Notice" and mentions the 1st Demand Notice dated 17/01/2026 and the 2nd dated 22/10/2026, sent by Registered Post.
+  - The amount is each unit's dues on the letter date. If something was paid after the bill, it adds "less ₹… received after the bill". The English page also gives the amount in words.
+  - The reference number gets the unit added, e.g. SSSCHS/MAINT/RP/2026-27/003/C101.
+  - It is signed by the Chairman from the website's committee list (Mr Saji Rajan), with his mobile number.
+  - Shops are printed as "Shop / दुकान" instead of "Flat / फ्लॅट".
+- **Steps:** *List the units with dues* → untick any you want to leave out → *Prepare the notices*. Then use **Open all** for one PDF to print for posting, or **Open / save PDF** for each unit's own set.
+- **After posting:** type in the Registered Post numbers and press **Record in the correspondence register**. This adds one outward letter per unit with its post number.
+- **Please check:** the date, subject, reference and Marathi text are all editable in the form; check them before printing.
+
+**5) Interest wording in letters**
+ The interest clause now reads "18% per annum from 13/04/2013 and 12% per annum from 01/07/2026" in both languages, replacing the 21% in the earlier letters. It is built from the interest rates already saved in the website settings, and you can edit it before preparing the notices.
+
+**1)–3) Library**
+
+- **New categories:** Application sent / received, Letter sent / received, and Scanned copy.
+- **Moving:** tick documents and choose **Move to** a category; changing the category in Edit works too. The file in Drive moves to the matching folder as well.
+- **Public / Private:** each document has a one-click **Public / Private** button. **Make public** and **Make private** change all ticked documents at once.
+
+**4) Pause the website (Website tab)**
+
+- **Pause the website now** shows every visitor and member (website and app) only a "Website under maintenance" page in English and Marathi, with an optional "expected back by" date.
+- No data is touched, and monthly bills and backups carry on.
+- Committee and staff keep working on the accounts page, and a red bar there reminds them the site is paused. **Resume the website** ends the pause.
+
+**6) Copy to [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com)**
+
+- Emails to pre-registered members, reminders and the other *Email* buttons now open with [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com) in CC.
+- Emails sent from the Society's own account by the Drive script are copied there too.
+- I applied this to all emails sent to members, not only pre-registration emails, so every one is on record in the Society's mailbox.
+
+### Rules
+- `public/status`: written with the *website* permission (read by everyone, like the rest of `public`).
+- `noticeRuns`: read with *view*; prepared and updated with *generate bills* or by the committee; deleted by the committee.
+
+### Drive script (version 15)
+- `libraryMove`: moves a library file to its new category's folder (only files kept in the Library, only the entry's own file). Member emails (`memberMail`) cc the Society's address.
+
+### Tested
+- New suite t328 (24 checks): new categories, ticking and moving (with the Drive move), one-click private with its words, bulk public, move with an older script, cc on member emails, pausing (accounts page banner; visitor and member see only the maintenance page in both languages; committee sees the website with the bar; resuming clears it for visitors), notices (defaults with 18% / 12%, earlier notices, signer; units listed; prepared; Marathi and English pages filled in; one set = Marathi, English, bill, calculation; all units in one document; shop wording; no bill → notice only; registered post numbers; recorded in the correspondence register).
+- 5 new Drive script checks (180 in all). All earlier suites pass.
+
+---
+
 ## [3.27.0] – 2026-11-25 – "How this bill is worked out": a second page with every bill
 
 ### Added
@@ -20,37 +86,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ### Notes
 - Read from the same records as the member's statement (`units/{id}/ledger`, the unit's Tally history and audited years, the unit's bills); nothing new is stored. No rules or script changes.
-
-Version 3.27.0 is ready: every bill now prints a second page called **How this bill is worked out**. A new test suite (13 checks) and all 25 earlier suites pass.
-
-**What's on the page**
-
-- **The total in one line:** arrears + this month's charges = total payable by the due date.
-
-- **The unit as recorded:** carpet area, occupancy, water inlets, vehicles and lift. It also says whether charges use the General Body's rates or the 2026 Rules' cost sharing, with the Society's basis note.
-
-- **This month's charges:** each head with how it is worked out (for example "₹2.1 per sq ft × 950 sq ft"), or "Rate fixed by the General Body". Lift costs show how they are shared among the units served.
-
-- **Penal interest:** this month's interest and the amount it is charged on. It says interest is simple and never charged on interest already billed, and lists the General Body's rates with their dates and the legal limits.
-
-- How the arrears built up:
-
-   a year-by-year table (April to March) from the first record to this bill. It covers the audited years, then Tally, then the current accounts.
-
-  - Each row shows brought forward, charged, paid, other entries and carried forward, ending exactly at the arrears on the bill.
-  - "Other entries" are opening balances taken over, corrections and differences between the old and new records.
-  - Below the table: the last payment, the total paid in the previous 12 months, and the latest 12 entries with a running balance.
-  - For A-102, this table shows the ₹1,41,400 adding up year by year from the first record.
-
-**Accuracy**
-
-- The page uses the same records as the member's statement, so the figures match what members see online.
-- A payment entered after the bill was made, but dated earlier, is left out, because it wasn't in the bill. If the figures still don't match exactly, the page states the difference and why.
-
-**Printing**
-
-- When you open one bill, the page is included; untick the toolbar box to print the bill alone.
-- **Print all bills** for a month starts with the box unticked. Ticking it adds the explanation page after every bill, but it takes longer because it reads each unit's whole account.
 
 ### Tested
 - New suite t327 (13 checks): the sum, the unit, charges with their workings, interest and rates, the year-by-year table from Tally to this bill adding up exactly, a payment entered after the bill left out, this bill's own entry left out, last payment and 12-month payments, running balance, hiding the page, month print without and with the pages, a unit with nothing overdue. All earlier suites pass.

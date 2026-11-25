@@ -118,3 +118,18 @@ body.no-explain .sheet.explain { display: none; }
 .explain .x-facts { font-weight: 600; }
 .explain .x-list { margin: 0 0 2mm 5mm; padding: 0; }
 .explain .x-foot { margin-top: 4mm; border-top: 1px solid #999; padding-top: 1.5mm; font-size: 8.5pt; color: #444; }
+
+/* 3.28: demand / recovery notices (Marathi and English) */
+.notice .n-wrap { font-size: 10.5pt; line-height: 1.5; color: #111; }
+.notice[lang="mr"] .n-wrap { font-family: 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', 'Public Sans', sans-serif; font-size: 10.5pt; line-height: 1.6; }
+.notice .f-head { border: 2px solid var(--line); margin-bottom: 4mm; }
+.notice .n-top { display: flex; justify-content: space-between; margin: 2mm 0 1mm; }
+.notice .n-ref { margin: 0 0 3mm; font-size: 9.5pt; }
+.notice p { margin: 0 0 2.2mm; text-align: justify; }
+.notice .n-sub { margin: 3mm 0; }
+.notice .n-list { margin: 0 0 3mm 6mm; padding: 0; }
+.notice .n-list li { margin-bottom: 1mm; text-align: justify; }
+.notice .n-pay { font-size: 9.5pt; }
+.notice .n-sign { margin-top: 5mm; }
+.notice .n-line { border-bottom: 1px solid #333; width: 55mm; height: 12mm; margin: 0 0 1mm; }
+.notice .n-encl { margin-top: 4mm; font-size: 9.5pt; }

@@ -183,6 +183,13 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 2 | Test site → Settings → *Restore from a file…* → that file | Compare: *Google Drive connection — from another site: not restored*; others Different / Not on the website |
 | 3 | Tick all that differ → Restore | Test site has the real charges, agreements, roles and website content; *before restore* copy in *TEST …/Backups/Settings* |
 
+### Notices, pause, library (3.28)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Bills → Demand / recovery notices → List the units with dues → Prepare | One set per unit: Marathi, English, bill, calculation; 18% / 12% clause |
+| 2 | Website → Pause the website now; open the test site in a private window | Only the maintenance page; Resume brings it back |
+| 3 | Library → tick two → Move to *Scanned copy*; click *Public* on one | Category and Drive folder change; it becomes Private |
+
 ---
 
 ## D. Clearing the test copy

@@ -9,6 +9,8 @@ import { PARTICULARS, OPTIONAL, STATUSES, LIFT_GROUPS, money, amountInWords, ddm
 import { esc } from './data.js';
 import { DEFAULT_SITE } from './defaults.js';
 import { loadExplainData, explainHTML } from './billexplain.js';
+import { checkSitePause } from './sitepause.js';
+import { noticePages } from './notices.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -24,6 +26,7 @@ async function main() {
     return;
   }
   const site = await loadSite(fb);
+  if (await checkSitePause(site.society)) return;   // 3.28: paused by the committee
   const { F, db } = fb;
   let html = '', title = '';
 
@@ -56,6 +59,24 @@ async function main() {
     explainToggle(true);
     title = `Bill ${s.data().billNo}`;
     document.title = `${title} – ${s.data().unit}`;
+  } else if (params.get('notice')) {
+    // 3.28: demand / recovery notices: for each unit the notice (Marathi, English), its bill and the calculation.
+    const s = await F.getDoc(F.doc(db, 'noticeRuns', params.get('notice')));
+    if (!s.exists()) throw new Error('These notices were not found.');
+    const run = s.data(), only = params.get('unit');
+    const list = (run.units || []).filter((u) => !only || u.unitId === only);
+    if (!list.length) throw new Error('That unit is not in these notices.');
+    $('#msg').textContent = `Preparing ${list.length} notice${list.length > 1 ? 's' : ''}…`;
+    const parts = [];
+    for (const u of list) {
+      const bs = u.billId ? await F.getDoc(F.doc(db, 'bills', u.billId)).catch(() => null) : null;
+      const b = bs?.exists() ? { id: bs.id, ...bs.data() } : null;
+      parts.push(`<div class="n-set" data-unit="${esc(u.unitId)}">${noticePages(run, u, site, head(site))}${b ? billHTML(b, site) + explainHTML(b, await loadExplainData(fb, b), site, basisText(b, site)) : ''}</div>`);
+    }
+    html = parts.join('');
+    explainToggle(true);
+    title = only ? `${run.title || 'Notice'} – ${list[0].unit}` : `${list.length} notices: ${run.title || ''}`;
+    document.title = only ? `Notice ${list[0].unit} – ${ddmmyyyy(run.letterDate)}` : `Notices ${ddmmyyyy(run.letterDate)}`;
   } else if (params.get('month')) {
     const month = params.get('month');
     const snap = await F.getDocs(F.query(F.collection(db, 'bills'), F.where('month', '==', month)));

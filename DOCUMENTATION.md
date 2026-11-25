@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.27.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.28.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -113,6 +113,8 @@ flowchart LR
 | `docs/assets/js/billing-core.js` | **All billing rules**: bill heads, formulas, numbering, amount in words. Shared with the GitHub Action, so manual and automatic bills are identical |
 | `docs/assets/js/defaults.js` | Starting values: society and bank details, AGM 2015 rates, MMC expense template, October 2026 bill |
 | `docs/print.html`, `assets/js/print.js` | Printable bill and receipt (A4, Society format) |
+| `assets/js/notices.js` (3.28) | Demand / recovery notices: the bilingual letter filled in per unit |
+| `assets/js/sitepause.js`, `assets/css/pause.css` (3.28) | The *website under maintenance* page when the website is paused |
 | `assets/js/billexplain.js` (3.27) | The page printed after a bill: *How this bill is worked out* (charges, interest, arrears year by year) |
 | `docs/assets/js/firebase-config.js` | Firebase project settings (public values; access is controlled by the rules) |
 | `docs/data/dues.json` | Statement balances as on 30 Sep 2026 (used for the one-time import and as a fallback) |
@@ -149,6 +151,8 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `libraryDocs/{id}` (3.20) | Library entry: title, category, issued by, number / reference, date, year, language, keywords, description, official source, public, the file in the Drive (id, name, type, size), words read and pages, removed, who added and changed it; for bye-law forms (3.24) `formKey` (e.g. appendix-15) and `guide` (no, aka, law, signedBy, stamp, use, attach) | Committee and staff with *library* |
 | `libraryDocs/{id}/index/{n}` (3.20) | The words inside the document (space-separated, unique, lower case), in chunks of up to 700 KB, with the entry's public flag | Same |
 | `units/{id}/transfers/{caseId}` (3.23) | A membership transfer of the unit: type (death / sale), the list of documents as it was when started (`items`: id, name, note, letter, libraryId), what was received (`got`: date or not needed, by whom), scans (`files` with the item they belong to), outgoing and new member(s), date of the deed or of death, deed no., possession date, share certificate no., committee resolution date and reference, certificate endorsed on, new certificate no., notes, status (open / completed / cancelled), who started and changed it | Read: *view* and the unit's approved members; write: *maintain unit files*; delete: committee |
+| `public/status` (3.28) | Website paused: paused, title / message (English, Marathi), until, at, by; resumedAt, resumedBy | Read: everyone; write: *website* permission |
+| `noticeRuns/{id}` (3.28) | Demand / recovery notices prepared: subject (English, Marathi), letter date, reference, month of the bills enclosed, days, minimum dues, earlier notices, interest clauses, signer; units (unit, name, type, dues, bill no., date and total, registered post no.); recorded (unit → correspondence no.) | Read: *view*; write: *generate bills* or committee |
 | `settings/fullBackup` (3.25) | Written by the storage script: last full backup (ok, kind, by, at, docs, users, bytes, file name, seconds, copies removed, records per collection), a failure (failedAt, error), the last restore | Read: *view*; written by the script with the Society account's access |
 | `settings/fullBackupConfig` (3.25) | Schedule: frequency (daily, weekly, off), hour, weekday, keepDays | Read: *view*; write: committee |
 | `settings/transferChecklists` (3.23) | The Society's two lists (death, sale): title, introduction and documents (name, note, Society letter, Library blank form, bye-law form key (3.24)) | Read: approved members and the team; write: committee |
@@ -755,7 +759,8 @@ The Society's Android app (kept separately from this repository, with its own RE
 ### Every month
 1. Before the 1st: record lift expenses for the coming month (Lift tab); check new tenants (status Rented / Tenant) and vehicle changes.
 2. 1st, 06:00 IST: GitHub creates the bills (or Bills → Generate bills).
-3. Bills → **Print all bills** → save one PDF; distribute. Tick *With "How this bill is worked out"* to add the explanation page after each bill (3.27).
+3. Bills → **Print all bills** → save one PDF; distribute.
+   - **Recovery notices (3.28):** Bills → *Demand / recovery notices* → check the subject, date, reference, earlier notices, interest clause (18% p.a. from 13/04/2013 and 12% p.a. from 01/07/2026, from the rate periods) and signer → *List the units with dues* → untick any → *Prepare the notices* → *Open all (one PDF to print)*, or each unit's set as its own PDF (notice in Marathi and English, bill, How this bill is worked out). After posting, enter the registered post numbers, *Save*, then *Record in the correspondence register*. Tick *With "How this bill is worked out"* to add the explanation page after each bill (3.27).
 4. Through the month: record every payment the day it reaches the bank; send receipts.
 5. Month end: Payments → **Download CSV**; reconcile with the IDBI bank statement.
 

@@ -1,6 +1,7 @@
 import { getDues, getNotices, fmt, esc, fmtDate, ownerCell, bpmCell, totals, normalise } from './data.js';
 import { initFirebase, currentUser } from './firebase.js';
 import { initOfflineUi } from './offline.js';
+import { checkSitePause } from './sitepause.js';
 initOfflineUi();
 import { maskAmount } from './billing-core.js';
 import { DEFAULT_SITE } from './defaults.js';
@@ -351,6 +352,7 @@ function initNoticeCalendar(list) {
   render();
 }
 loadSiteContent().then((site) => {
+  checkSitePause(site.society);   // 3.28: the website paused by the committee
   const list = [...(site.notices || [])].sort((a, b) => b.date.localeCompare(a.date));
   $('#notice-list').innerHTML = list.map((n) => `
     <article class="notice" id="notice-${esc(n.id)}" tabindex="-1">

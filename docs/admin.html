@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="assets/css/admin.css">
 </head>
 <body class="admin">
+  <div id="offline-banner" hidden>The website is PAUSED: visitors and members see the maintenance page. <a href="#website">Resume it</a></div>
   <header class="site-header">
     <div class="wrap header-inner">
       <a class="brand" href="index.html">
@@ -155,6 +156,39 @@
         <h3 class="mt-sm">Calculations added to bills</h3>
         <div class="table-scroll"><table><thead><tr><th>No.</th><th>Period</th><th>Bills of</th><th class="num">Units</th><th class="num">Interest (₹)</th><th>Status</th><th></th></tr></thead><tbody id="pi-runs"></tbody></table></div>
         <p class="form-msg" id="pi-runs-msg" role="alert"></p>
+      </details>
+
+      <details class="callout mt" id="nt-box">
+        <summary><strong>Demand / recovery notices</strong> — the Society’s notice to members with dues (Marathi and English), with each unit’s bill and how it is worked out</summary>
+        <form id="nt-form" class="form" novalidate>
+          <div class="form-grid nt-grid">
+            <label>Subject (English)<input type="text" name="title" maxlength="160"></label>
+            <label>Subject (Marathi)<input type="text" name="titleMr" maxlength="160" lang="mr"></label>
+            <label>Letter date<input type="date" name="letterDate"></label>
+            <label>Reference <span class="muted">(the unit is added)</span><input type="text" name="refPrefix" maxlength="80"></label>
+            <label>Enclose the bills of<input type="month" name="month"></label>
+            <label>Pay within (days)<input type="number" name="days" min="1" max="60" value="7"></label>
+            <label>Units with dues of at least (₹)<input type="number" name="minAmount" min="1" value="1"></label>
+          </div>
+          <fieldset><legend>Earlier notices (mentioned in the letter)</legend><div id="nt-prev"></div><button class="btn btn-small" type="button" id="nt-prev-add">Add an earlier notice</button></fieldset>
+          <label>Interest clause (English)<textarea name="interestEn" rows="2" maxlength="600"></textarea></label>
+          <label>Interest clause (Marathi)<textarea name="interestMr" rows="2" maxlength="600" lang="mr"></textarea></label>
+          <div class="form-grid nt-grid">
+            <label>Signed by<input type="text" name="signName" maxlength="80"></label>
+            <label>Designation<select name="signRole"><option>Chairman</option><option>Secretary</option><option>Treasurer</option></select></label>
+            <label>Mobile<input type="text" name="signMobile" maxlength="20"></label>
+          </div>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions"><button class="btn" type="button" id="nt-list">List the units with dues</button></div>
+          <div id="nt-pick" hidden>
+            <div class="table-scroll"><table class="nt-table"><thead><tr><th><input type="checkbox" id="nt-all" checked aria-label="All"></th><th>Unit</th><th>Member</th><th class="num">Dues now (₹)</th><th>Bill enclosed</th></tr></thead><tbody id="nt-units"></tbody></table></div>
+            <p class="small-note" id="nt-sum"></p>
+            <div class="form-actions"><button class="btn btn-primary" type="submit" id="nt-save">Prepare the notices</button></div>
+          </div>
+        </form>
+        <h3 class="mt-sm">Notices prepared</h3>
+        <div id="nt-runs"></div>
+        <p class="form-msg" id="nt-msg" role="status"></p>
       </details>
 
       <div class="account-head">
@@ -715,8 +749,15 @@
         <label>Category<select id="lib-cat"><option value="">All</option></select></label>
         <label class="check"><input type="checkbox" id="lib-show-removed"> Show removed</label>
       </div>
+      <div class="lib-bulk" id="lib-bulk">
+        <span id="lib-picked">Tick documents to move them to another category or change who sees them.</span>
+        <label>Move to<select id="lib-move-cat"></select></label>
+        <button class="btn btn-small" type="button" id="lib-move" disabled>Move</button>
+        <button class="btn btn-small" type="button" id="lib-make-public" disabled>Make public</button>
+        <button class="btn btn-small" type="button" id="lib-make-private" disabled>Make private</button>
+      </div>
       <div class="table-scroll"><table class="lib-table">
-        <thead><tr><th>Document</th><th>Category</th><th>Date</th><th>Text</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="lib-all" aria-label="Tick all shown"></th><th>Document</th><th>Category</th><th>Date</th><th>Text</th><th></th></tr></thead>
         <tbody id="lib-rows"></tbody>
       </table></div>
       <p class="form-msg" id="lib-msg" role="status"></p>
@@ -995,6 +1036,27 @@
     <section class="tab" data-tab="website" hidden>
       <h1>Website</h1>
       <p class="muted">Maintenance dues on the website update by themselves whenever a bill, payment or correction is saved. Use this page for notices and contact details.</p>
+
+      <div class="callout so-box" id="so-box">
+        <h2>Pause the website (emergency)</h2>
+        <p class="small-note">Everyone who opens the website or the app — visitors and members — sees a “website under maintenance” page instead, in English and Marathi. Nothing is deleted or changed, the monthly bills and backups carry on, and this accounts page keeps working for the committee and staff. Signed-in committee and staff still see the website, with a red bar. Resume it here when the work is done.</p>
+        <p class="so-state" id="so-state" aria-live="polite"></p>
+        <form id="so-form" class="form" novalidate>
+          <div class="form-grid">
+            <label>Heading<input type="text" name="title" maxlength="120"></label>
+            <label>Expected back by <span class="muted">(optional)</span><input type="date" name="until"></label>
+          </div>
+          <label>Message<textarea name="message" rows="2" maxlength="600"></textarea></label>
+          <label>Heading in Marathi<input type="text" name="titleMr" maxlength="120" lang="mr"></label>
+          <label>Message in Marathi<textarea name="messageMr" rows="2" maxlength="600" lang="mr"></textarea></label>
+          <p class="form-msg" role="alert"></p>
+          <div class="form-actions">
+            <button class="btn btn-danger" type="submit" id="so-pause">Pause the website now</button>
+            <button class="btn btn-primary" type="button" id="so-resume" hidden>Resume the website</button>
+            <a class="btn" href="index.html" target="_blank" rel="noopener">Open the website</a>
+          </div>
+        </form>
+      </div>
 
       <h2>Notices</h2>
       <form id="notice-form" class="form" novalidate>
@@ -1630,7 +1692,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.27.0</p>
+    <p class="muted mt" id="version-note">Software version 3.28.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

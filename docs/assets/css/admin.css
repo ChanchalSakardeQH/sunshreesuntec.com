@@ -425,3 +425,19 @@ fieldset.lib-guide { border: 1px solid var(--line); border-radius: 8px; padding:
 .sb-st.different, .sb-st.missing { color: #8a5300; }
 .sb-st.skip, .sb-st.permanent, .sb-st.extra { color: var(--muted); }
 #sb-box .file-btn { cursor: pointer; }
+
+/* 3.28: library bulk actions, site offline, notices */
+.lib-bulk { display: flex; flex-wrap: wrap; align-items: end; gap: .5rem .8rem; padding: .5rem .7rem; border: 1px dashed var(--line); border-radius: 8px; margin: .5rem 0; font-size: .9rem; }
+.lib-bulk label { display: grid; gap: .2rem; }
+.lib-vis { font-size: .78rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--line); background: none; cursor: pointer; }
+.lib-vis.pub { background: #e8f4ec; border-color: #9cc9a9; }
+.lib-vis.priv { background: #f3f0ea; }
+#offline-banner { background: #8c1d18; color: #fff; text-align: center; padding: .45rem 1rem; font-weight: 600; }
+#offline-banner a { color: #fff; }
+.so-box.on { border-color: #c0392b; background: #fdecea; }
+.nt-table td { vertical-align: top; }
+.nt-table input[type="text"] { width: 11rem; }
+.nt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .5rem 1rem; align-items: end; }
+.nt-run { border: 1px solid var(--line); border-radius: 8px; padding: .5rem .8rem; margin: .5rem 0; }
+.nt-run summary { cursor: pointer; }
+#nt-box > summary { cursor: pointer; }

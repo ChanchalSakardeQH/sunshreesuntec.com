@@ -7,7 +7,9 @@
  */
 export const LIB_CATEGORIES = [
   'Act', 'Rules', 'Bye-laws', 'Government Resolution (GR)', 'Circular / Notification / Order', 'Court judgment',
-  'Statutory form', 'Application: member to Society', 'Application: member to Registrar / DDR', 'Society’s own format', 'Guide / Other'
+  'Statutory form', 'Application: member to Society', 'Application: member to Registrar / DDR', 'Society’s own format',
+  // 3.28: the Society's own papers
+  'Application sent / received', 'Letter sent / received', 'Scanned copy', 'Guide / Other'
 ];
 export const LIB_LANGS = ['English', 'Marathi', 'English and Marathi', 'Hindi'];
 export const LIB_TYPES = {

@@ -61,6 +61,9 @@
  * Version 14 (3.26): the website's settings (billing, agreements, access by role, website content, library catalogue…)
  * as a small file: settingsBackup saves one in <ROOT_FOLDER>/Backups/Settings, listSettingsBackups and
  * readSettingsBackup give them back to the committee to compare and restore on the website.
+ *
+ * Version 15 (3.28): libraryMove moves a library document's file to the folder of its new category; emails to members
+ * (reminders, invitations) are copied to the Society's own mailbox (cc), so the Society keeps a record of each.
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -88,7 +91,7 @@ function config_() {
 function doGet() {
   var test = false;
   try { test = config_().test; } catch (e) { /* not set up */ }
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 14, test: test });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 15, test: test });
 }
 
 function doPost(e) {
@@ -108,7 +111,8 @@ function doPost(e) {
       var actions = { ping: ping_, upload: upload_, fetch: fetchFile_, move: move_, backup: backup_, readBackup: readBackup_, resendAgreement: resendAgreement_,
         backupRegister: backupRegister_, memberMail: memberMail_, accessDecision: accessDecision_, committeeUndertaking: committeeUndertaking_, libraryFromLink: libraryFromLink_,
         fullBackup: fullBackupAction_, listBackups: listBackups_, restoreBackup: restoreBackupAction_,
-        settingsBackup: settingsBackup_, listSettingsBackups: listSettingsBackups_, readSettingsBackup: readSettingsBackup_ };
+        settingsBackup: settingsBackup_, listSettingsBackups: listSettingsBackups_, readSettingsBackup: readSettingsBackup_,
+        libraryMove: libraryMove_ };
       var fn = actions[req.action];
       if (!fn) throw new Error('Unknown request.');
       out = fn(cfg, req, who, team);
@@ -438,6 +442,18 @@ function uploadLibrary_(cfg, req, who, team) {
   file.setDescription(('Library: ' + (req.note || '') + '\nAdded by ' + team.name + ' <' + who.email + '> on ' + Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm')).slice(0, 1500));
   return { file: { id: file.getId(), name: file.getName(), size: file.getSize(), mime: req.mimeType } };
 }
+/** 3.28: moves a library document's file into the folder of its (new) category. Only files kept in the Library. */
+function libraryMove_(cfg, req, who, team) {
+  if (!team.can('library')) throw new Error('You don’t have permission to change the library.');
+  var e = readDoc_(cfg, req.idToken, 'libraryDocs/' + String(req.libraryId || ''));
+  if (!e || !e.file || e.file.id !== req.fileId) throw new Error('That file doesn’t belong to this library entry.');
+  var file = DriveApp.getFileById(req.fileId), lib = child_(rootFolder_(cfg), 'Library').getId(), inLib = false, parents = file.getParents();
+  while (parents.hasNext()) { var p = parents.next(), pp = p.getParents(); if (p.getId() === lib || (pp.hasNext() && pp.next().getId() === lib)) inLib = true; }
+  if (!inLib) throw new Error('That file is not kept in the Library folder.');
+  var target = libraryFolder_(cfg, req.category);
+  file.moveTo(target);
+  return { moved: true, folder: target.getName() };
+}
 /** Saves a copy of a document from its official address (e.g. the Co-operation Department's website). */
 function libraryFromLink_(cfg, req, who, team) {
   if (!team.can('library')) throw new Error('You don’t have permission to add documents to the library.');
@@ -700,7 +716,8 @@ function memberMail_(cfg, req, who, team) {
       if (subject.indexOf('Sunshree Suntec') < 0) subject = 'Sunshree Suntec: ' + subject;
       var body = String(it.body || '').slice(0, 6000);
       var html = esc_(body).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, '<br>');
-      sendMail_(cfg, { to: to, name: 'Sunshree Suntec CHS', replyTo: society, subject: subject, body: body,
+      // 3.28: a copy to the Society's own mailbox (cc), so each email sent to a member is on record there.
+      sendMail_(cfg, { to: to, cc: to.toLowerCase() === society.toLowerCase() ? '' : society, name: 'Sunshree Suntec CHS', replyTo: society, subject: subject, body: body,
         htmlBody: '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">' + html +
           '<p style="color:#777;font-size:12px;margin-top:18px">Sent by ' + esc_(team.name) + ' (' + esc_(team.role) + ') for the Managing Committee of Sunshree Suntec CHS. Reply to this email to reach the Society.</p></div>' });
       sent.push(to);
@@ -774,6 +791,7 @@ function sendMail_(cfg, o) {
     if (o.htmlBody) o.htmlBody = '<p style="background:#b3261e;color:#fff;padding:6px 10px;font-weight:bold">' + note + '</p>' + o.htmlBody;
     if (o.body) o.body = note + '\n\n' + o.body;
   }
+  if (!o.cc) delete o.cc;
   return MailApp.sendEmail(o);
 }
 

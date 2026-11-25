@@ -72,6 +72,9 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.28 (script version 15):** moving library files when their category changes; emails to members copied (cc) to the
+Society's mailbox. No new permission: paste Code.gs, then Manage deployments → Edit → New version.
+
 **3.26 (script version 14):** website settings files in *Backups / Settings* (Settings → *Website settings*). No new
 permission: paste Code.gs, then Manage deployments → Edit → New version. (Do 3.25 first if not done.)
 

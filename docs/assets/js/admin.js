@@ -33,6 +33,8 @@ import { DEFAULT_SITE, MMC_TEMPLATE, DEFAULT_BILLING, AGM_2015_CATEGORIES } from
 import { loadDriveCfg, driveReady, driveFileUrl, driveCall, prepareFile, toBase64, safeName, driveScriptVersion, DRIVE_SCRIPT_NEEDED } from './drive.js';
 import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS, libraryFor } from './transfers.js';
 import { FORMS, CHECKLIST_FORMS, formKeyOf, formLine, guideOf } from './forms.js';
+import { PAUSE_DEFAULT } from './sitepause.js';
+import { interestClauses, DEFAULT_PREVIOUS } from './notices.js';
 import { collectSettings, checkSettingsFile, compareSettings, restoreSettings, settingsFileName } from './settingsbackup.js';
 import { LIB_CATEGORIES, LIB_LANGS, LIB_TYPES, LIB_MAX_BYTES, pdfWords, wordList, saveIndex, setIndexPublic, loadIndex, forgetIndex, searchLibrary, fmtSize, extOf } from './library.js';
 import { POSTS, SINGLE_POSTS, M20_DAYS, DEFAULT_UNDERTAKING, m20Status, undertakingFor, addYears, addDays as cAddDays } from './committee.js';
@@ -305,6 +307,9 @@ function wireOnce() {
   wireAccessApps();
   wirePrereg();
   wireTransfers();
+  wireSitePause();
+  wireNotices();
+  loadPauseState().catch(() => null);
   wireCommittee();
   wireLibraryAdmin();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
@@ -421,6 +426,141 @@ function wireBills() {
 async function loadBills() {
   await listBills($('#bills-month').value || monthOf(todayIST()));
   setupPastInterest().catch((err) => console.warn('past interest', err));
+  setupNotices().catch((err) => console.warn('notices', err));
+}
+
+/* ---------------- 3.28: demand / recovery notices (noticeRuns) ---------------- */
+let ntRuns = [], ntCandidates = [], ntPrev = [];
+const ntCan = () => canDo('generateBills') || canDo('committee');
+function ntRenderPrev() {
+  $('#nt-prev').innerHTML = ntPrev.map((p, i) => `<div class="form-grid nt-grid nt-prev-row" data-i="${i}"><label>Date<input type="date" data-k="date" value="${esc(p.date || '')}"></label>
+    <label>Name (English)<input type="text" data-k="label" value="${esc(p.label || '')}"></label><label>Name (Marathi)<input type="text" data-k="labelMr" lang="mr" value="${esc(p.labelMr || '')}"></label>
+    <button class="btn btn-small" type="button" data-nt-prev-del="${i}">Remove</button></div>`).join('') || '<p class="small-note">None.</p>';
+}
+const ntReadPrev = () => $$('#nt-prev .nt-prev-row').map((r) => Object.fromEntries($$('[data-k]', r).map((x) => [x.dataset.k, x.value.trim()]))).filter((p) => p.date);
+async function setupNotices() {
+  const box = $('#nt-box');
+  box.hidden = !canDo('view');
+  if (box.hidden) return;
+  const f = $('#nt-form');
+  $('#nt-form').hidden = !ntCan();
+  if (!f.dataset.ready) {
+    f.dataset.ready = '1';
+    const ic = interestClauses(site.interestPeriods || billing.interestPeriods);
+    const chair = (site.committee || []).find((c) => /chair/i.test(c.role || '')) || {};
+    const fy = financialYear(todayIST());
+    f.title.value = 'Final Recovery Notice – Outstanding Society Maintenance Dues';
+    f.titleMr.value = 'थकित सोसायटी मेंटेनन्स भरणा – अंतिम वसुली नोटीस';
+    f.letterDate.value = todayIST(); f.refPrefix.value = `SSSCHS/MAINT/RP/${fy}/003`; f.month.value = lastBilled() || monthOf(todayIST());
+    f.interestEn.value = ic.en; f.interestMr.value = ic.mr;
+    f.signName.value = String(chair.name || '').replace(/\s*\([^)]*\)\s*$/, ''); f.signRole.value = 'Chairman'; f.signMobile.value = chair.phone || '';
+    ntPrev = structuredClone(DEFAULT_PREVIOUS); ntRenderPrev();
+  }
+  const snap = await fb.F.getDocs(fb.F.collection(fb.db, 'noticeRuns')).catch(() => ({ docs: [] }));
+  ntRuns = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.letterDate).localeCompare(String(a.letterDate)) || (tsDate(b.createdAt) - tsDate(a.createdAt)));
+  renderNoticeRuns();
+}
+function renderNoticeRuns() {
+  const canCorr = canDo('correspondence'), can = ntCan();
+  $('#nt-runs').innerHTML = ntRuns.map((r) => {
+    const n = (r.units || []).length, posted = (r.units || []).filter((u) => u.regPost).length, rec = Object.keys(r.recorded || {}).length;
+    return `<details class="nt-run" data-run="${esc(r.id)}"><summary><strong>${esc(r.title)}</strong> — ${dmy(r.letterDate)} · ${n} unit${n === 1 ? '' : 's'} · ${rs(r.units.reduce((t, u) => t + (u.amount || 0), 0))}${posted ? ` · ${posted} posted` : ''}${rec ? ` · ${rec} in the register` : ''}</summary>
+      <div class="form-actions"><a class="btn btn-primary btn-small" href="print.html?notice=${esc(r.id)}" target="_blank" rel="noopener">Open all (one PDF to print)</a></div>
+      <div class="table-scroll"><table class="nt-table"><thead><tr><th>Unit</th><th>Member</th><th class="num">Dues (₹)</th><th>Set for this unit</th><th>Registered post no.</th><th>Register</th></tr></thead><tbody>
+      ${(r.units || []).map((u) => `<tr><td class="unit">${esc(u.unit)}</td><td>${esc(u.name || '')}</td><td class="num">${fmt(u.amount)}</td>
+        <td><a class="btn btn-small" href="print.html?notice=${esc(r.id)}&unit=${encodeURIComponent(u.unitId)}" target="_blank" rel="noopener">Open / save PDF</a></td>
+        <td>${can ? `<input type="text" data-nt-post="${esc(u.unitId)}" value="${esc(u.regPost || '')}" placeholder="EM…IN" maxlength="20" aria-label="Registered post number for ${esc(u.unit)}">` : esc(u.regPost || '')}</td>
+        <td>${esc((r.recorded || {})[u.unitId] || '')}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="form-actions">${can ? '<button class="btn btn-small" type="button" data-nt-save-post>Save the post numbers</button>' : ''}${canCorr ? `<button class="btn btn-small" type="button" data-nt-record>Record in the correspondence register (outward)</button>` : ''}</div>
+    </details>`;
+  }).join('') || '<p class="small-note">None yet.</p>';
+}
+const rs = (n) => `₹${fmt(n)}`;
+async function ntListUnits() {
+  const f = $('#nt-form'), { F, db } = fb, month = f.month.value, min = Number(f.minAmount.value) || 1;
+  const all = units.length ? units : dues.units;
+  const snap = await F.getDocs(F.query(F.collection(db, 'bills'), F.where('month', '==', month))).catch(() => ({ docs: [] }));
+  const bills = new Map(snap.docs.map((d) => [d.data().unitId, { id: d.id, ...d.data() }]));
+  ntCandidates = all.filter((u) => u.active !== false && Math.round(Number(u.balance) || 0) >= min)
+    .sort((a, b) => String(a.unit).localeCompare(String(b.unit), 'en', { numeric: true }))
+    .map((u) => { const b = bills.get(u.id); return { unitId: u.id, unit: u.unit, name: u.name || '', type: u.type || '', amount: Math.round(Number(u.balance) || 0),
+      billId: b?.id || '', billNo: b?.billNo || '', billDate: b?.billDate || '', billTotal: b ? Math.round(b.total) : 0 }; });
+  $('#nt-units').innerHTML = ntCandidates.map((c, i) => `<tr><td><input type="checkbox" data-nt-u="${i}" checked aria-label="${esc(c.unit)}"></td><td class="unit">${esc(c.unit)}</td><td>${esc(c.name)}</td><td class="num">${fmt(c.amount)}</td>
+    <td>${c.billNo ? `${esc(c.billNo)} <span class="muted">(₹${fmt(c.billTotal)})</span>` : '<span class="warn">No bill for this month</span>'}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No unit has dues of that amount.</td></tr>';
+  $('#nt-pick').hidden = false; $('#nt-all').checked = true;
+  ntSum();
+}
+function ntSum() {
+  const picked = $$('#nt-units [data-nt-u]:checked').map((x) => ntCandidates[Number(x.dataset.ntU)]);
+  $('#nt-sum').textContent = `${picked.length} unit${picked.length === 1 ? '' : 's'}, dues ₹${fmt(picked.reduce((t, c) => t + c.amount, 0))}. The amount in each notice is the unit’s dues today; the bill of the month chosen is enclosed with its calculation.`;
+  $('#nt-save').disabled = !picked.length;
+  return picked;
+}
+function wireNotices() {
+  const f = $('#nt-form'), { F, db } = fb;
+  $('#nt-prev-add').addEventListener('click', () => { ntPrev = [...ntReadPrev(), { date: '', label: '', labelMr: '' }]; ntRenderPrev(); });
+  $('#nt-prev').addEventListener('click', (e) => { const d = e.target.closest('[data-nt-prev-del]'); if (d) { ntPrev = ntReadPrev().filter((_, i) => i !== Number(d.dataset.ntPrevDel)); ntRenderPrev(); } });
+  $('#nt-list').addEventListener('click', (e) => busy(e.currentTarget, async () => { try { setMsg(f, ''); await ntListUnits(); } catch (err) { setMsg(f, esc(errorText(err))); } }));
+  $('#nt-units').addEventListener('change', ntSum);
+  $('#nt-all').addEventListener('change', (e) => { $$('#nt-units [data-nt-u]').forEach((x) => (x.checked = e.target.checked)); ntSum(); });
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const picked = ntSum();
+    if (!picked.length) return;
+    if (!f.letterDate.value || !f.title.value.trim()) return setMsg(f, 'Give the letter date and the subject.');
+    busy($('#nt-save'), async () => {
+      try {
+        const run = { title: f.title.value.trim(), titleMr: f.titleMr.value.trim(), letterDate: f.letterDate.value, refPrefix: f.refPrefix.value.trim(), month: f.month.value,
+          days: Number(f.days.value) || 7, minAmount: Number(f.minAmount.value) || 1, previous: ntReadPrev(), interestEn: f.interestEn.value.trim(), interestMr: f.interestMr.value.trim(),
+          sign: { name: f.signName.value.trim(), role: f.signRole.value, mobile: f.signMobile.value.trim() }, units: picked.map((c) => ({ ...c, regPost: '' })), recorded: {},
+          createdBy: uid, createdByName: me?.name || '', createdAt: F.serverTimestamp() };
+        const ref = await F.addDoc(F.collection(db, 'noticeRuns'), run);
+        $('#nt-pick').hidden = true;
+        setMsg(f, `Prepared ${picked.length} notices. Open them below: all in one PDF to print, or each unit’s set (notice in Marathi and English, bill, calculation) as its own PDF.`, true);
+        await setupNotices();
+        $(`#nt-runs [data-run="${ref.id}"]`)?.setAttribute('open', '');
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#nt-runs').addEventListener('click', (e) => {
+    const box = e.target.closest('[data-run]'), save = e.target.closest('[data-nt-save-post]'), recBtn = e.target.closest('[data-nt-record]');
+    if (!box || !(save || recBtn)) return;
+    const run = ntRuns.find((r) => r.id === box.dataset.run), msg = $('#nt-msg');
+    const posts = Object.fromEntries($$('[data-nt-post]', box).map((x) => [x.dataset.ntPost, x.value.trim().toUpperCase()]));
+    busy(save || recBtn, async () => {
+      try {
+        const unitsNew = run.units.map((u) => ({ ...u, regPost: posts[u.unitId] ?? u.regPost ?? '' }));
+        if (save) {
+          await F.updateDoc(F.doc(db, 'noticeRuns', run.id), { units: unitsNew, updatedAt: F.serverTimestamp(), updatedBy: uid });
+          msg.className = 'form-msg ok'; msg.textContent = `Saved: ${unitsNew.filter((u) => u.regPost).length} registered post numbers.`;
+        } else {
+          const todo = unitsNew.filter((u) => !(run.recorded || {})[u.unitId]);
+          if (!todo.length) { msg.className = 'form-msg'; msg.textContent = 'All these notices are already in the register.'; return; }
+          if (!confirm(`Record ${todo.length} outward letters in the correspondence register (one per unit, dated ${dmy(run.letterDate)})?`)) return;
+          const recFy = financialYear(run.letterDate), recorded = { ...(run.recorded || {}) };
+          for (const u of todo) {
+            const ref = F.doc(F.collection(db, 'correspondence'));
+            const no = await F.runTransaction(db, async (tx) => {
+              const cRef = F.doc(db, 'counters', `outward-${recFy}`), c = await tx.get(cRef);
+              const n = c.exists() ? Number(c.data().next) || 1 : 1, number = `OUT/${recFy}/${String(n).padStart(4, '0')}`;
+              tx.set(cRef, { next: n + 1 });
+              tx.set(ref, { dir: 'out', fy: recFy, date: run.letterDate, partyType: 'Member / resident', party: `${u.name || 'Member'} (${u.unit})`.slice(0, 160), subject: run.title.slice(0, 200),
+                reference: [`${run.refPrefix ? `${run.refPrefix}/` : ''}${String(u.unit).replace(/\s+/g, '')}`, u.regPost && `Regd. post ${u.regPost}`].filter(Boolean).join('; '), mode: 'Registered post',
+                unitId: u.unitId, status: 'noAction', dueBy: '', notes: `Dues ₹${fmt(u.amount)}${u.billNo ? `; bill ${u.billNo} enclosed with its calculation` : ''}. Notice set: print.html?notice=${run.id}&unit=${u.unitId}`,
+                replyTo: null, no: number, files: [], createdAt: F.serverTimestamp(), createdBy: uid, createdByName: me?.name || '' });
+              return number;
+            });
+            recorded[u.unitId] = no;
+          }
+          await F.updateDoc(F.doc(db, 'noticeRuns', run.id), { units: unitsNew, recorded, updatedAt: F.serverTimestamp(), updatedBy: uid });
+          msg.className = 'form-msg ok'; msg.textContent = `${todo.length} letters recorded in the correspondence register (outward).`;
+        }
+        await setupNotices();
+        $(`#nt-runs [data-run="${run.id}"]`)?.setAttribute('open', '');
+      } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+    });
+  });
 }
 
 /* ---------------- Interest on past arrears (3.15) ---------------- */
@@ -1291,7 +1431,7 @@ async function renderReminders() {
       <td data-l="Status">${esc(p.status)}${inv?.status === 'open' ? `<span class="sub">Pre-registered ${whenShort(inv.createdAt)}: waiting for their first sign-in</span>` : ''}</td>
       <td data-l="Last reminded">${last ? `${esc(RM_CHANNEL[last.channel] || last.channel)}<span class="sub">${whenShort(last.at)}${last.byName ? `, ${esc(last.byName)}` : ''}${log.length > 1 ? ` · ${log.length} times` : ''}</span>` : '<span class="muted">Never</span>'}</td>
       <td><div class="rm-send-cell">${wa ? `<a class="btn btn-small" href="${esc(waLink(p.mobile, msg))}" target="_blank" rel="noopener" data-rm-go="whatsapp" data-i="${i}">WhatsApp</a>` : ''}
-        ${em ? `<a class="btn btn-small" href="${esc(mailLink(p.email, msg))}" data-rm-go="email" data-i="${i}">Email</a>` : ''}
+        ${em ? `<a class="btn btn-small" href="${esc(mailLink(p.email, msg, societyCc()))}" data-rm-go="email" data-i="${i}">Email</a>` : ''}
         ${rmKind === 'invite' && em && !inv && canDo('members') ? `<button class="btn btn-small btn-primary" type="button" data-rm-prereg="${i}">Pre-register</button>` : ''}</div></td></tr>`;
   }).join('') || `<tr><td colspan="7" class="empty">${rmKind === 'invite' ? 'Nobody to invite: everyone with a mobile or email in the unit files has registered.' : rmKind === 'visit' ? 'Every approved member has visited in this period.' : 'Nobody waiting: every approved member has accepted the current agreement.'}</td></tr>`;
   $('#rm-all').checked = false;
@@ -1830,7 +1970,7 @@ function renderInvites() {
     return `<tr><td>${esc(i.email)}</td><td class="unit">${esc(memberUnitLabel(i.unit))}</td><td>${esc(i.name)}<span class="sub">${esc(relationLabel(i.relation))}${i.mobile ? ` · +91 ${esc(i.mobile)}` : ''}</span></td>
       <td>${status}</td><td>${last ? `${esc(RM_CHANNEL[last.channel] || last.channel)}<span class="sub">${whenShort(last.at)}${log.length > 1 ? ` · ${log.length} times` : ''}</span>` : '<span class="muted">Not sent</span>'}</td>
       <td><div class="mc-actions">${i.status === 'open' ? `${waNumber(i.mobile) ? `<a class="btn btn-small" href="${esc(waLink(i.mobile, m))}" target="_blank" rel="noopener" data-pr-go="whatsapp" data-pr="${esc(i.id)}">WhatsApp</a>` : ''}
-        <a class="btn btn-small" href="${esc(mailLink(i.email, m))}" data-pr-go="email" data-pr="${esc(i.id)}">Email</a>
+        <a class="btn btn-small" href="${esc(mailLink(i.email, m, societyCc()))}" data-pr-go="email" data-pr="${esc(i.id)}">Email</a>
         <button class="btn btn-small btn-danger" type="button" data-pr-cancel="${esc(i.id)}">Cancel</button>`
         : i.status === 'cancelled' ? `<button class="btn btn-small" type="button" data-pr-reopen="${esc(i.id)}">Reopen</button>` : ''}</div></td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">Nobody pre-registered yet.</td></tr>';
@@ -1987,15 +2127,85 @@ async function renderLibraryAdmin() {
   if (q.length >= 2) for (const e of list) if (e.textWords && !libIndexes.has(e.id)) libIndexes.set(e.id, await loadIndex(fb, e.id));
   const hits = searchLibrary(list, q, libIndexes);
   $('#lib-count').textContent = `(${libDocs.filter((e) => !e.removed).length})`;
+  const canLib = canDo('library');
   $('#lib-rows').innerHTML = hits.map(({ e, inside }) => `<tr class="${e.removed ? 'lib-removed' : ''}">
+      <td>${canLib && !e.removed ? `<input type="checkbox" data-lib-pick="${esc(e.id)}" aria-label="Tick ${esc(e.title)}"${libPicked.has(e.id) ? ' checked' : ''}>` : ''}</td>
       <td><strong>${esc(e.title)}</strong>${e.number ? `<span class="sub">${esc(e.number)}</span>` : ''}<span class="sub">${esc([e.issuer, e.lang, extOf(e) && `${extOf(e)} ${fmtSize(e.file?.size)}`].filter(Boolean).join(' · '))}</span>
         ${e.formKey || e.guide?.no ? `<span class="sub lib-guide-line">${esc(formLine(guideOf(e)))}</span>` : ''}${(e.keywords || []).length ? `<span class="sub">Keywords: ${esc(e.keywords.join(', '))}</span>` : ''}${inside ? '<span class="sub">Found inside the document</span>' : ''}
-        <span class="sub">${e.public ? 'Public' : 'Members and team only'}${e.removed ? ` · Removed ${whenShort(e.removedAt)}` : ''}${e.addedByName ? ` · Added by ${esc(e.addedByName)}` : ''}</span></td>
+        <span class="sub">${canLib && !e.removed ? `<button class="lib-vis ${e.public ? 'pub' : 'priv'}" type="button" data-lib-vis="${esc(e.id)}" title="${e.public ? 'Listed to everyone on the website. Click to make it private (members and the team only).' : 'Members and the team only. Click to list it to everyone.'}">${e.public ? 'Public' : 'Private'}</button>` : e.public ? 'Public' : 'Members and team only'}${e.removed ? ` · Removed ${whenShort(e.removedAt)}` : ''}${e.addedByName ? ` · Added by ${esc(e.addedByName)}` : ''}</span></td>
       <td>${esc(e.category)}</td><td>${e.date ? dmy(e.date) : ''}</td>
       <td>${e.textWords ? `${e.textWords.toLocaleString('en-IN')} words${e.pages ? `<span class="sub">${e.pages} pages</span>` : ''}` : e.file?.mime === 'application/pdf' ? '<span class="warn">No text (scanned?)</span>' : '<span class="muted">—</span>'}</td>
       <td><div class="mc-actions">${e.file ? `<button class="btn btn-small" type="button" data-lib-open="${esc(e.id)}">Open</button>` : ''}${e.link ? `<a class="btn btn-small" href="${esc(e.link)}" target="_blank" rel="noopener">Official source</a>` : ''}
         ${e.removed ? `<button class="btn btn-small" type="button" data-lib-restore="${esc(e.id)}">Restore</button>` : `<button class="btn btn-small" type="button" data-lib-edit="${esc(e.id)}">Edit</button>${e.file?.mime === 'application/pdf' ? `<button class="btn btn-small" type="button" data-lib-reindex="${esc(e.id)}">Read words again</button>` : ''}<button class="btn btn-small btn-danger" type="button" data-lib-remove="${esc(e.id)}">Remove</button>`}</div></td></tr>`).join('')
-    || `<tr><td colspan="5" class="empty">${libDocs.length ? 'Nothing matches.' : 'The library is empty. Add the first document above.'}</td></tr>`;
+    || `<tr><td colspan="6" class="empty">${libDocs.length ? 'Nothing matches.' : 'The library is empty. Add the first document above.'}</td></tr>`;
+  $('#lib-bulk').hidden = !canLib;
+  libPickedChanged();
+}
+/* 3.28: tick documents to move them to another category or to make them public / private */
+const libPicked = new Set();
+function libPickedChanged() {
+  for (const id of [...libPicked]) if (!libDocs.some((e) => e.id === id && !e.removed)) libPicked.delete(id);
+  const n = libPicked.size;
+  $('#lib-picked').textContent = n ? `${n} ticked:` : 'Tick documents to move them to another category or change who sees them.';
+  ['#lib-move', '#lib-make-public', '#lib-make-private'].forEach((b) => ($(b).disabled = !n));
+  const boxes = $$('#lib-rows [data-lib-pick]');
+  $('#lib-all').checked = boxes.length > 0 && boxes.every((x) => x.checked);
+}
+/** Moves the Drive file into Library › <category> (storage script 15+); the entry's category is changed either way. */
+async function libMoveFile(ent, category) {
+  if (!ent.file?.id) return true;
+  try {
+    await loadDriveCfg(fb);
+    if (!driveReady() || (await driveScriptVersion()) < 15) return false;
+    await driveCall(fb, 'libraryMove', { libraryId: ent.id, fileId: ent.file.id, category });
+    return true;
+  } catch (err) { console.warn('library move', err); return false; }
+}
+async function libSetPublic(ents, pub) {
+  const { F, db } = fb;
+  for (const ent of ents) {
+    await F.updateDoc(F.doc(db, 'libraryDocs', ent.id), { public: pub, updatedAt: F.serverTimestamp(), updatedBy: uid, updatedByName: me?.name || '' });
+    await setIndexPublic(fb, ent.id, pub);
+  }
+}
+function wireLibraryBulk() {
+  const { F, db } = fb, msg = () => $('#lib-msg');
+  $('#lib-move-cat').innerHTML = LIB_CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join('');
+  $('#lib-rows').addEventListener('change', (e) => {
+    const c = e.target.closest('[data-lib-pick]');
+    if (!c) return;
+    if (c.checked) libPicked.add(c.dataset.libPick); else libPicked.delete(c.dataset.libPick);
+    libPickedChanged();
+  });
+  $('#lib-all').addEventListener('change', (e) => {
+    $$('#lib-rows [data-lib-pick]').forEach((x) => { x.checked = e.target.checked; if (x.checked) libPicked.add(x.dataset.libPick); else libPicked.delete(x.dataset.libPick); });
+    libPickedChanged();
+  });
+  $('#lib-move').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    const cat = $('#lib-move-cat').value, ents = libDocs.filter((x) => libPicked.has(x.id) && x.category !== cat);
+    if (!ents.length) { msg().className = 'form-msg'; msg().textContent = `The ticked documents are already in ${cat}.`; return; }
+    if (!confirm(`Move ${ents.length} document${ents.length === 1 ? '' : 's'} to “${cat}”?`)) return;
+    let notMoved = 0;
+    try {
+      for (const ent of ents) {
+        await F.updateDoc(F.doc(db, 'libraryDocs', ent.id), { category: cat, updatedAt: F.serverTimestamp(), updatedBy: uid, updatedByName: me?.name || '' });
+        if (!(await libMoveFile(ent, cat))) notMoved++;
+      }
+      libPicked.clear();
+      msg().className = 'form-msg ok';
+      msg().textContent = `${ents.length} moved to ${cat}.${notMoved ? ` ${notMoved} file${notMoved === 1 ? '' : 's'} stay in the old Drive folder (the storage script needs version 15 to move them); the library shows the new category either way.` : ' Their files were moved to the matching Drive folder too.'}`;
+      await loadLibraryAdmin();
+    } catch (err) { msg().className = 'form-msg'; msg().textContent = errorText(err); }
+  }));
+  for (const [id, pub] of [['#lib-make-public', true], ['#lib-make-private', false]]) {
+    $(id).addEventListener('click', (e) => busy(e.currentTarget, async () => {
+      const ents = libDocs.filter((x) => libPicked.has(x.id) && Boolean(x.public) !== pub);
+      if (!ents.length) { msg().className = 'form-msg'; msg().textContent = `The ticked documents are already ${pub ? 'public' : 'private'}.`; return; }
+      if (!confirm(`${pub ? 'List' : 'Stop listing'} ${ents.length} document${ents.length === 1 ? '' : 's'} ${pub ? 'to everyone on the website' : 'to visitors (members and the team still see them)'}?`)) return;
+      try { await libSetPublic(ents, pub); libPicked.clear(); msg().className = 'form-msg ok'; msg().textContent = `${ents.length} made ${pub ? 'public' : 'private'}.`; await loadLibraryAdmin(); }
+      catch (err) { msg().className = 'form-msg'; msg().textContent = errorText(err); }
+    }));
+  }
 }
 function libProgress(t) { $('#lib-progress').textContent = t; }
 /** Reads the words of a PDF (bytes) and saves them with the entry. */
@@ -2046,6 +2256,7 @@ function wireLibraryAdmin() {
     if (!libEdit) f.category.value = x.category || 'Statutory form';
   });
   wireLibrarySet();
+  wireLibraryBulk();
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
     const source = f.source.value, file = f.file.files[0], title = f.title.value.trim();
@@ -2080,8 +2291,11 @@ function wireLibraryAdmin() {
         }
         let id = libEdit?.id;
         if (saved) Object.assign(meta, { file: saved, textWords: 0, pages: 0 });
-        if (id) await F.updateDoc(F.doc(db, 'libraryDocs', id), meta);
-        else {
+        let movedNote = '';
+        if (id) {
+          await F.updateDoc(F.doc(db, 'libraryDocs', id), meta);
+          if (!saved && libEdit.file && libEdit.category !== meta.category) movedNote = (await libMoveFile(libEdit, meta.category)) ? ' The file was moved to the new category’s Drive folder.' : ' (The file stays in its old Drive folder until the storage script is version 15.)';
+        } else {
           const ref = await F.addDoc(F.collection(db, 'libraryDocs'), { ...meta, file: saved, textWords: 0, pages: 0, addedBy: uid, addedByName: me?.name || '', addedAt: F.serverTimestamp() });
           id = ref.id;
         }
@@ -2093,7 +2307,7 @@ function wireLibraryAdmin() {
         else if (saved) await saveIndex(fb, id, '', meta.public);
         const msg = $('#lib-msg');
         msg.className = 'form-msg ok';
-        msg.textContent = `${libEdit ? 'Saved' : 'Added'}: ${title}.${note}`;
+        msg.textContent = `${libEdit ? 'Saved' : 'Added'}: ${title}.${note}${movedNote}`;
         resetLibForm();
         await loadLibraryAdmin();
       } catch (err) { libProgress(''); setMsg(f, esc(errorText(err))); }
@@ -2103,10 +2317,15 @@ function wireLibraryAdmin() {
     const b = e.target.closest('button');
     if (!b) return;
     const msg = $('#lib-msg');
-    const ent = libDocs.find((x) => x.id === (b.dataset.libOpen || b.dataset.libEdit || b.dataset.libRemove || b.dataset.libRestore || b.dataset.libReindex));
+    const ent = libDocs.find((x) => x.id === (b.dataset.libOpen || b.dataset.libEdit || b.dataset.libRemove || b.dataset.libRestore || b.dataset.libReindex || b.dataset.libVis));
     if (!ent) return;
     try {
-      if (b.dataset.libOpen) {
+      if (b.dataset.libVis) {
+        const pub = !ent.public;
+        await busy(b, async () => { await libSetPublic([ent], pub); });
+        msg.className = 'form-msg ok'; msg.textContent = `${ent.title}: now ${pub ? 'public (listed to everyone on the website)' : 'private (members and the team only)'}.`;
+        await loadLibraryAdmin();
+      } else if (b.dataset.libOpen) {
         const w = window.open('', '_blank');
         try { const url = await driveFileUrl(fb, { libraryId: ent.id, fileId: ent.file.id }); if (w) w.location = url; else location.href = url; }
         catch (err) { if (w) w.close(); throw err; }
@@ -2245,7 +2464,7 @@ async function renderCommittee() {
     if (pendingUnd) parts.push(`please sign in to the Society accounts page (https://www.sunshreesuntec.com/admin.html) with ${email || 'your Gmail'} and accept the committee undertaking`);
     if (st.due) parts.push(`please sign the bond in Form M-20 on stamp paper and hand it to the Secretary by ${dmy(st.due)} (Rule 58A, MCS Rules 1961)`);
     const m = { subject: 'Sunshree Suntec: committee undertaking and M-20 bond', body: `Dear ${first},\n\nAs ${x.role || 'committee member'} of Sunshree Suntec CHS${x.tookOfficeOn ? ` from ${dmy(x.tookOfficeOn)}` : ''}, ${parts.join('; and ')}.\n\nRegards,\n${me?.name || ''}, ${me?.role || 'Managing Committee'}\nSunshree Suntec Co-op. Housing Society Ltd.` };
-    return `${waNumber(mobile) ? `<a class="btn btn-small" href="${esc(waLink(mobile, m))}" target="_blank" rel="noopener">WhatsApp reminder</a>` : ''}${validEmail(email) ? `<a class="btn btn-small" href="${esc(mailLink(email, m))}">Email reminder</a>` : ''}`;
+    return `${waNumber(mobile) ? `<a class="btn btn-small" href="${esc(waLink(mobile, m))}" target="_blank" rel="noopener">WhatsApp reminder</a>` : ''}${validEmail(email) ? `<a class="btn btn-small" href="${esc(mailLink(email, m, societyCc()))}">Email reminder</a>` : ''}`;
   };
   $('#mc-rows').innerHTML = active.map((x) => {
     const acc = x.undertakingVersion === undertaking.version ? `<span class="pill-ok">v${x.undertakingVersion} accepted</span><span class="sub">${esc(tsText(x.undertakingAt))}</span>`
@@ -2699,7 +2918,7 @@ function renderStrays() {
       <td>${esc(what(x))}${last ? `<span class="sub">Followed up: ${esc(RM_CHANNEL[last.channel] || last.channel)}, ${whenShort(last.at)}${last.byName ? `, ${esc(last.byName)}` : ''}</span>` : ''}</td>
       <td><div class="rm-send-cell">${x.mobile && waNumber(x.mobile) ? `<a class="btn btn-small btn-primary" href="${esc(waLink(x.mobile, m))}" target="_blank" rel="noopener" data-try-go="whatsapp" data-i="${i}">WhatsApp the steps</a>
         <a class="btn btn-small" href="tel:+91${esc(x.mobile)}" data-try-go="call" data-i="${i}">Call</a>` : ''}
-        ${x.email ? `<a class="btn btn-small${x.mobile ? '' : ' btn-primary'}" href="${esc(mailLink(x.email, m))}" data-try-go="email" data-i="${i}">Email the steps</a>` : ''}</div></td></tr>`;
+        ${x.email ? `<a class="btn btn-small${x.mobile ? '' : ' btn-primary'}" href="${esc(mailLink(x.email, m, societyCc()))}" data-try-go="email" data-i="${i}">Email the steps</a>` : ''}</div></td></tr>`;
   }).join('') || '<tr><td colspan="5" class="empty">Nobody: everyone who tried has a request or a login.</td></tr>';
 }
 let strayRows = [];
@@ -2827,6 +3046,9 @@ function wireMembers() {
   });
 }
 
+/** 3.28: the Society's own email address, copied on every email to a member. */
+const societyCc = () => site?.society?.email || 'sunshreesuntec@gmail.com';
+
 /* ---------------- website ---------------- */
 
 async function saveSite(patch) {
@@ -2842,7 +3064,51 @@ function renderNoticeAdmin() {
     || '<p class="muted">No notices published yet.</p>';
 }
 
+/* ----- 3.28: pause the website (public/status) ----- */
+let pauseState = null;
+async function loadPauseState() {
+  const snap = await fb.F.getDoc(fb.F.doc(fb.db, 'public', 'status')).catch(() => null);
+  pauseState = snap?.exists() ? snap.data() : { paused: false };
+  $('#offline-banner').hidden = !pauseState.paused;
+  const f = $('#so-form');
+  if (!f) return;
+  const st = $('#so-state'), on = Boolean(pauseState.paused);
+  $('#so-box').classList.toggle('on', on);
+  st.innerHTML = on ? `<strong>PAUSED</strong> since ${esc(whenShort(pauseState.at))}${pauseState.byName ? ` by ${esc(pauseState.byName)}` : ''}${pauseState.until ? `; expected back by ${dmy(pauseState.until)}` : ''}.` : 'The website is running normally.';
+  for (const k of ['title', 'message', 'titleMr', 'messageMr']) f[k].value = pauseState[k] || PAUSE_DEFAULT[k];
+  f.until.value = pauseState.until || '';
+  $('#so-pause').textContent = on ? 'Save the message' : 'Pause the website now';
+  $('#so-resume').hidden = !on;
+  const can = canDo('website');
+  $$('input, textarea, button', f).forEach((x) => (x.disabled = !can));
+}
+function wireSitePause() {
+  const f = $('#so-form'), { F, db } = fb;
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const was = Boolean(pauseState?.paused);
+    if (!was && !confirm('Pause the website now? Visitors and members will see only the maintenance page until you resume it.')) return;
+    busy($('#so-pause'), async () => {
+      try {
+        const v = (k) => f[k].value.trim();
+        await F.setDoc(F.doc(db, 'public', 'status'), { paused: true, title: v('title'), message: v('message'), titleMr: v('titleMr'), messageMr: v('messageMr'), until: f.until.value || '',
+          at: was ? pauseState.at : F.serverTimestamp(), by: uid, byName: me?.name || '', updatedAt: F.serverTimestamp() });
+        setMsg(f, was ? 'Message saved.' : 'The website is paused. Open it in a private window to see what visitors see.', true);
+        await loadPauseState();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#so-resume').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try {
+      await F.setDoc(F.doc(db, 'public', 'status'), { paused: false, resumedAt: F.serverTimestamp(), resumedBy: uid, resumedByName: me?.name || '', updatedAt: F.serverTimestamp() }, { merge: true });
+      setMsg(f, 'The website is running again.', true);
+      await loadPauseState();
+    } catch (err) { setMsg(f, esc(errorText(err))); }
+  }));
+}
+
 async function loadWebsite() {
+  loadPauseState().catch((err) => console.warn('site status', err));
   renderNoticeAdmin();
   committeeDraft = structuredClone(site.committee?.length ? site.committee : [{ role: 'Chairman' }, { role: 'Secretary' }, { role: 'Treasurer' }]);
   renderCommitteeRows();
