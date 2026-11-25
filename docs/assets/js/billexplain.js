@@ -17,12 +17,14 @@ const secs = (t) => (t?.seconds ?? (t?.toDate ? t.toDate().getTime() / 1000 : nu
 export async function loadExplainData(fb, bill) {
   const { F, db } = fb, id = bill.unitId;
   const safe = (p) => p.catch(() => null);
-  const [unitSnap, ledgerSnap, tallySnap, auditSnap, billsSnap] = await Promise.all([
+  const [unitSnap, ledgerSnap, tallySnap, auditSnap, billsSnap, adjSnap] = await Promise.all([
     safe(F.getDoc(F.doc(db, 'units', id))),
     safe(F.getDocs(F.collection(db, 'units', id, 'ledger'))),
     safe(F.getDoc(F.doc(db, 'units', id, 'history', 'tally'))),
     safe(F.getDoc(F.doc(db, 'units', id, 'history', 'audited'))),
-    safe(F.getDocs(F.query(F.collection(db, 'bills'), F.where('unitId', '==', id))))
+    safe(F.getDocs(F.query(F.collection(db, 'bills'), F.where('unitId', '==', id)))),
+    // 3.32: the interest on past arrears put on this bill, with its month-by-month working
+    safe(F.getDocs(F.query(F.collection(db, 'billAdjustments'), F.where('unitId', '==', id))))
   ]);
   const audits = auditSnap?.exists() ? (auditSnap.data().years || []).map((y) => ({ fy: y.fy, to: y.to, duesComplete: Boolean(y.complete),
     dues: y.listed ? [{ unitId: id, name: y.name || '', amount: y.amount }] : [] })) : [];
@@ -33,8 +35,104 @@ export async function loadExplainData(fb, bill) {
     unit: unitSnap?.exists() ? unitSnap.data() : null,
     ledgerRead: Boolean(ledgerSnap),
     entries: mergeLedger(live, tallySnap?.exists() ? tallySnap.data() : null, preLedger(id, audits, receipts)),
-    bills: (billsSnap?.docs || []).map((d) => ({ id: d.id, ...d.data() }))
+    bills: (billsSnap?.docs || []).map((d) => ({ id: d.id, ...d.data() })),
+    pastInterest: (adjSnap?.docs || []).map((d) => ({ id: d.id, ...d.data() }))
+      .filter((a) => a.code === 'interest' && a.month === bill.month && ['billed', 'pending'].includes(a.status) && Array.isArray(a.months))
   };
+}
+
+/* ---------- 3.32: annexures — interest on past arrears month by month; charges by head, and the lift ---------- */
+
+const HEAD_OF_CODE = { maintenance: 'maint', sinking: 'maint', repairs: 'maint', nonOccupancy: 'maint', education: 'maint', federation: 'maint', election: 'maint',
+  welfare: 'maint', majorRepairs: 'maint', propertyTax: 'maint', insurance: 'maint', leaseRent: 'maint', loan: 'maint',
+  lift: 'lift', liftRepairs: 'lift', water: 'water', interest: 'interest' };
+export const HEADS = [['maint', 'Maintenance and funds'], ['lift', 'Lift'], ['water', 'Water'], ['interest', 'Penal interest'], ['other', 'Other charges'], ['audit', 'Audited years (all heads)']];
+/** Which head a charge in the old books (Tally) is, from its wording. */
+export function headOfText(t) {
+  const x = String(t || '');
+  return /lift|elevator/i.test(x) ? 'lift' : /water|tanker/i.test(x) ? 'water' : /interest|penal/i.test(x) ? 'interest' : /maint|service|society charges|sinking|repair/i.test(x) ? 'maint' : 'other';
+}
+/** The charges in the unit's account split by head: [{ fy, maint, lift, water, interest, other, audit, total }], and each lift entry. */
+export function chargesByHead(entries, bills, upto, billId) {
+  const byBill = new Map((bills || []).map((b) => [b.id, b]));
+  const rows = new Map(), lift = [];
+  const add = (fy, head, amt) => { const r = rows.get(fy) || rows.set(fy, { fy, maint: 0, lift: 0, water: 0, interest: 0, other: 0, audit: 0, total: 0 }).get(fy); r[head] += amt; r.total += amt; };
+  for (const e of entries) {
+    if (e.kind === 'memo' || e.date > upto || (billId && e.ref === billId)) continue;
+    const fy = financialYear(e.date), net = (e.debit || 0) - (e.credit || 0);
+    if (e.kind === 'bill' && e.ref && byBill.has(e.ref)) {
+      for (const l of byBill.get(e.ref).lines || []) {
+        const h = HEAD_OF_CODE[l.code] || 'other';
+        add(fy, h, l.amount || 0);
+        if (h === 'lift') lift.push({ date: e.date, text: `${l.label}${l.detail ? ` – ${l.detail}` : ''} (bill ${byBill.get(e.ref).billNo})`, amount: l.amount || 0 });
+      }
+      for (const n of byBill.get(e.ref).liftNotes || []) if (!(byBill.get(e.ref).lines || []).some((l) => l.code === 'liftRepairs')) lift.push({ date: e.date, text: `${n.kind}: ${n.description || ''}`, amount: n.share });
+    } else if (e.kind === 'charge' && e.ref && byBill.has(e.ref)) {
+      continue;   // a correction to a bill (3.31): the bill's lines already show the corrected amount
+    } else if (e.kind === 'bill' || e.kind === 'charge') {
+      const h = e.kind === 'charge' ? (HEAD_OF_CODE[e.code] || 'other') : headOfText(e.particulars);
+      add(fy, h, net);
+      if (h === 'lift') lift.push({ date: e.date, text: e.particulars, amount: net });
+    } else if (e.source === 'audit' && net > 0) add(fy, 'audit', net);
+  }
+  return { rows: [...rows.values()].sort((a, b) => a.fy.localeCompare(b.fy)), lift };
+}
+
+function interestAnnex(b, data, site) {
+  const adjs = data.pastInterest || [];
+  if (!adjs.length) return '';
+  const months = adjs.flatMap((a) => a.months || []).sort((a, b2) => a.month.localeCompare(b2.month));
+  const total = adjs.reduce((t, a) => t + (a.amount || 0), 0);
+  const byFy = new Map();
+  for (const m of months) {
+    const fy = financialYear(`${m.month}-01`), r = byFy.get(fy) || byFy.set(fy, { fy, n: 0, high: 0, low: Infinity, sum: 0, rates: new Set() }).get(fy);
+    r.n++; r.high = Math.max(r.high, m.base); r.low = Math.min(r.low, m.base); r.sum += m.amount; r.rates.add(m.text);
+  }
+  const fyRows = [...byFy.values()].map((r) => `<tr><td>${esc(r.fy)}</td><td class="num">${r.n}</td><td class="num">${rs(r.low)} – ${rs(r.high)}</td><td>${esc([...r.rates].join('; '))}</td><td class="num">${rs(r.sum)}</td></tr>`).join('');
+  const third = Math.ceil(months.length / 3);
+  const col = (list) => `<table class="x-table x-mini"><thead><tr><th>Month</th><th class="num">Arrears at start</th><th class="num">Interest</th></tr></thead><tbody>${list.map((m) =>
+    `<tr><td>${esc(monthLabel(m.month).replace(/^(\w{3})\w*/, '$1'))}</td><td class="num">${money(m.base, { slash: false })}</td><td class="num">${(Math.round(m.amount * 100) / 100).toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
+  const periods = (site.interestPeriods || []).filter((p) => Number(p.rate) > 0);
+  return `<section class="sheet explain annex"><div class="x-wrap">
+    <h2>Annexure A – Penal interest on past arrears, month by month</h2>
+    <p class="x-sub">Bill ${esc(b.billNo)} · ${esc(b.unit)}${b.name ? `, ${esc(b.name)}` : ''} · ${adjs.map((a) => esc(a.runNo || '')).filter(Boolean).join(', ')}</p>
+    <p>This bill includes <b>${rs(total)}</b> of interest on overdue dues of past months (${esc(monthLabel(adjs[0].fromMonth))} to ${esc(monthLabel(adjs[0].toMonth))}), as decided by the Managing Committee. It is worked out the same way a monthly bill charges interest:</p>
+    <ol class="x-list x-steps">
+      <li><b>Arrears at the start of each month</b> = the balance of the unit’s account on the 1st of the month (everything charged before that day, less everything paid before that day — the same statement as on the previous page), <b>less any penal interest already billed</b>, so interest is never charged on interest.</li>
+      <li><b>Interest for the month</b> = arrears at the start × yearly rate ÷ 12 (a month in which the rate changed is charged by days at each rate).</li>
+      <li>Months with no arrears (fully paid, or in credit) have no interest. Months whose own bill already charged interest are left out.</li>
+    </ol>
+    ${periods.length ? `<p class="x-note">Rates fixed by the General Body: ${esc(periods.map((p) => `${p.rate}% p.a. from ${ddmmyyyy(p.from)}${p.to ? ` to ${ddmmyyyy(p.to)}` : ''}`).join('; '))}.</p>` : ''}
+    <p class="x-note">Example: arrears of ₹ 10,000 at the start of a month at 18% p.a. → 10,000 × 18% ÷ 12 = ₹ 150 for that month.</p>
+    <h3>Year by year</h3>
+    <table class="x-table"><thead><tr><th>Year (Apr–Mar)</th><th class="num">Months with arrears</th><th class="num">Arrears at the start of the month (lowest – highest)</th><th>Rate</th><th class="num">Interest</th></tr></thead>
+      <tbody>${fyRows}</tbody><tfoot><tr><td colspan="4">Interest on past arrears on this bill</td><td class="num"><b>${rs(total)}</b></td></tr></tfoot></table>
+    <h3>Every month</h3>
+    <div class="x-cols">${col(months.slice(0, third))}${col(months.slice(third, 2 * third))}${col(months.slice(2 * third))}</div>
+    <p class="x-note">Amounts in rupees; the interest of each month is shown to the paisa and the total is rounded to the rupee. If a month’s arrears look wrong, compare them with the statement on the member page and write to the Society within 7 days, quoting the bill number.</p>
+  </div></section>`;
+}
+
+function headsAnnex(b, data) {
+  if (!data.ledgerRead) return '';
+  const { rows, lift } = chargesByHead(data.entries, data.bills, b.billDate, b.id);
+  if (!rows.length) return '';
+  const used = HEADS.filter(([k]) => rows.some((r) => Math.abs(r[k]) >= 1));
+  const tot = Object.fromEntries(used.map(([k]) => [k, rows.reduce((t, r) => t + r[k], 0)]));
+  const g = data.unit ? liftGroupFor({ block: b.block, ...data.unit }) : '';
+  return `<section class="sheet explain annex"><div class="x-wrap">
+    <h2>Annexure B – What was charged, by head${lift.length || g ? ', and the lift' : ''}</h2>
+    <p class="x-sub">Bill ${esc(b.billNo)} · ${esc(b.unit)}${b.name ? `, ${esc(b.name)}` : ''} · everything charged up to this bill</p>
+    <p>The <i>Charged</i> column of the previous page, split by what it was for. From 2018-19 the Society’s books (Tally) and these accounts show each charge; for 2011-12 to 2017-18 only the audited balance on 31 March is known, so those years are shown as one figure.</p>
+    <table class="x-table"><thead><tr><th>Year</th>${used.map(([, l]) => `<th class="num">${esc(l)}</th>`).join('')}<th class="num">Total charged</th></tr></thead>
+      <tbody>${rows.map((r) => `<tr><td>${esc(r.fy)}</td>${used.map(([k]) => `<td class="num">${Math.abs(r[k]) >= 1 ? rs(r[k]) : ''}</td>`).join('')}<td class="num"><b>${rs(r.total)}</b></td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total</td>${used.map(([k]) => `<td class="num">${rs(tot[k])}</td>`).join('')}<td class="num"><b>${rs(rows.reduce((t, r) => t + r.total, 0))}</b></td></tr></tfoot></table>
+    ${g || lift.length ? `<h3>The lift${g ? ` (${esc(LIFT_GROUPS[g] || g)})` : ''}</h3>
+    <p>${g ? `This unit is served by the ${esc(LIFT_GROUPS[g] || g)}. ` : ''}The lift is charged separately from maintenance, only to the units it serves: the yearly lift contribution fixed by the General Body, and the lift’s AMC, repairs and other costs shared equally by the units served (each share is on the bill of its month). These are the lift charges in this unit’s account:</p>
+    ${lift.length ? `<table class="x-table"><thead><tr><th>Date</th><th>Particulars</th><th class="num">Amount</th></tr></thead><tbody>${lift.map((x) => `<tr><td>${ddmmyyyy(x.date)}</td><td>${esc(x.text)}</td><td class="num">${rs(x.amount)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="2">Lift charges in total</td><td class="num"><b>${rs(lift.reduce((t, x) => t + x.amount, 0))}</b></td></tr></tfoot></table>` : '<p class="x-note">No lift charge is recorded in this unit’s account yet.</p>'}` : ''}
+    <p class="x-note">Heads in the old books are read from their wording (e.g. “Lift Maint. Contribution C Bldg” is lift, “Society Maintenance Charges (C Building)” is maintenance). Payments are not split by head: a payment reduces the balance as a whole.</p>
+  </div></section>`;
 }
 
 /**
@@ -152,6 +250,6 @@ export function explainHTML(b, data, site, basis = '') {
     <h3>4. Arrears: how ${rs(b.arrears)} built up</h3>
     ${arrearsHTML}
 
-    <p class="x-foot">Questions or a correction: write to ${esc(site.society?.email || 'the Society office')}${site.society?.contactNo ? ` or call ${esc(site.society.contactNo)}` : ''} within 7 days, quoting the bill number. Payments made after ${ddmmyyyy(b.billDate)} are not in this bill; they appear in the next one.</p>
-  </div></section>`;
+    <p class="x-foot">Questions or a correction: write to ${esc(site.society?.email || 'the Society office')}${site.society?.contactNo ? ` or call ${esc(site.society.contactNo)}` : ''} within 7 days, quoting the bill number. Payments made after ${ddmmyyyy(b.billDate)} are not in this bill; they appear in the next one.${(data.pastInterest || []).length ? ' The interest on past arrears is worked out month by month in Annexure A.' : ''} Annexure B splits the charges by head${(data.unit && liftGroupFor({ block: b.block, ...data.unit })) ? ' and lists the lift charges' : ''}.</p>
+  </div></section>${interestAnnex(b, data, site)}${headsAnnex(b, data)}`;
 }

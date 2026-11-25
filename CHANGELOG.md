@@ -6,6 +6,50 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.32.0] – 2026-11-25 – Annexures to every bill: interest on past arrears month by month; charges by head and the lift
+
+### Added
+- **Annexure A – Penal interest on past arrears, month by month** (printed with a bill that carries interest on past arrears, e.g. INT/2026-27/001 on the December 2026 bills): the amount and the run, the rule in three steps (arrears at the start of each month = the account's balance on the 1st less penal interest already billed; × yearly rate ÷ 12, by days when the rate changes; months with no arrears, or whose own bill charged interest, left out), the General Body's rates, a worked example, a **year-by-year** table (months with arrears, lowest – highest arrears, rate, interest) and **every month** (month, arrears at the start, interest to the paisa) in three columns. It comes from the calculation saved with the charge (`billAdjustments.months`), so it is exactly what was charged.
+- **Annexure B – What was charged, by head, and the lift**: the *Charged* column split by head per year — maintenance and funds, lift, water, penal interest, other charges, and the audited years (2011-12 to 2017-18, one figure) — with totals; bills of these accounts by their lines, the old books (Tally) by their wording (“Lift Maint. Contribution C Bldg” → lift). For a unit with a lift (C and D wings): which lift, how the lift is charged (yearly contribution fixed by the General Body; AMC and repairs shared equally by the units served), and **every lift charge in the unit's account** with its total.
+- The explanation page points to both annexures. They print with the bill from the member page and the accounts page (and with *Print all bills* when *With “How this bill is worked out”* is ticked).
+
+### Notes
+- A correction to a bill (3.31) is not counted twice in Annexure B: the revised bill's lines already show it.
+- Nothing new is stored and no rules change: members already read their unit's bills, ledger and bill charges.
+
+---
+
+Version 3.32.0 adds two extra pages to every bill PDF, after "How this bill is worked out". Members get them automatically when they open their bill from their own page. A new test suite (9 checks) and all 30 earlier suites pass, but only against test data. I haven't seen the real C 401 pages.
+
+**Annexure A: Penal interest on past arrears, month by month**
+ This page appears only on bills that carry interest on past arrears, like C 401's ₹24,691 (₹23,957 at 18% + ₹734 at 12%).
+
+- The rule, in three plain steps:
+  1. Arrears at the start of each month = the account balance on the 1st, less any penal interest already billed, so interest is never charged on interest.
+  2. Interest for the month = arrears × yearly rate ÷ 12.
+  3. Months with no arrears, or already charged on their own bill, are left out.
+- **A worked example:** ₹10,000 × 18% ÷ 12 = ₹150 for the month.
+- **Year by year:** months with arrears, the lowest and highest arrears, the rate, and the interest.
+- **Every month** from May 2013 to November 2026, with the arrears at the start of the month and the interest to the paisa.
+
+These figures are the calculation the committee saved when the interest was added (INT/2026-27/001), so they match the bill exactly.
+
+**Annexure B: What was charged, by head, and the lift**
+
+- **Charges by head:** each year's charges split into maintenance and funds, lift, water, penal interest and other charges. 2011-12 to 2017-18 show as one figure, because only the audited year-end balances exist for those years.
+- **Lift (C and D wing units):** which lift serves the unit and how it is charged. There is the yearly lift contribution fixed by the General Body, plus AMC and repairs shared equally by the units the lift serves. Then every lift charge in the unit's account is listed with its total, e.g. "Lift Maint. Contribution C Bldg (Journal 47) ₹15,000".
+
+To go live, just push the zip. There are no rules or Drive script changes. The pages also print with **Print all bills** when "With 'How this bill is worked out'" is ticked.
+
+**Before you send C 401's bill:** C 401 paid regularly, so the month table will probably show their arrears were mostly quarterly maintenance and the yearly lift contribution. These are booked on the 1st of the quarter (or in March for the lift) and paid a few weeks later. Under the current rule, interest starts from the next month. If the committee decides that's unfair to regular payers, it can waive part of it with a credit correction on the unit (Units → correction). Changing the rule itself, for example only charging interest on amounts more than a set number of days overdue, would need a General Body decision first.
+
+----
+
+### Tested
+- New suite t332 (9 checks): two annexures; Annexure A with the amount, run and rule, every month with arrears and interest, the year with both rates; Annexure B with maintenance and lift columns, the C wing lift named and the lift contribution listed, maintenance from Tally and from these bills; the explanation points to them. All earlier suites pass.
+
+---
+
 ## [3.31.0] – 2026-11-25 – Taking a charge off bills already made (e.g. the conveyance fee added twice)
 
 ### Fixed
@@ -13,41 +57,8 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ### Added
 - **Bills → Charges to recover → Take off the bills…** (committee) on a row already on the bills: for each unit, in one transaction, the bill is **revised** (that head reduced by the amount — the line removed if nothing is left — and its note without that description; this month's amount and the total corrected; a revision recorded on the bill: date, who, head, amount, reason), the unit's account is **credited** (ledger entry *Correction to bill …*, kind *charge*, dated the bill date or today if later; balance and website dues updated) and the charge is marked **reversed**. Bills (and their numbers) are not made again; the reprint says **“Revised bill: on … reduced by ₹ … (reason). This copy replaces the bill issued earlier.”**
-
 - **Duplicate warnings:** the list of charges says which units have the same head more than once for a month (or the one-time conveyance fee at all more than once); adding a charge now warns for the same head and month whatever the description, and for the conveyance fee whenever a unit already has it.
-
 - The status of a row counts how many are on the bills, waiting, taken off or cancelled.
-
-  ----
-
-  The fee appears twice because the charge was entered twice, once with the description "6500" and once with "Deemed Conveyance Legal Fees for all members". The December run billed both. My duplicate warning only compared charges with the same description, so it missed this.
-
-  The website doesn't regenerate or delete bills, to keep bill numbers and the ledger intact. Version 3.31.0 adds a way to correct a bill instead. The new tests (8 checks) and all 30 suites pass, but only on test data, so your live December bills are still showing ₹13,000.
-
-  **To fix December (takes a minute)**
-
-  1. Push the zip and publish `firestore.rules`. Without the new rules, bills can't be corrected.
-  2. Go to Bills → **Charges to recover from units**. A note now says which units are charged twice.
-  3. On the row whose description is just **"6500"**, press **Take off the bills…**. Enter a reason, for example "Added twice by mistake"; it is printed on the bill.
-  4. For every unit, this:
-     - reduces the bill's conveyance line to ₹6,500, leaving the description "Deemed Conveyance Legal Fees for all members";
-     - corrects this month's charges and the total;
-     - credits ₹6,500 back to the unit's account, dated 01/12/2026, so the balance and website dues are correct;
-     - marks that charge as reversed.
-  5. Print the bills again (Print all bills). Each one keeps its bill number and says "Revised bill: on 25/11/2026, Deemed Conveyance Legal Fee reduced by ₹ 6,500 (Added twice by mistake). This copy replaces the bill issued earlier."
-
-  For A 101, this month's charges go from ₹75,894 to ₹69,394 and the total from ₹1,17,104 to ₹1,10,604.
-
-  **To stop it happening again**
-
-  - The deemed conveyance fee is now treated as a one-time charge: adding it for a unit that already has it asks for confirmation, whatever the description.
-  - Other heads warn if the same unit already has that head for the same month.
-
-  The penal interest on the December bills isn't affected, because it was worked out on the arrears before this bill. The extra ₹6,500 never reached the arrears, so no interest was charged on it. There's no Drive script change this time.
-
-  -----
-
-  
 
 ### Rules
 - `bills`: still never deleted; the committee may revise a bill dated after the closed year, changing only its lines, this month's amount, the total (= arrears + this month) and adding exactly one revision.

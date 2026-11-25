@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.31.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.32.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -330,6 +330,8 @@ All four happen together or not at all.
 - **Issuing:** tick payments (at most 60), name (used for Tally and past-committee copies; website copies keep the original name), reason. Saved in one transaction as `receiptCopies/{id}` with reference `DUP/<FY>/<nnnn>` (counter `duplicates-<FY>`), issuer, date, reason and a copy of what is printed on each receipt; then `print.html?copies=<id>` opens.
 - **Printed copy:** title *DUPLICATE RECEIPT*, original number and date, *Recorded in* line (these accounts / Tally voucher No. / past committee’s receipt No.); balances for website copies (from the receipt) and Tally copies (running Tally balance from the Tally opening); none for 2011–2016 copies. Under the receipt: *Duplicate copy of the receipt dated …, issued on … by … (reason). Reference DUP/…*.
 - **Who:** `recordPayments` (committee; Accountant by default). Records cannot be changed or deleted; the unit’s approved member can read them.
+
+**Bill annexures (3.32):** after the explanation, *Annexure A* (only when the bill carries interest on past arrears) shows that interest month by month from the calculation saved with the charge (`billAdjustments.months`: month, arrears at the start, rate, interest), with the rule and a year-by-year summary; *Annexure B* splits everything charged up to the bill by head (bill lines; Tally wording; audited years as one figure) and, for units with a lift, lists every lift charge.
 
 **Bill explanation (3.27):** `print.html?bill=<id>` prints a second page, *How this bill is worked out*: arrears + this month's charges = total; the unit's recorded details; each charge with its working (the `detail` saved on the bill line, else *rate fixed by the General Body*); penal interest (the bill's interest line, simple, the General Body's rate periods); and the arrears year by year from the merged ledger (audited years, Tally, these accounts — the same as the member's statement), using the entries dated up to the bill date that were recorded before the bill was made, excluding the bill's own entry, so the years add up to the arrears on the bill (a difference, if any, is explained). The toolbar box hides it; for a month's bills add `&explain=1`.
 

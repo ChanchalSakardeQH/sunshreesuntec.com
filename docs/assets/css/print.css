@@ -133,3 +133,10 @@ body.no-explain .sheet.explain { display: none; }
 .notice .n-sign { margin-top: 5mm; }
 .notice .n-line { border-bottom: 1px solid #333; width: 55mm; height: 12mm; margin: 0 0 1mm; }
 .notice .n-encl { margin-top: 4mm; font-size: 9.5pt; }
+
+/* 3.32: annexures to "How this bill is worked out" */
+.explain .x-steps li { margin-bottom: 1mm; }
+.explain .x-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2mm; }
+.explain .x-mini { font-size: 7.5pt; margin: 0; }
+.explain .x-mini th, .explain .x-mini td { padding: .3mm 1mm !important; }
+.explain.annex h2 { font-size: 12.5pt; }
