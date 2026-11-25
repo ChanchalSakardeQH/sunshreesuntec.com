@@ -96,8 +96,11 @@ function interestAnnex(b, data, site) {
   }
   const fyRows = [...byFy.values()].map((r) => `<tr><td>${esc(r.fy)}</td><td class="num">${r.n}</td><td class="num">${rs(r.low)} – ${rs(r.high)}</td><td>${esc([...r.rates].join('; '))}</td><td class="num">${rs(r.sum)}</td></tr>`).join('');
   const third = Math.ceil(months.length / 3);
-  const col = (list) => `<table class="x-table x-mini"><thead><tr><th>Month</th><th class="num">Arrears at start</th><th class="num">Interest</th></tr></thead><tbody>${list.map((m) =>
-    `<tr><td>${esc(monthLabel(m.month).replace(/^(\w{3})\w*/, '$1'))}</td><td class="num">${money(m.base, { slash: false })}</td><td class="num">${(Math.round(m.amount * 100) / 100).toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
+  // 3.35: one table, three months to a row (column by column), so it breaks cleanly across pages.
+  const cell = (m) => (m ? `<td>${esc(monthLabel(m.month).replace(/^(\w{3})\w*/, '$1'))}</td><td class="num">${money(m.base, { slash: false })}</td><td class="num x-gap">${(Math.round(m.amount * 100) / 100).toFixed(2)}</td>` : '<td></td><td></td><td class="x-gap"></td>');
+  const head3 = '<th>Month</th><th class="num">Arrears at start</th><th class="num x-gap">Interest</th>';
+  const monthTable = `<table class="x-table x-mini x-months"><thead><tr>${head3}${head3}${head3}</tr></thead><tbody>${Array.from({ length: third }, (_, i) =>
+    `<tr>${cell(months[i])}${cell(months[i + third])}${cell(months[i + 2 * third])}</tr>`).join('')}</tbody></table>`;
   const periods = (site.interestPeriods || []).filter((p) => Number(p.rate) > 0);
   return `<section class="sheet explain annex"><div class="x-wrap">
     <h2>Annexure A – Penal interest on past arrears, month by month</h2>
@@ -114,7 +117,7 @@ function interestAnnex(b, data, site) {
     <table class="x-table"><thead><tr><th>Year (Apr–Mar)</th><th class="num">Months with arrears</th><th class="num">Arrears at the start of the month (lowest – highest)</th><th>Rate</th><th class="num">Interest</th></tr></thead>
       <tbody>${fyRows}</tbody><tfoot><tr><td colspan="4">Interest on past arrears on this bill</td><td class="num"><b>${rs(total)}</b></td></tr></tfoot></table>
     <h3>Every month</h3>
-    <div class="x-cols">${col(months.slice(0, third))}${col(months.slice(third, 2 * third))}${col(months.slice(2 * third))}</div>
+    ${monthTable}
     <p class="x-note">Amounts in rupees; the interest of each month is shown to the paisa and the total is rounded to the rupee. If a month’s arrears look wrong, compare them with the statement on the member page.</p>
     ${disputeBox(site)}
   </div></section>`;
@@ -261,4 +264,57 @@ export function explainHTML(b, data, site, basis = '') {
 
     <p class="x-foot">Questions or a correction: write to ${esc(site.society?.email || 'the Society office')}${site.society?.contactNo ? ` or call ${esc(site.society.contactNo)}` : ''} within ${DUES_DAYS} days, quoting the bill number and with your proof (see Annexure A or the portal agreement). Payments made after ${ddmmyyyy(b.billDate)} are not in this bill; they appear in the next one.${(data.pastInterest || []).length ? ' The interest on past arrears is worked out month by month in Annexure A.' : ''} Annexure B splits the charges by head${(data.unit && liftGroupFor({ block: b.block, ...data.unit })) ? ' and lists the lift charges' : ''}.</p>
   </div></section>${interestAnnex(b, data, site)}${headsAnnex(b, data, site)}`;
+}
+
+/* ---------- 3.35: the unit's ledger, printed after the bill (…&ledger=1) ---------- */
+
+const SOURCE_TAG = { tally: 'Tally', archive: 'Old receipt', audit: 'Audit', difference: 'Check' };
+
+/**
+ * The entries of the unit's account up to this bill (its date, and recorded before it was made), with this bill.
+ * fold: the bill was corrected before it was sent (no "Revised bill" note): a correction taken off this bill is shown
+ * inside the bill's line (at the revised amount) instead of as a separate line, as on the bill itself.
+ */
+export function ledgerEntries(b, data, { fold = false } = {}) {
+  const made = secs(b.createdAt);
+  let list = (data.entries || []).filter((e) => e.date <= b.billDate
+    && (e.ref === b.id || !(made && secs(e.createdAt) && secs(e.createdAt) > made)));
+  if (fold && list.some((e) => e.kind === 'bill' && e.ref === b.id)) {
+    list = list.filter((e) => !(e.kind === 'charge' && e.ref === b.id))
+      .map((e) => (e.kind === 'bill' && e.ref === b.id ? { ...e, debit: r2(b.current), credit: 0 } : e));
+  }
+  return list;
+}
+
+export function ledgerHTML(b, data, site, { fold = false } = {}) {
+  const top = `<h2>Ledger of the unit’s account</h2>
+    <p class="x-sub">${esc(site.society?.name || '')} · ${esc(b.unit)}${b.name ? `, ${esc(b.name)}` : ''} · every bill, payment and correction up to bill ${esc(b.billNo)} dated ${ddmmyyyy(b.billDate)}</p>`;
+  if (!data.ledgerRead) return `<section class="sheet ledger-sheet"><div class="x-wrap">${top}<p>The unit’s account could not be read here. Please ask the Society office for the statement.</p></div></section>`;
+  const list = ledgerEntries(b, data, { fold });
+  let bal = 0, dr = 0, cr = 0, rows = '', fy = '';
+  const yearEnd = (f) => `<tr class="l-year"><td>${ddmmyyyy(`${Number(f.slice(0, 4)) + 1}-03-31`)}</td><td colspan="4">Balance at the end of ${esc(f)}</td><td class="num">${rs(bal)}</td></tr>`;
+  for (const e of list) {
+    const f = financialYear(e.date);
+    if (fy && f !== fy) rows += yearEnd(fy);
+    fy = f;
+    bal = r2(bal + (e.debit || 0) - (e.credit || 0)); dr += e.debit || 0; cr += e.credit || 0;
+    const tag = SOURCE_TAG[e.source] ? ` <small class="l-tag">${SOURCE_TAG[e.source]}</small>` : '';
+    const memo = e.kind === 'memo';
+    rows += `<tr${memo ? ' class="l-memo"' : e.ref === b.id ? ' class="l-this"' : ''}><td>${ddmmyyyy(e.date)}</td><td>${esc(e.particulars)}${tag}${memo && e.memo ? ` <small>(₹ ${money(e.memo, { slash: false })}, not part of the balance)</small>` : ''}</td>
+      <td>${esc(e.receipt || '')}</td><td class="num">${e.debit ? money(e.debit, { slash: false }) : ''}</td><td class="num">${e.credit ? money(e.credit, { slash: false }) : ''}</td><td class="num">${rs(bal)}</td></tr>`;
+  }
+  const diff = r2(b.total - bal);
+  const sources = [list.some((e) => e.source === 'audit' || e.source === 'archive') ? '2011-12 to 2017-18: receipts from the past committee’s records (Old receipt) and, at each 31 March, the balancing figure to the audited balance (Audit)' : '',
+    list.some((e) => e.source === 'tally') ? 'from 2018-19: the Society’s Tally ledger (Tally)' : '',
+    ''].filter(Boolean);
+  const srcText = sources.length ? `${sources.join('; ')}; then these accounts` : 'these accounts';
+  return `<section class="sheet ledger-sheet"><div class="x-wrap">${top}
+    <table class="x-table l-table"><thead><tr><th>Date</th><th>Particulars</th><th>Receipt</th><th class="num">Debit (₹)</th><th class="num">Credit (₹)</th><th class="num">Balance (₹)</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6">No entries.</td></tr>'}</tbody>
+      <tfoot><tr><td colspan="3">Total of the entries above</td><td class="num">${money(r2(dr), { slash: false })}</td><td class="num">${money(r2(cr), { slash: false })}</td><td class="num"><b>${rs(bal)}</b></td></tr>
+        <tr><td colspan="5">Total payable on bill ${esc(b.billNo)}</td><td class="num"><b>${rs(b.total)}</b></td></tr></tfoot></table>
+    ${Math.abs(diff) >= 1 ? `<p class="x-note">The entries above come to ${rs(bal)}; the difference of ${rs(diff)} is from entries recorded or corrected after this bill was made.</p>` : ''}
+    <p class="x-note">Debit adds to the dues, credit reduces them; a balance marked Cr is an advance. Sources: ${esc(srcText)}. Payments made after ${ddmmyyyy(b.billDate)}, or recorded after this bill was made, are not in this ledger.</p>
+    ${disputeBox(site)}
+  </div></section>`;
 }

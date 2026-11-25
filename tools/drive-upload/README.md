@@ -72,7 +72,7 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
-**3.30 – 3.34 (still script version 16):** no change to the script. The 3.34 activity trail (`auditLog`) is included in the scheduled full backups automatically, like every other collection. The accepted member agreement PDF prints whatever
+**3.30 – 3.35 (still script version 16):** no change to the script. The 3.34 activity trail (`auditLog`) is included in the scheduled full backups automatically, like every other collection. The accepted member agreement PDF prints whatever
 sections and declaration lines the published version has, so the 3.33 section on dues of the unit and its fifth
 declaration line appear in the PDF without updating the script.
 

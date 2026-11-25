@@ -8,6 +8,7 @@ Website and maintenance accounting for **Sunshree Suntec Co-op. Hsg. Soc. Ltd.**
 - **Accounts (`/admin.html`, committee only):** monthly bills in the Society's bill format, payments with numbered digital receipts, unit ledgers, corrections, member access approvals, notices and contact details.
 - **Test copy:** try every role (owner, tenant, staff, committee) on a separate test project and Drive folder, with a red TEST banner; see `TESTING.md` (3.21).
 - **Membership transfers:** the documents each unit submits on a member's death or on sale, tracked unit by unit with scans, the committee resolution and the share certificate endorsement; members see their unit's list and print the Society's letters (3.23).
+- **Ledger with the bill (3.35):** each unit's full ledger printed after its bill and calculation, for posting; revised bills not yet sent print without the “Revised bill” note.
 - **Activity trail (3.34):** every money change in the accounts — by committee or staff — with who, when, unit, amount, balance before and after, and the reason; filters, CSV, a balance check against the ledgers, and one-click correction of a mistaken entry. Entries can't be changed or deleted from the website.
 - **App Google sign-in refused (3.33.1):** “[16] Account reauth failed” is shown as a failure with the fix (the app's SHA-1 in Firebase) instead of looking like nothing happened; the phone offers the website in Chrome.
 - **Member agreement – dues of the unit:** arrears of earlier periods or of a previous owner shown in the books are recoverable on a detailed bill or statement, even after an earlier NOC where the law allows; the member may dispute with proof within 10 days and proven errors are corrected promptly (3.33).
@@ -135,6 +136,7 @@ GitHub pauses scheduled workflows in a repo with no commits for 60 days. If that
 | One-off charge for a month (e.g. repairs levy) | **Bills** → Extra one-off charge + amount, for all units or one block, before generating. |
 | New notice on the website | **Website → Notices**. |
 | Approve a member's login request | **Members**. |
+| Print bills to send by Registered Post | Bills → choose the month → **Print for posting (bill, calculation, ledger)**: each unit's bill, *How this bill is worked out*, annexures and the full ledger. If a charge was corrected before the bills went out, first press **Not sent before the correction: print without the note**. |
 | Who changed a unit's account, and putting a mistake right | **Activity** (or *Who changed this account* in the unit file): every receipt, cancellation, bill, correction, charge and rate change with who, when, the balance before and after; **Cancel this receipt** / **Reverse with an opposite entry** on a wrong one. **Check all balances against their ledgers** finds a balance changed without its entry. |
 | Give an Accountant / Society Manager access | **Staff** → Add staff (Gmail, role, access). They sign in with Google and accept the agreement before working. |
 

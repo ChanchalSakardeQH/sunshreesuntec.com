@@ -21,6 +21,7 @@ export const ACTIONS = {
   'bill.generate': ['Bill generated', 'bills'],
   'bill.month': ['Monthly bills generated', 'bills'],
   'charge.reverse': ['Charge taken off a bill', 'bills'],
+  'bill.note': ['Revised-bill note shown or hidden', 'bills'],
   'correction': ['Correction to a unit account', 'corrections'],
   'charge.debit': ['Charge debited to a unit', 'corrections'],
   'charge.add': ['Charges put on a coming bill', 'corrections'],

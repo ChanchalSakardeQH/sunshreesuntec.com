@@ -203,6 +203,15 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 1 | Bills → Charges to recover → Deemed Conveyance Legal Fee → ₹6,500 for all → on the bills of next month | Listed as waiting; next month's bills have the line |
 | 2 | Legal Notice & Recovery Expenses → the units of a notice at ₹350 → debit now | Ledger entries; balances up by ₹350 |
 
+### Bills for posting (3.35)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Bills → December 2026 | “N bills were revised …” with *Not sent before the correction: print without the note*; revised rows marked *Revised* |
+| 2 | Press it | Rows say *Revised, no note*; Activity has *Revised-bill note shown or hidden* |
+| 3 | **Print for posting** | For each unit: bill (no “Revised bill” line, corrected total), How this bill is worked out, annexures, ledger; the ledger's last balance equals the bill's total payable |
+| 4 | Open one bill as a member | No revised note; *With the ledger* box shows the ledger |
+| 5 | Print → Save as PDF, A4 | Each unit starts on a new page; **each bill is one page**, no “The page didn't start” box; long ledgers and Annexure A run over several pages with the column headings repeated, nothing overlapping |
+
 ### Page start check (3.34.1)
 | # | Do | Expected |
 |---|---|---|

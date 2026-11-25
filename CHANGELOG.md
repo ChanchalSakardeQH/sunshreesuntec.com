@@ -6,6 +6,35 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.35.1] – 2026-11-25 – Printed bills: no false “The page didn't start” box; one A4 page; Annexure A month table
+
+### Fixed (found in the C 201 December 2026 bill printed from 3.34.1)
+- **“The page didn't start” printed at the top of bills.** The 3.34.1 start check looked at the print page's “Loading…” text, which stays (hidden) after the bills are shown, and put its box above the first bill after 12 seconds. It now acts only while “Loading…” is still on screen and nothing has been shown.
+- **The bill ran onto a second page.** The bill measured 307 mm (317 mm with the revised note) against 297 mm for A4 when lines carry long details such as the interest working. In print, rows and the page margin are tighter: the same C 201 bill is now 281 mm (290 mm with the note), on one page.
+- **Annexure A “Every month”**: the three month columns were separate tables side by side; at a page break the third column ran into the text below. It is now one table with three months to a row (read down each column), which breaks cleanly with its headings repeated.
+- Table totals (*Arrears on this bill*, *Interest on past arrears on this bill*) are no longer repeated at each page break in the middle of a table; table rows are not split across pages.
+
+### Tested
+- t3352 (new): the C 201 bill exactly as on the live site fits one A4 page with and without the revised note, and shows no start box. t3351 (new): 163 months of interest (May 2013 – November 2026) as one table, 55 rows. t3341: the print page started normally shows no box. All earlier suites pass.
+
+---
+
+## [3.35.0] – 2026-11-25 – The unit's ledger printed with the bill; revised bills without the “Revised bill” note
+
+### Added
+- **Ledger pages after the bill:** “Ledger of the unit's account” — every bill, payment and correction of the unit up to the bill (date, particulars, receipt, debit, credit, running balance), from the earliest records (old receipts and audited years, Tally, then these accounts), with the balance at the end of each financial year, totals, the closing balance checked against the bill's total payable, and the box on how to dispute an amount within 10 days.
+  - **Bills → Print for posting (bill, calculation, ledger)**: for the month, each unit's bill, *How this bill is worked out*, its annexures and its ledger, together, ready to print and send by Registered Post (`print.html?month=…&explain=1&ledger=1`).
+  - Each bill row has **With ledger**; on any printed bill (also for members on the portal) the toolbar box **With the ledger** shows or hides it. Demand notices opened with `&ledger=1` include it too.
+- **Revised bills that were not sent before the correction** (e.g. December 2026, where the Deemed Conveyance Legal Fee was added twice and taken off on 25/11/2026): Bills → month → **Not sent before the correction: print without the note** (committee). The bills then print without “Revised bill: … This copy replaces the bill issued earlier.”, on the portal too, and the ledger shows the bill at its corrected amount instead of the bill and a separate correction line. **Already sent: print with the note** switches it back. The revision stays recorded on each bill and in the activity trail (*Revised-bill note shown or hidden*). Revised bills are marked *Revised* in the list.
+
+### Changed
+- Database rules: the committee may set `quietRevision` (true / false) on a bill that has a revision; nothing else on the bill changes. **Publish the rules.**
+
+### Tested
+- New suite t335 (18 checks): ledger page content, year-end balances, closing balance equals the total; with the note the correction is its own line; the committee's switch (both bills, revisions kept, trail entry, rows, buttons); without the note the bill and ledger show the corrected amount only; ledger hidden until ticked on a single bill; the month for posting has each unit's bill, calculation, annexures and ledger in order; members see the same; switching back; staff can't switch. All earlier suites pass.
+
+---
+
 ## [3.34.1] – 2026-11-25 – Accounts page stuck on “Loading…”; a clear message when the page can't start
 
 ### Fixed

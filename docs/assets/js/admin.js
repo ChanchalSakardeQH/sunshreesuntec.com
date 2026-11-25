@@ -954,13 +954,49 @@ async function listBills(month) {
   $('#bills-title').textContent = `${monthLabel(month)} bills`;
   $('#print-all').href = `print.html?month=${month}`;
   $('#print-all').hidden = !bills.length;
+  $('#print-post').href = `print.html?month=${month}&explain=1&ledger=1`;
+  $('#print-post').hidden = !bills.length;
+  renderRevisedBills(month, bills);
   $('#bills-rows').innerHTML = bills.map((b) => `<tr>
-    <td>${esc(b.billNo)}</td><td class="unit">${esc(b.unit)}</td><td>${esc(b.name)}</td>
+    <td>${esc(b.billNo)}${(b.revisions || []).length ? ` <span class="pill ${b.quietRevision ? 'past' : 'warn'}" title="${esc(b.revisions.map((r) => `${ddmmyyyy(r.on)}: ${LABEL[r.code] || r.code} ${r.amount < 0 ? '−' : '+'}₹${fmt(Math.abs(r.amount))}`).join('; '))}">Revised${b.quietRevision ? ', no note' : ''}</span>` : ''}</td><td class="unit">${esc(b.unit)}</td><td>${esc(b.name)}</td>
     <td class="num">${amt(b.arrears)}</td><td class="num">${fmt(b.current)}</td><td class="num">${amt(b.total)}</td>
-    <td><a href="print.html?bill=${encodeURIComponent(b.id)}" target="_blank" rel="noopener">View</a></td></tr>`).join('')
+    <td><a href="print.html?bill=${encodeURIComponent(b.id)}" target="_blank" rel="noopener">View</a> · <a href="print.html?bill=${encodeURIComponent(b.id)}&ledger=1" target="_blank" rel="noopener">With ledger</a></td></tr>`).join('')
     || '<tr><td colspan="7" class="empty">No bills for this month yet.</td></tr>';
   const sum = (k) => bills.reduce((s, b) => s + (b[k] || 0), 0);
   $('#bills-foot').innerHTML = bills.length ? `<tr><td colspan="3">${bills.length} bills</td><td class="num">${fmt(sum('arrears'))}</td><td class="num">${fmt(sum('current'))}</td><td class="num">${fmt(sum('total'))}</td><td></td></tr>` : '';
+}
+
+/**
+ * 3.35: bills of the month that were revised (a charge taken off). If they were corrected before being sent, the
+ * committee can print them without the "Revised bill" note (bills.quietRevision); the revision stays recorded on the bill
+ * and in the activity trail, and the ledger pages show the bill at its revised amount.
+ */
+function renderRevisedBills(month, bills) {
+  const box = $('#bills-revised');
+  const rev = bills.filter((b) => (b.revisions || []).length);
+  if (!rev.length) { box.innerHTML = ''; return; }
+  const quiet = rev.filter((b) => b.quietRevision).length;
+  box.innerHTML = `<div class="callout">
+    <p><b>${rev.length} bill${rev.length === 1 ? ' was' : 's were'} revised</b> after being made (${esc([...new Set(rev.flatMap((b) => b.revisions.map((r) => `${LABEL[r.code] || r.code} ${r.amount < 0 ? 'reduced' : 'increased'} by ₹ ${fmt(Math.abs(r.amount))}${r.reason ? ` – ${r.reason}` : ''}`)))].slice(0, 3).join('; '))}).
+      ${quiet === rev.length ? 'They print <b>without</b> the “Revised bill” note, as if issued at the corrected amount.' : quiet ? `${quiet} print without the note, ${rev.length - quiet} with it.` : 'They print with the note “Revised bill: … This copy replaces the bill issued earlier.”'}</p>
+    ${canDo('committee') ? `<div class="form-actions">
+      ${quiet < rev.length ? `<button class="btn" type="button" data-quiet="1">Not sent before the correction: print without the note</button>` : ''}
+      ${quiet ? `<button class="btn" type="button" data-quiet="0">Already sent: print with the note</button>` : ''}</div>
+    <p class="muted small-note">The correction stays recorded on each bill and in the activity trail either way.</p>` : ''}
+  </div>`;
+  box.querySelectorAll('[data-quiet]').forEach((btn) => btn.addEventListener('click', () => busy(btn, async () => {
+    const on = btn.dataset.quiet === '1';
+    if (!confirm(on ? `Print the ${rev.length} revised bills of ${monthLabel(month)} without the “Revised bill” note?\n\nDo this only if these bills were not given or sent to the members before the correction.` : `Print the revised bills of ${monthLabel(month)} with the “Revised bill” note again?`)) return;
+    try {
+      const { F, db } = fb, batch = F.writeBatch(db), list = rev.filter((b) => Boolean(b.quietRevision) !== on);
+      list.forEach((b) => batch.update(F.doc(db, 'bills', b.id), { quietRevision: on, updatedAt: F.serverTimestamp() }));
+      auditIn(batch, fb, { action: 'bill.note', count: list.length, refNo: month, units: list.map((b) => b.unitId), refs: { bills: list.map((b) => b.id) },
+        ...(list.length === 1 ? { unitId: list[0].unitId, unit: list[0].unit } : {}),
+        detail: `${monthLabel(month)}: ${list.length} revised bill${list.length === 1 ? '' : 's'} now print ${on ? 'without' : 'with'} the “Revised bill” note (${list.map((b) => b.billNo).join(', ')})` });
+      await batch.commit();
+      await listBills(month);
+    } catch (err) { alert(errorText(err)); }
+  })));
 }
 
 /* ---------------- payments ---------------- */

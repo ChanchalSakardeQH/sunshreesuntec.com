@@ -226,8 +226,10 @@
         <div class="form-actions">
           <label class="inline-label">Show month<input type="month" id="bills-month"></label>
           <a class="btn" id="print-all" target="_blank" rel="noopener">Print all bills</a>
+          <a class="btn btn-primary" id="print-post" target="_blank" rel="noopener" hidden title="Each bill with How this bill is worked out, the annexures and the unit’s ledger">Print for posting (bill, calculation, ledger)</a>
         </div>
       </div>
+      <div id="bills-revised"></div>
       <div class="table-scroll"><table>
         <thead><tr><th>Bill no.</th><th>Unit</th><th>Name</th><th class="num">Arrears</th><th class="num">This month</th><th class="num">Total</th><th></th></tr></thead>
         <tbody id="bills-rows"></tbody>
@@ -1786,7 +1788,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.34.1</p>
+    <p class="muted mt" id="version-note">Software version 3.35.1</p>
   </main>
 
   <script src="assets/js/startcheck.js"></script>

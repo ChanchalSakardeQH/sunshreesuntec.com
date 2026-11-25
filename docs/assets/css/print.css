@@ -141,3 +141,38 @@ body.no-explain .sheet.explain { display: none; }
 .explain .x-mini th, .explain .x-mini td { padding: .3mm 1mm !important; }
 .explain.annex h2 { font-size: 12.5pt; }
 .explain .x-dispute { border: 1px solid #c9a227; background: #fff8e1; padding: 1.5mm 2.5mm; margin: 2mm 0; font-size: 8.5pt; }
+/* 3.35: the unit's ledger after the bill */
+body.no-ledger .sheet.ledger-sheet { display: none; }
+.ledger-sheet .x-wrap { font-size: 8.5pt; line-height: 1.3; color: #1b1f24; }
+.ledger-sheet h2 { font-size: 14pt; margin: 0 0 1mm; }
+.ledger-sheet .x-sub { color: #555; margin: 0 0 3mm; font-size: 9pt; }
+.l-table { width: 100%; border-collapse: collapse; }
+.l-table th, .l-table td { border: 1px solid #bbb; padding: .6mm 1.2mm; vertical-align: top; }
+.l-table thead { display: table-header-group; }
+.l-table tr { break-inside: avoid; }
+.l-table td:first-child { white-space: nowrap; }
+.l-table .l-year td { background: #f1f3f5; font-weight: 600; }
+.l-table .l-this td { background: #fff8e1; font-weight: 600; }
+.l-table .l-memo td { color: #777; }
+.l-table .l-tag { color: #666; border: 1px solid #ccc; border-radius: 2px; padding: 0 1mm; font-size: 7pt; }
+.l-table tfoot td { font-weight: 600; background: #f6f6f6; }
+.l-table th { background: #f0f0f0; font-weight: 600; text-align: left; }
+.l-table .num, .l-table th.num { text-align: right; white-space: nowrap; }
+.ledger-sheet .x-note { color: #444; font-size: 8pt; margin: 1.5mm 0; }
+.ledger-sheet .x-dispute { border: 1px solid #c9a227; background: #fff8e1; padding: 1.5mm 2.5mm; margin: 2mm 0; font-size: 8.5pt; }
+
+/* 3.35: the month-by-month interest table as one table; totals printed once (not repeated at each page break) */
+.explain .x-months { width: 100%; }
+.explain .x-months .x-gap { border-right: 2px solid #888 !important; }
+.explain .x-table tr, .l-table tr { break-inside: avoid; }
+.explain .x-table thead, .l-table thead { display: table-header-group; }
+.explain .x-table tfoot, .explain .x-sum tfoot, .l-table tfoot { display: table-row-group; }
+
+/* 3.35: the bill fits one A4 page also with long line details (interest working, notes) and a revised note:
+   it measured 307–317 mm before (A4 is 297 mm). Rows and the page margin are tighter in print. */
+@media print {
+  .sheet { padding: 6mm 7mm; min-height: 0; }
+  .parts td, .parts th { padding-top: .8mm; padding-bottom: .8mm; }
+  .parts .sub { font-size: 9.5px; line-height: 1.25; }
+  .basis { padding-top: 1mm; padding-bottom: 1mm; }
+}

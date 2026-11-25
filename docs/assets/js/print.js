@@ -8,7 +8,7 @@ import { loadSite } from './accounts.js';
 import { LABEL as LABEL_OF, PARTICULARS, OPTIONAL, STATUSES, LIFT_GROUPS, money, amountInWords, ddmmyyyy, longDate, monthLabel } from './billing-core.js';
 import { esc } from './data.js';
 import { DEFAULT_SITE } from './defaults.js';
-import { loadExplainData, explainHTML } from './billexplain.js';
+import { loadExplainData, explainHTML, ledgerHTML } from './billexplain.js';
 import { checkSitePause } from './sitepause.js';
 import { noticePages } from './notices.js';
 
@@ -55,8 +55,11 @@ async function main() {
     if (!s.exists()) throw new Error('Bill not found.');
     // 3.27: with a second page explaining the calculation and the arrears (hide it with the toolbar box).
     const b = { id: s.id, ...s.data() };
-    html = billHTML(b, site) + explainHTML(b, await loadExplainData(fb, b), site, basisText(b, site));
+    const x = await loadExplainData(fb, b);
+    // 3.35: and the unit's ledger (…&ledger=1, or the toolbar box)
+    html = billHTML(b, site) + explainHTML(b, x, site, basisText(b, site)) + ledgerHTML(b, x, site, { fold: Boolean(b.quietRevision) });
     explainToggle(true);
+    ledgerToggle(withLedger);
     title = `Bill ${s.data().billNo}`;
     document.title = `${title} – ${s.data().unit}`;
   } else if (params.get('notice')) {
@@ -71,10 +74,12 @@ async function main() {
     for (const u of list) {
       const bs = u.billId ? await F.getDoc(F.doc(db, 'bills', u.billId)).catch(() => null) : null;
       const b = bs?.exists() ? { id: bs.id, ...bs.data() } : null;
-      parts.push(`<div class="n-set" data-unit="${esc(u.unitId)}">${noticePages(run, u, site, head(site))}${b ? billHTML(b, site) + explainHTML(b, await loadExplainData(fb, b), site, basisText(b, site)) : ''}</div>`);
+      const x = b ? await loadExplainData(fb, b) : null;
+      parts.push(`<div class="n-set" data-unit="${esc(u.unitId)}">${noticePages(run, u, site, head(site))}${b ? billHTML(b, site) + explainHTML(b, x, site, basisText(b, site)) + ledgerHTML(b, x, site, { fold: Boolean(b.quietRevision) }) : ''}</div>`);
     }
     html = parts.join('');
     explainToggle(true);
+    ledgerToggle(withLedger);
     title = only ? `${run.title || 'Notice'} – ${list[0].unit}` : `${list.length} notices: ${run.title || ''}`;
     document.title = only ? `Notice ${list[0].unit} – ${ddmmyyyy(run.letterDate)}` : `Notices ${ddmmyyyy(run.letterDate)}`;
   } else if (params.get('month')) {
@@ -90,9 +95,12 @@ async function main() {
     if (!bills.length) throw new Error(`No bills found for ${monthLabel(month)}.`);
     // 3.27: the explanation page for every bill only when asked (…&explain=1): it reads each unit's whole account.
     const withX = params.get('explain') === '1';
-    const xs = withX ? await Promise.all(bills.map((b) => loadExplainData(fb, b))) : [];
-    html = bills.map((b, i) => billHTML(b, site) + (withX ? explainHTML(b, xs[i], site, basisText(b, site)) : '')).join('');
+    if (withX || withLedger) $('#msg').textContent = `Reading the accounts of ${bills.length} units…`;
+    const xs = withX || withLedger ? await Promise.all(bills.map((b) => loadExplainData(fb, b))) : [];
+    html = bills.map((b, i) => billHTML(b, site) + (withX ? explainHTML(b, xs[i], site, basisText(b, site)) : '')
+      + (withLedger ? ledgerHTML(b, xs[i], site, { fold: Boolean(b.quietRevision) }) : '')).join('');
     explainToggle(withX, true);
+    ledgerToggle(withLedger, true);
     title = `${bills.length} bills for ${monthLabel(month)}`;
     document.title = `Bills ${monthLabel(month)}`;
   } else {
@@ -103,6 +111,21 @@ async function main() {
   $('#tb-title').textContent = title;
   $('#toolbar').hidden = false;
   $('#msg').hidden = true;
+}
+
+const withLedger = params.get('ledger') === '1';
+/** 3.35: toolbar box for the ledger pages (for the month, reloads with or without them). */
+function ledgerToggle(on, reload = false) {
+  const box = document.getElementById('tb-ledger');
+  if (!box) return;
+  box.hidden = false;
+  const cb = box.querySelector('input');
+  cb.checked = on;
+  document.body.classList.toggle('no-ledger', !on);
+  cb.addEventListener('change', () => {
+    if (reload) { const p = new URLSearchParams(location.search); if (cb.checked) p.set('ledger', '1'); else p.delete('ledger'); location.search = p.toString(); return; }
+    document.body.classList.toggle('no-ledger', !cb.checked);
+  });
 }
 
 /** Toolbar box: show or hide the "How this bill is worked out" pages (for the month, reloads with them). */
@@ -201,7 +224,7 @@ function billHTML(b, site) {
     ${(b.liftNotes || []).length ? `<div class="basis"><b>Lift AMC / repairs shared equally by the units served by the lift:</b> ${b.liftNotes.map((n) =>
       `${esc(n.lift === 'CD' ? 'C & D wing lifts' : LIFT_GROUPS[n.lift] || n.lift)} – ${esc(n.kind)}: ${esc(n.description)}${n.invoiceNo ? ` (inv. ${esc(n.invoiceNo)}, ${ddmmyyyy(n.date)})` : ''}, ₹ ${money(n.amount, { slash: false })} ÷ ${n.units} units${n.instalment !== '1/1' ? `, instalment ${n.instalment}` : ''} = ₹ ${money(n.share, { slash: false })}`).join('; ')}</div>` : ''}
     ${basisText(b, site) ? `<div class="basis">${esc(basisText(b, site))}</div>` : ''}
-    ${(b.revisions || []).length ? `<div class="basis revised"><b>Revised bill:</b> ${b.revisions.map((r) => `on ${ddmmyyyy(r.on)}, ${esc(LABEL_OF[r.code] || r.code)} ${r.amount < 0 ? 'reduced' : 'increased'} by ₹ ${money(Math.abs(r.amount), { slash: false })}${r.reason ? ` (${esc(r.reason)})` : ''}`).join('; ')}. This copy replaces the bill issued earlier.</div>` : ''}
+    ${(b.revisions || []).length && !b.quietRevision ? `<div class="basis revised"><b>Revised bill:</b> ${b.revisions.map((r) => `on ${ddmmyyyy(r.on)}, ${esc(LABEL_OF[r.code] || r.code)} ${r.amount < 0 ? 'reduced' : 'increased'} by ₹ ${money(Math.abs(r.amount), { slash: false })}${r.reason ? ` (${esc(r.reason)})` : ''}`).join('; ')}. This copy replaces the bill issued earlier.</div>` : ''}
     <div class="words"><b>Rs. In words</b><span class="fill">${words}${b.unverified ? ' <span class="flag">Opening balance to be verified.</span>' : ''}</span></div>
     <div class="notes">
       <div class="left">

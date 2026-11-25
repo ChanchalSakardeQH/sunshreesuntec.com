@@ -350,10 +350,13 @@ service cloud.firestore {
       allow create: if perm('generateBills') && request.resource.data.billDate > lockDate();
       // A bill stays as issued, except (3.31) a charge removed by the committee from a bill (e.g. added twice by
       // mistake): only the lines, this month's amount and total change, with a revision recorded on the bill.
-      allow update: if isCommittee() && resource.data.billDate > lockDate()
+      allow update: if (isCommittee() && resource.data.billDate > lockDate()
         && changes().hasOnly(['lines', 'current', 'total', 'revisions', 'updatedAt'])
         && request.resource.data.total == resource.data.arrears + request.resource.data.current
-        && request.resource.data.revisions.size() == resource.data.get('revisions', []).size() + 1;
+        && request.resource.data.revisions.size() == resource.data.get('revisions', []).size() + 1)
+        // 3.35: a revised bill that wasn't sent before the correction prints without the "Revised bill" note.
+        || (isCommittee() && changes().hasOnly(['quietRevision', 'updatedAt']) && request.resource.data.quietRevision is bool
+            && resource.data.get('revisions', []).size() > 0);
       allow delete: if false;
     }
 

@@ -11,7 +11,10 @@
   window.addEventListener('load', function () {
     setTimeout(function () {
       var el = document.getElementById('gate') || document.getElementById('msg');
-      if (!el || !/^\s*Loading/.test(el.textContent || '')) return;
+      // 3.35: only when "Loading…" is still showing (the print page hides it, with its text, once the documents are shown)
+      if (!el || el.hidden || el.closest('[hidden]') || !el.offsetParent || !/^\s*Loading/.test(el.textContent || '')) return;
+      var docs = document.getElementById('docs');
+      if (docs && docs.children.length) return;
       var box = document.createElement('div');
       box.className = 'callout warn-note';
       box.setAttribute('role', 'alert');
