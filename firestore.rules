@@ -334,7 +334,13 @@ service cloud.firestore {
     match /bills/{billId} {
       allow read: if perm('view') || approvedFor(resource.data.unitId);
       allow create: if perm('generateBills') && request.resource.data.billDate > lockDate();
-      allow update, delete: if false;     // a bill stays exactly as issued
+      // A bill stays as issued, except (3.31) a charge removed by the committee from a bill (e.g. added twice by
+      // mistake): only the lines, this month's amount and total change, with a revision recorded on the bill.
+      allow update: if isCommittee() && resource.data.billDate > lockDate()
+        && changes().hasOnly(['lines', 'current', 'total', 'revisions', 'updatedAt'])
+        && request.resource.data.total == resource.data.arrears + request.resource.data.current
+        && request.resource.data.revisions.size() == resource.data.get('revisions', []).size() + 1;
+      allow delete: if false;
     }
 
     match /payments/{paymentId} {
@@ -390,7 +396,11 @@ service cloud.firestore {
         && request.resource.data.amount is number && request.resource.data.amount > 0 && request.resource.data.amount <= 1000000
         && request.resource.data.unitId is string && request.resource.data.month is string
         && request.resource.data.month > get(/databases/$(database)/documents/settings/billing).data.get('lastBilledMonth', '');
-      allow update: if resource.data.status == 'pending' && (
+      // 3.31: a charge already on a bill taken off it again (committee): marked reversed.
+      allow update: if (resource.data.status == 'billed' && isCommittee() && resource.data.code != 'interest'
+          && changes().hasOnly(['status', 'reversedAt', 'reversedBy', 'reversedByName', 'reason', 'correctionDate'])
+          && request.resource.data.status == 'reversed')
+        || resource.data.status == 'pending' && (
           (isCommittee() && changes().hasOnly(['status', 'cancelledAt', 'cancelledBy']) && request.resource.data.status == 'cancelled')
           || (perm('corrections') && resource.data.code != 'interest' && changes().hasOnly(['status', 'cancelledAt', 'cancelledBy']) && request.resource.data.status == 'cancelled')
           || (perm('generateBills') && changes().hasOnly(['status', 'billId', 'billNo', 'billedAt']) && request.resource.data.status == 'billed'));

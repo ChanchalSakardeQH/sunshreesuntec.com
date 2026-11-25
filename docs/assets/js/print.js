@@ -5,7 +5,7 @@ import { initFirebase, currentUser, errorText } from './firebase.js';
 import { initOfflineUi } from './offline.js';
 initOfflineUi();
 import { loadSite } from './accounts.js';
-import { PARTICULARS, OPTIONAL, STATUSES, LIFT_GROUPS, money, amountInWords, ddmmyyyy, longDate, monthLabel } from './billing-core.js';
+import { LABEL as LABEL_OF, PARTICULARS, OPTIONAL, STATUSES, LIFT_GROUPS, money, amountInWords, ddmmyyyy, longDate, monthLabel } from './billing-core.js';
 import { esc } from './data.js';
 import { DEFAULT_SITE } from './defaults.js';
 import { loadExplainData, explainHTML } from './billexplain.js';
@@ -201,6 +201,7 @@ function billHTML(b, site) {
     ${(b.liftNotes || []).length ? `<div class="basis"><b>Lift AMC / repairs shared equally by the units served by the lift:</b> ${b.liftNotes.map((n) =>
       `${esc(n.lift === 'CD' ? 'C & D wing lifts' : LIFT_GROUPS[n.lift] || n.lift)} – ${esc(n.kind)}: ${esc(n.description)}${n.invoiceNo ? ` (inv. ${esc(n.invoiceNo)}, ${ddmmyyyy(n.date)})` : ''}, ₹ ${money(n.amount, { slash: false })} ÷ ${n.units} units${n.instalment !== '1/1' ? `, instalment ${n.instalment}` : ''} = ₹ ${money(n.share, { slash: false })}`).join('; ')}</div>` : ''}
     ${basisText(b, site) ? `<div class="basis">${esc(basisText(b, site))}</div>` : ''}
+    ${(b.revisions || []).length ? `<div class="basis revised"><b>Revised bill:</b> ${b.revisions.map((r) => `on ${ddmmyyyy(r.on)}, ${esc(LABEL_OF[r.code] || r.code)} ${r.amount < 0 ? 'reduced' : 'increased'} by ₹ ${money(Math.abs(r.amount), { slash: false })}${r.reason ? ` (${esc(r.reason)})` : ''}`).join('; ')}. This copy replaces the bill issued earlier.</div>` : ''}
     <div class="words"><b>Rs. In words</b><span class="fill">${words}${b.unverified ? ' <span class="flag">Opening balance to be verified.</span>' : ''}</span></div>
     <div class="notes">
       <div class="left">

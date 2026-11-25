@@ -5,7 +5,7 @@ import { initExpenses, loadExpenses, openExpenseById } from './expenses.js';
 import { initOfflineUi, requireOnline } from './offline.js';
 import { PERMS, PERM_LABEL, COMMITTEE_ONLY, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT, setRolePolicies, rolePolicy, roleNames, DEFAULT_ROLE_POLICIES, accessEnds, accessEnded } from './staff.js';
 import {
-  loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment,
+  loadBilling, loadSite, loadUnits, generateMonth, recordPayment, cancelPayment, addAdjustment, reverseBilledCharge,
   updateUnitDetails, importOpening, rebuildPublicDues,
   loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit, publicDuesNeedMasking,
   loadAllLedgers, fyStatement, fyBills, fyPayments, closeFinancialYear, reopenFinancialYear,
@@ -475,12 +475,24 @@ function renderChargeRuns() {
   }
   const can = chCan();
   $('#ch-runs').innerHTML = [...groups.values()].sort((a, b) => String(b.month).localeCompare(String(a.month))).map((g) => {
-    const st = g.list.every((a) => a.status === 'cancelled') ? 'Cancelled' : g.list.every((a) => a.status === 'billed') ? 'On the bills' : g.list.some((a) => a.status === 'billed') ? 'Partly billed' : 'Waiting for the bills';
-    const pend = g.list.filter((a) => a.status === 'pending');
+    const n = (s) => g.list.filter((a) => a.status === s).length;
+    const st = n('cancelled') === g.list.length ? 'Cancelled' : n('reversed') === g.list.length ? 'Taken off the bills' : n('billed') === g.list.length ? 'On the bills' : n('pending') === g.list.length ? 'Waiting for the bills'
+      : [n('billed') && `${n('billed')} on the bills`, n('pending') && `${n('pending')} waiting`, n('reversed') && `${n('reversed')} taken off`, n('cancelled') && `${n('cancelled')} cancelled`].filter(Boolean).join(', ');
+    const pend = g.list.filter((a) => a.status === 'pending'), billed = g.list.filter((a) => a.status === 'billed');
     return `<tr><td><strong>${esc(LABEL[g.code] || g.code)}</strong><span class="sub">${esc(g.detail || '')}</span></td><td>Bills of ${monthLabel(g.month)}</td>
       <td class="num">${g.list.length}</td><td class="num">${fmt(g.list.reduce((t, a) => t + (a.amount || 0), 0))}</td><td>${st}</td>
-      <td>${can && pend.length ? `<button class="btn btn-small btn-danger" type="button" data-ch-cancel="${esc(pend.map((a) => a.id).join(','))}">Cancel ${pend.length === g.list.length ? '' : `${pend.length} not billed`}</button>` : ''}</td></tr>`;
+      <td>${can && pend.length ? `<button class="btn btn-small btn-danger" type="button" data-ch-cancel="${esc(pend.map((a) => a.id).join(','))}">Cancel ${pend.length === g.list.length ? '' : `${pend.length} not billed`}</button>` : ''}
+        ${canDo('committee') && billed.length ? `<button class="btn btn-small btn-danger" type="button" data-ch-reverse="${esc(billed.map((a) => a.id).join(','))}">Take off the bills…</button>` : ''}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">None yet. (Charges debited at once are in each unit’s statement.)</td></tr>';
+  // The same head charged twice to a unit for a month (or the conveyance fee more than once ever).
+  const seen = new Map(), twice = new Set();
+  for (const a of chAdj.filter((x) => x.status === 'pending' || x.status === 'billed')) {
+    const k = a.code === 'conveyance' ? `${a.unitId}|conveyance` : `${a.unitId}|${a.code}|${a.month}`;
+    if (seen.has(k)) twice.add(a.unit || a.unitId); else seen.set(k, a);
+  }
+  const w = $('#ch-twice');
+  w.hidden = !twice.size;
+  w.textContent = twice.size ? `Check: ${twice.size} unit${twice.size === 1 ? ' has' : 's have'} the same charge more than once (${[...twice].slice(0, 12).join(', ')}${twice.size > 12 ? '…' : ''}). If one was added by mistake, use “Take off the bills…” (or Cancel, if not yet billed) on the wrong row.` : '';
 }
 function wireCharges() {
   const f = $('#ch-form'), { F, db } = fb;
@@ -521,8 +533,10 @@ function wireCharges() {
     if (when === 'bill' && !(f.month.value > (lastBilled() || ''))) return setMsg(f, `The bills of ${monthLabel(f.month.value || lastBilled())} are already made; choose a later month, or debit the accounts now.`);
     if (when === 'now' && !f.date.value) return setMsg(f, 'Give the date.');
     // The same head, description and month already added for a unit?
-    const dup = when === 'bill' ? set.filter((x) => chAdj.some((a) => a.unitId === x.u.id && a.code === code && a.month === f.month.value && a.detail === detail && a.status !== 'cancelled')) : [];
-    if (dup.length && !confirm(`${dup.map((x) => x.u.unit).join(', ')} already ha${dup.length === 1 ? 's' : 've'} this charge for ${monthLabel(f.month.value)}. Add it again?`)) return;
+    // The same head already charged to a unit for that month (any description), or the one-time conveyance fee at all.
+    const live = (a) => a.status === 'pending' || a.status === 'billed';
+    const dup = set.filter((x) => chAdj.some((a) => live(a) && a.unitId === x.u.id && a.code === code && (code === 'conveyance' || (when === 'bill' && a.month === f.month.value))));
+    if (dup.length && !confirm(`${dup.map((x) => x.u.unit).join(', ')} already ha${dup.length === 1 ? 's' : 've'} ${code === 'conveyance' ? 'the deemed conveyance fee (charged once only)' : `${LABEL[code]} for ${monthLabel(f.month.value)}`}. Add it again anyway?`)) return;
     const total = set.reduce((t, x) => t + x.amount, 0);
     if (!confirm(`${LABEL[code]}: “${detail}”\n${set.length} unit${set.length === 1 ? '' : 's'}, total ₹${fmt(total)}, ${when === 'bill' ? `on the bills of ${monthLabel(f.month.value)}` : `debited now, dated ${dmy(f.date.value)}`}. Go ahead?`)) return;
     busy($('#ch-save'), async () => {
@@ -549,6 +563,25 @@ function wireCharges() {
     });
   });
   $('#ch-runs').addEventListener('click', (e) => {
+    const rv = e.target.closest('[data-ch-reverse]');
+    if (rv) {
+      const ids = rv.dataset.chReverse.split(','), a0 = chAdj.find((a) => a.id === ids[0]);
+      const reason = prompt(`Take “${LABEL[a0.code]}: ${a0.detail}” off ${ids.length} bill${ids.length === 1 ? '' : 's'} (${monthLabel(a0.month)})? Each bill is revised (this line reduced, the total corrected, a note printed on it) and the unit’s account credited.\n\nReason (printed on the bill):`, 'Added twice by mistake');
+      if (reason === null) return;
+      busy(rv, async () => {
+        const m = $('#ch-msg'); let done = 0; const failed = [];
+        for (const id of ids) {
+          try { await reverseBilledCharge(fb, id, reason.trim() || 'Correction', me?.name || ''); done++; m.className = 'form-msg ok'; m.textContent = `Taking off: ${done} of ${ids.length}…`; }
+          catch (err) { failed.push(`${chAdj.find((a) => a.id === id)?.unit || id}: ${errorText(err)}`); }
+        }
+        units = await loadUnits(fb);
+        m.className = failed.length ? 'form-msg' : 'form-msg ok';
+        m.textContent = `${done} bill${done === 1 ? '' : 's'} revised and the accounts credited.${failed.length ? ` Not done: ${failed.join('; ')}` : ' Print them again from the list of bills (they say “Revised bill”).'}`;
+        await setupCharges();
+        await listBills($('#bills-month').value || monthOf(todayIST())).catch(() => null);
+      });
+      return;
+    }
     const b = e.target.closest('[data-ch-cancel]');
     if (!b) return;
     const ids = b.dataset.chCancel.split(',');

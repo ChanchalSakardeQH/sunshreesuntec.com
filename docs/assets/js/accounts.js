@@ -2,7 +2,7 @@
 // transaction that updates the unit's running balance and its ledger together.
 
 import {
-  computeBill, billNumber, billId, monthBounds, financialYear, receiptNumber, round, monthLabel, todayIST,
+  computeBill, billNumber, billId, monthBounds, financialYear, receiptNumber, round, monthLabel, todayIST, LABEL,
   categoryIdFor, liftGroupFor, liftExpenseEndMonth, buildContext, prepareExtras, extrasForUnit, maskedDues,
   fyBounds, longDate
 } from './billing-core.js';
@@ -301,6 +301,54 @@ export async function cancelPayment(fb, paymentId, reason) {
     });
     tx.update(unitRef, { balance: after, interestDue: Math.max(0, round(unit.interestDue)) + (pay.interestCleared || 0), updatedAt: F.serverTimestamp() });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after });
+  });
+}
+
+/**
+ * 3.31: takes a charge (billAdjustments, status billed) off the bill it went on, e.g. a charge added twice by mistake.
+ * In one transaction: the bill's line is reduced (removed if nothing is left; the description of this charge taken out
+ * of its note), this month's amount and the total go down and a revision is recorded on the bill; a ledger credit
+ * (kind charge, dated the bill date or today if later) and the unit's balance follow; the charge is marked reversed.
+ */
+export async function reverseBilledCharge(fb, adjId, reason, byName) {
+  const { F, db, auth } = fb;
+  const adjRef = F.doc(db, 'billAdjustments', adjId);
+  const pubRef = F.doc(db, 'private', 'dues');
+  return F.runTransaction(db, async (tx) => {
+    const adjSnap = await tx.get(adjRef);
+    const a = adjSnap.data();
+    if (!a || a.status !== 'billed' || !a.billId) throw new Error('This charge is not on a bill.');
+    const billRef = F.doc(db, 'bills', a.billId), unitRef = F.doc(db, 'units', a.unitId);
+    const [billSnap, unitSnap, pubSnap] = await Promise.all([tx.get(billRef), tx.get(unitRef), tx.get(pubRef)]);
+    const bill = billSnap.data(), unit = { id: a.unitId, ...unitSnap.data() };
+    const amt = round(a.amount);
+    const i = (bill.lines || []).findIndex((l) => l.code === a.code);
+    if (i < 0 || round(bill.lines[i].amount) < amt) throw new Error(`${bill.billNo} has no such amount under that head.`);
+    const lines = bill.lines.map((l) => ({ ...l }));
+    const left = round(lines[i].amount) - amt;
+    if (left <= 0) lines.splice(i, 1);
+    else {
+      lines[i].amount = left;
+      if (lines[i].detail) {
+        const parts = lines[i].detail.split('; '), k = parts.indexOf(a.detail || '');
+        if (k >= 0) parts.splice(k, 1);
+        lines[i].detail = parts.join('; ');
+        if (!lines[i].detail) delete lines[i].detail;
+      }
+    }
+    const current = round(bill.current) - amt;
+    const today = todayIST(), date = bill.billDate > today ? bill.billDate : today;
+    tx.update(billRef, { lines, current, total: round(bill.arrears) + current, updatedAt: F.serverTimestamp(),
+      revisions: [...(bill.revisions || []), { on: today, by: auth.currentUser.uid, byName: byName || '', code: a.code, amount: -amt, detail: a.detail || '', reason }] });
+    tx.set(F.doc(F.collection(db, 'units', a.unitId, 'ledger')), {
+      date, particulars: `Correction to bill ${bill.billNo}: ${LABEL[a.code] || a.code} ₹${amt} taken off (${reason})`.slice(0, 240),
+      receipt: '', debit: 0, credit: amt, kind: 'charge', code: a.code, ref: a.billId, createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
+    });
+    const after = round(unit.balance) - amt;
+    tx.update(unitRef, { balance: after, updatedAt: F.serverTimestamp() });
+    patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after });
+    tx.update(adjRef, { status: 'reversed', reversedAt: F.serverTimestamp(), reversedBy: auth.currentUser.uid, reversedByName: byName || '', reason, correctionDate: date });
+    return { billNo: bill.billNo, amount: amt };
   });
 }
 

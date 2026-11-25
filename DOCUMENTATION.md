@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.30.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.31.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -309,7 +309,7 @@ Scope is all units or one block. A penalty above ₹5,000 per member is refused.
 ## 8. Payments, receipts and interest
 
 ### 7A. Charges recovered from units (3.30)
-Bills → *Charges to recover from units*. Choose the head (*Deemed Conveyance Legal Fee*, *Legal Notice & Recovery Expenses*, cheque return, penalty, others), write the description the member will see, put the amount against the units (one amount for all shown, or the units of a recovery notice), and choose **on the bills of** a month not yet billed (a `billAdjustments` entry per unit, code = head, `source: 'charge'`, billed with the month like the interest on past arrears) or **debit at once** (ledger entry `kind: 'charge'`, `code`). Charges not yet billed can be cancelled. Example: the deemed conveyance legal-process fee of ₹6,500 per unit (notice of 15/10/2026) on the December 2026 bills.
+Bills → *Charges to recover from units*. Choose the head (*Deemed Conveyance Legal Fee*, *Legal Notice & Recovery Expenses*, cheque return, penalty, others), write the description the member will see, put the amount against the units (one amount for all shown, or the units of a recovery notice), and choose **on the bills of** a month not yet billed (a `billAdjustments` entry per unit, code = head, `source: 'charge'`, billed with the month like the interest on past arrears) or **debit at once** (ledger entry `kind: 'charge'`, `code`). Charges not yet billed can be cancelled; charges already on bills are taken off with **Take off the bills…** (committee, 3.31): each bill is revised in place (line, this month's amount, total, a revision recorded and printed as *Revised bill*), the account credited (ledger *Correction to bill …*, kind *charge*, dated the bill date) and the charge marked reversed. Bills are never made again or deleted. Example: the deemed conveyance legal-process fee of ₹6,500 per unit (notice of 15/10/2026) on the December 2026 bills.
 
 ### 8.0 Payments reported by members (3.29)
 A unit's owner, family member or tenant reports a payment on their page (*Paid maintenance? Tell the Society*) with the UTR / cheque no. and the proof. The Society's mailbox is told. Payments → *Payments reported by members* (red count): open the proof, find the credit in the bank statement, then **Verify…** (the payment form is filled from the report; correct date / amount to the bank; tick *found in the bank statement*; a warning shows if a receipt with the same reference or amount is already there) → the receipt is made as usual and the member is emailed. Otherwise **Ask for details** or **Not found** (both emailed). Nothing reaches the balance until verified.

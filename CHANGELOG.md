@@ -6,6 +6,58 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.31.0] – 2026-11-25 – Taking a charge off bills already made (e.g. the conveyance fee added twice)
+
+### Fixed
+- The December 2026 bills had the deemed conveyance fee twice (₹13,000: “6500; Deemed Conveyance Legal Fees for all members”) because the charge had been added twice with different descriptions; the duplicate check only compared charges with the same description.
+
+### Added
+- **Bills → Charges to recover → Take off the bills…** (committee) on a row already on the bills: for each unit, in one transaction, the bill is **revised** (that head reduced by the amount — the line removed if nothing is left — and its note without that description; this month's amount and the total corrected; a revision recorded on the bill: date, who, head, amount, reason), the unit's account is **credited** (ledger entry *Correction to bill …*, kind *charge*, dated the bill date or today if later; balance and website dues updated) and the charge is marked **reversed**. Bills (and their numbers) are not made again; the reprint says **“Revised bill: on … reduced by ₹ … (reason). This copy replaces the bill issued earlier.”**
+
+- **Duplicate warnings:** the list of charges says which units have the same head more than once for a month (or the one-time conveyance fee at all more than once); adding a charge now warns for the same head and month whatever the description, and for the conveyance fee whenever a unit already has it.
+
+- The status of a row counts how many are on the bills, waiting, taken off or cancelled.
+
+  ----
+
+  The fee appears twice because the charge was entered twice, once with the description "6500" and once with "Deemed Conveyance Legal Fees for all members". The December run billed both. My duplicate warning only compared charges with the same description, so it missed this.
+
+  The website doesn't regenerate or delete bills, to keep bill numbers and the ledger intact. Version 3.31.0 adds a way to correct a bill instead. The new tests (8 checks) and all 30 suites pass, but only on test data, so your live December bills are still showing ₹13,000.
+
+  **To fix December (takes a minute)**
+
+  1. Push the zip and publish `firestore.rules`. Without the new rules, bills can't be corrected.
+  2. Go to Bills → **Charges to recover from units**. A note now says which units are charged twice.
+  3. On the row whose description is just **"6500"**, press **Take off the bills…**. Enter a reason, for example "Added twice by mistake"; it is printed on the bill.
+  4. For every unit, this:
+     - reduces the bill's conveyance line to ₹6,500, leaving the description "Deemed Conveyance Legal Fees for all members";
+     - corrects this month's charges and the total;
+     - credits ₹6,500 back to the unit's account, dated 01/12/2026, so the balance and website dues are correct;
+     - marks that charge as reversed.
+  5. Print the bills again (Print all bills). Each one keeps its bill number and says "Revised bill: on 25/11/2026, Deemed Conveyance Legal Fee reduced by ₹ 6,500 (Added twice by mistake). This copy replaces the bill issued earlier."
+
+  For A 101, this month's charges go from ₹75,894 to ₹69,394 and the total from ₹1,17,104 to ₹1,10,604.
+
+  **To stop it happening again**
+
+  - The deemed conveyance fee is now treated as a one-time charge: adding it for a unit that already has it asks for confirmation, whatever the description.
+  - Other heads warn if the same unit already has that head for the same month.
+
+  The penal interest on the December bills isn't affected, because it was worked out on the arrears before this bill. The extra ₹6,500 never reached the arrears, so no interest was charged on it. There's no Drive script change this time.
+
+  -----
+
+  
+
+### Rules
+- `bills`: still never deleted; the committee may revise a bill dated after the closed year, changing only its lines, this month's amount, the total (= arrears + this month) and adding exactly one revision.
+- `billAdjustments`: a billed charge (not interest) may be marked *reversed* by the committee.
+
+### Tested
+- New suite t331 (8 checks): duplicate pointed out; the wrong row taken off two bills — bill revised to ₹6,500 once with the right note and totals, one revision, account credited on the bill date, balances down, wrong charges reversed and the right ones kept, no duplicate left; the reprint says *Revised bill*. All earlier suites pass.
+
+---
+
 ## [3.30.0] – 2026-11-25 – Charges recovered from units: deemed conveyance fee, legal notice and other expenses
 
 ### Added
@@ -20,37 +72,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ### Notes
 - Once on a bill (or debited), a charge is part of the unit's dues like any other: unpaid, it is in the arrears and attracts penal interest as the bills do.
-
----
-
-Version 3.30.0 is ready: you can now add the ₹6,500 deemed conveyance fee and the legal notice expenses to individual units. A new test suite (15 checks) and all 28 earlier suites pass, but only on test data, so nothing has been charged to your live units yet.
-
-**Where:** Bills → **Charges to recover from units**. The committee and the Accountant can use it.
-
-**1. The ₹6,500 deemed conveyance fee (notice dated 15 October 2026)**
-
-1. Choose the head **Deemed Conveyance Legal Fee**. The description fills itself in: "Deemed conveyance legal-process fee (notice dated 15/10/2026)".
-2. Type 6500 and press **Put it for all units shown**. Clear the amount for any unit that shouldn't pay.
-3. Choose **On the bills of December 2026**. October and November are already billed, so the form won't accept an earlier month.
-4. On the December bill, each unit gets a separate line, "Deemed Conveyance Legal Fee ₹6,500". The description appears on the "How this bill is worked out" page.
-
-**2. Expenses for particular units (legal notice, post, printing, stationery, xerox)**
-
-1. Choose the head **Legal Notice & Recovery Expenses** and describe what it was for, for example "Final notice 25/11/2026: registered post, printing and copies".
-2. Type the amount against each unit. Or pick a recovery notice you prepared, and its units get the same amount each, e.g. ₹350.
-3. Choose either **on the next bill** or **debit the account now** with a date. Debiting now updates the balance immediately and shows in the member's statement; it then appears in the arrears on the next bill.
-
-**Other points**
-
-- **Other heads:** Cheque Return Charges, Penalty (limited to ₹5,000 a year per member under Bye-law 165) and Any Others Charges.
-- **Cancelling:** charges waiting for a bill are listed with their totals and can be cancelled until the bill is made.
-- **Interest:** once billed or debited, a charge is part of the unit's dues. If it stays unpaid, it attracts penal interest like everything else, which fits the October notice saying interest may be levied on overdue charges. If the fee should never attract interest, tell me and I'll keep it separate.
-
-Your notice lists A 100, C 100 and D 202 as "Not listed" but still shows ₹6,500 for them, and keeps a provisional 66th unit. Untick any unit before saving if the committee hasn't confirmed it.
-
----
-
-
 
 ### Rules
 - `billAdjustments`: besides the committee's interest on past arrears, the committee or *corrections* create charges of the heads above (with a description of up to 200 characters, amount up to ₹10,00,000, only for a month after the last billed) and cancel them while not yet billed.
