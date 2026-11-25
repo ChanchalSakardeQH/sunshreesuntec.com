@@ -140,6 +140,8 @@ GitHub pauses scheduled workflows in a repo with no commits for 60 days. If that
 
 Every bill, payment, cancellation and correction updates the unit's ledger, its balance and the public dues page together in one database transaction.
 
+**The accounts page stays on “Loading…” or says “The page didn't start”:** press Ctrl + F5. If it remains, the website files on the server come from different versions — the grey line names the file. Upload all files of every release zip in order (each zip holds only the files changed in that version).
+
 ## 6. What members see
 
 1. They register on the website (**Member login → Register**) with name, unit, 10-digit mobile and email, and confirm their email.

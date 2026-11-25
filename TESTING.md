@@ -203,6 +203,12 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 1 | Bills → Charges to recover → Deemed Conveyance Legal Fee → ₹6,500 for all → on the bills of next month | Listed as waiting; next month's bills have the line |
 | 2 | Legal Notice & Recovery Expenses → the units of a notice at ₹350 → debit now | Ledger entries; balances up by ₹350 |
 
+### Page start check (3.34.1)
+| # | Do | Expected |
+|---|---|---|
+| 1 | After uploading, open the accounts page and press Ctrl + F5 | Accounts open; footer *Software version 3.34.1* |
+| 2 | (Test copy only) rename `assets/js/signin.js` on the test copy, open the accounts page, wait 12 s | *The page didn't start*, naming the missing file; rename it back |
+
 ### Activity trail (3.34) — on the test copy
 | # | Do | Expected |
 |---|---|---|

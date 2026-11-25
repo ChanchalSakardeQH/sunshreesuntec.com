@@ -75,10 +75,20 @@ export function showMsg(container, text, kind = 'error', details = '') {
 const REDIRECT_KEY = 'ssGoogleRedirect';
 let running = false;
 
+/**
+ * 3.33.1: Google refusing this app copy. Google reports it as "cancelled by the user" ([16] Account reauth failed,
+ * [10] developer error) — usually because the app's signing SHA-1 isn't registered in Firebase — sometimes after
+ * showing its sheet for a few seconds, so the time alone (quick) doesn't catch it.
+ */
+export const REFUSED_RE = /reauth failed|\[16\]|\[10\]|developer.?error/i;
+const refusedByGoogle = (r) => r.code === 'app-not-accepted' || (r.status === 'cancelled' && (r.quick || REFUSED_RE.test(r.message || '')));
+const refusedCode = (r) => (r.code === 'app-not-accepted' || REFUSED_RE.test(r.message || '') ? 'app-not-accepted' : 'closed-at-once');
+export const BROWSER_SITE = 'https://sunshreesuntec.com/';
+
 const appMessage = (r) => {
-  if (r.status === 'cancelled' && r.quick) {
-    return 'Google sign-in closed by itself, so you are not signed in. This copy of the app isn’t accepted by Google yet. '
-      + 'For now, open sunshreesuntec.com in the phone’s browser (Chrome) to register or sign in there. The committee can see this problem in the sign-in history.';
+  if (refusedByGoogle(r)) {
+    return 'Google didn’t accept the sign-in from this app on your phone, so you are not signed in (this is not your mistake). '
+      + 'Please sign in on sunshreesuntec.com in the phone’s browser (Chrome) for now. The committee has been told and is fixing the app.';
   }
   return ({
     'no-account': 'No Google account was found on this phone. Add your Gmail in the phone’s Settings → Accounts, then try again.',
@@ -88,7 +98,8 @@ const appMessage = (r) => {
 };
 
 const appDetails = (r, ms) => [
-  `Code: ${r.status === 'cancelled' && r.quick ? 'closed-at-once' : (r.code || r.status)}`,
+  `Code: ${refusedByGoogle(r) ? refusedCode(r) : (r.code || r.status)}`,
+  r.message ? cut(r.message, 80) : '',
   `${Math.round(ms)} ms`,
   r.app ? `app ${r.app}` : '', r.device ? `${r.device}, Android ${r.android}` : '',
   r.sha1 ? `key SHA-1 ${r.sha1}` : '',
@@ -125,7 +136,8 @@ async function appGoogle(fb, page, say, ms) {
   } catch (err) {
     r = { status: 'error', code: err?.code === 'app/failed' ? 'app-error' : 'bridge', message: err?.message || String(err) };
   }
-  if (r.status === 'cancelled' && !r.quick) {
+  if (!r.sha1) { const info = appInfo(); if (info) r = { ...info, ...r }; }
+  if (r.status === 'cancelled' && !refusedByGoogle(r)) {
     say('Google sign-in was closed before an account was chosen. Tap “Continue with Google” to try again.', 'info');
     logSignIn(fb, { method: 'google', page, result: 'cancelled', code: r.code || 'cancelled', detail: r.message, ms: ms() });
     return false;
@@ -134,9 +146,13 @@ async function appGoogle(fb, page, say, ms) {
     const details = appDetails(r, ms());
     say(appMessage(r), 'error', details);
     logSignIn(fb, {
-      method: 'google', page, result: 'failed', code: r.status === 'cancelled' ? 'closed-at-once' : (r.code || 'error'),
+      method: 'google', page, result: 'failed', code: refusedByGoogle(r) ? refusedCode(r) : (r.code || 'error'),
       detail: [r.message, r.sha1 ? `app key SHA-1 ${r.sha1}` : '', r.versionCode ? `app code ${r.versionCode}` : ''].filter(Boolean).join(' | '), ms: ms()
     });
+    // Don't leave the person stuck: offer the website in the phone's browser (links outside the app open there).
+    if (refusedByGoogle(r) && window.confirm('Google didn’t accept the sign-in from this app.\n\nOpen sunshreesuntec.com in the phone’s browser (Chrome) to sign in there?')) {
+      location.href = BROWSER_SITE + (page === 'admin' ? 'admin.html' : '#member');
+    }
     return false;
   }
   say('Google account chosen. Signing you in…', 'info');

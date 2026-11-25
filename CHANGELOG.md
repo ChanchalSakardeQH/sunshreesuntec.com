@@ -6,6 +6,20 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.34.1] – 2026-11-25 – Accounts page stuck on “Loading…”; a clear message when the page can't start
+
+### Fixed
+- **sunshreesuntec.com/admin.html stayed on “Loading…”** after 3.34.0 was published. The 3.33.1 files had not been uploaded, so the server had the 3.34 `admin.js` with the older `signin.js`. The browser refuses to start a page whose files don't fit together (*“The requested module './signin.js' does not provide an export named 'REFUSED_RE'”*), and the page waited forever. **Upload this zip:** it carries every file changed in 3.33.1, 3.34.0 and 3.34.1, so nothing is missed.
+- The browser's “Content Security Policy blocks eval” note in DevTools → Issues is not from this website (it comes from a browser extension or Google's own scripts) and doesn't stop the page.
+
+### Added
+- `startcheck.js` (accounts and print pages): if the page hasn't started 12 seconds after loading, “Loading…” is replaced by **“The page didn't start — press Ctrl + F5 …”** with the browser's error underneath (e.g. which file is missing or out of date), so the problem is clear and can be reported.
+
+### Tested
+- New suite t3341: with the 3.32 `signin.js` served beside the 3.34 accounts page the same error appears and the message shows it; a normal start shows no message; the print page with a missing file shows the message too.
+
+---
+
 ## [3.34.0] – 2026-11-25 – Activity trail: who changed what in the accounts, and putting mistakes right
 
 ### Added
@@ -34,49 +48,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 - Publish the website and the **database rules**. Rebuild the Android app (it carries the website), so payments recorded in the app are in the trail.
 - Leave *Require an entry* off until every staff member uses website 3.34 or the rebuilt app; turn it on then.
 - Only the Firebase project owner (in the Firebase console) could remove entries; keep that account to the website owner.
-
----
-
-Version 3.34.0 adds a new **Activity** tab. It keeps a permanent record of every money change in the accounts, whether made by the committee, staff or the automatic monthly bills. All test suites pass, but only on test data. I couldn't test the new database rules here, so try them on your test copy before the live site.
-
-**What each entry records:**
-
-- **Who and when:** the person's name and role, whether committee or staff, and the time from Google's server (not the phone or PC clock).
-- **What changed:** what was done, the unit, the amount, and the unit's balance before and after.
-- **References:** the receipt or bill number and the reason given.
-- **Rates and settings:** for rate, unit-detail and billing-setting changes, each field's old value and new value.
-- **Where from:** whether it came from the website, the Android app or the monthly bills on GitHub.
-- What's covered:
-  - receipts issued and cancelled;
-  - bills, and charges added, taken off a bill or cancelled;
-  - corrections and interest runs;
-  - old 2011–2016 receipt fixes;
-  - unit edits, lift expenses, billing settings, imports, and closing or reopening a financial year.
-
-**How you can investigate:**
-
-- Filter by period, person, staff only, type of change or unit, or search for a receipt number, amount or old value.
-- **Export CSV** for Excel.
-- In each unit file, **Who changed this account** shows that unit's full history.
-- **Check all balances against their ledgers** finds any unit whose balance was changed without a matching ledger entry. The committee can then set it back to the ledger total.
-
-**Fixing a mistake** is one button on the entry, plus a reason:
-
-- A wrong receipt → **Cancel this receipt**.
-- A wrong correction or charge → **Reverse with an opposite entry**.
-- A wrong bill → **Credit this bill's amount back** (committee only; the bill itself stays as issued).
-- Charges not yet billed → **Cancel those still waiting**.
-
-The fix is saved as a new entry linked to the original, and the original is marked "Corrected … by …".
-
-**Who can see it and what's protected:**
-
-- Each entry is saved together with the payment, bill or correction it records, so one can't be saved without the other.
-- Nobody, including the committee, can edit or delete an entry from the website. Only the Firebase project owner could, in the Firebase console, so keep that account with you.
-- Entries are included in the scheduled Google Drive backups.
-- The committee can see the tab. Staff only see it if you tick the new permission **See the activity trail**, which is now ticked by default for the Auditor role.
-
------
 
 ### Tested
 - New suite t334 (25 checks): entries for a receipt, a correction, a unit edit and a month's bills by a staff accountant (name, role, kind, balance before/after, links, server time, version); the unit points at its entry; Activity tab, filters by kind and unit, search by changed value, totals; reversing a wrong correction and cancelling a wrong receipt from the trail (linked, marked corrected, no second button); bills offered as credit back; balance check and set to ledger total; CSV; require setting; unit file link; auditor sees but can't correct; manager without the permission doesn't see it; permission listed on the Staff page. All earlier suites pass.

@@ -374,6 +374,8 @@ Source: Sundry Debtors – Group Summary, 1 Apr 2018 to 30 Sep 2026 (closing bal
 ### Corrections
 Units → Open → Add a correction: debit (adds to dues) or credit (reduces dues), with date and particulars. Use for verified opening balances, waived amounts approved by the committee, or entries made against the wrong unit. Tick **Opening balance is now verified** to remove the flag.
 
+**Start check (3.34.1):** `startcheck.js`, a plain (non-module) script on `admin.html` and `print.html`, records script errors and, 12 s after `load`, replaces a `#gate` / `#msg` still reading *Loading…* with *The page didn't start* (Ctrl + F5; tell the maintainer) and the first errors. Usual cause: website files uploaded from different versions (a module importing a name the other file doesn't export yet). Upload every file of each release zip, in order.
+
 ### 10A. Activity trail (3.34)
 **Accounts → Activity** (committee; staff or auditors given *See the activity trail*). One permanent entry in `auditLog` for every change to money in the accounts, written by `audit.js`:
 
