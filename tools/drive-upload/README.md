@@ -72,6 +72,9 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.29 (script version 16):** payments reported by members (proofs in *Payments reported*, emails to the Society and the
+member). No new permission: paste Code.gs, then Manage deployments → Edit → New version.
+
 **3.28 (script version 15):** moving library files when their category changes; emails to members copied (cc) to the
 Society's mailbox. No new permission: paste Code.gs, then Manage deployments → Edit → New version.
 

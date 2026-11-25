@@ -403,6 +403,30 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // 3.29: payments reported by members (a unit's member tells the Society they have paid, with proof); the
+    // Treasurer / Accountant checks the bank and verifies it (the receipt is made as usual) or not.
+    match /paymentClaims/{id} {
+      function claimOk(d) {
+        return d.unitId is string && d.unit is string && d.date is string && d.date.matches('^20[0-9]{2}-[0-9]{2}-[0-9]{2}$')
+          && d.amount is number && d.amount > 0 && d.amount <= 10000000
+          && d.mode is string && d.mode.size() <= 30 && d.reference is string && d.reference.size() <= 80
+          && d.files is list && d.files.size() <= 5 && d.get('note', '').size() <= 500;
+      }
+      allow read: if perm('view') || (signedIn() && resource.data.uid == request.auth.uid) || approvedFor(resource.data.unitId);
+      allow create: if memberOf(request.resource.data.unitId) && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'submitted' && claimOk(request.resource.data)
+        && request.resource.data.submittedAt == request.time;
+      // The member: change or withdraw while it is waiting, or answer a question (back to submitted).
+      allow update: if (signedIn() && resource.data.uid == request.auth.uid && resource.data.status in ['submitted', 'query']
+          && request.resource.data.status in ['submitted', 'withdrawn'] && claimOk(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['date', 'amount', 'mode', 'reference', 'bank', 'paidBy', 'billNo', 'note', 'files', 'status', 'round', 'updatedAt', 'answer']))
+        // Those who record payments: verified (with the receipt), not found, or a question.
+        || (perm('recordPayments') && request.resource.data.status in ['verified', 'rejected', 'query']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decisionNote', 'decidedBy', 'decidedByName', 'decidedRole', 'decidedAt', 'paymentId', 'receiptNo', 'updatedAt'])
+          && (request.resource.data.status != 'verified' || request.resource.data.receiptNo is string));
+      allow delete: if false;
+    }
+
     // 3.28: demand / recovery notices prepared for units with dues (text, units, amounts, registered post numbers).
     match /noticeRuns/{id} {
       allow read: if perm('view');

@@ -190,6 +190,13 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 2 | Website → Pause the website now; open the test site in a private window | Only the maintenance page; Resume brings it back |
 | 3 | Library → tick two → Move to *Scanned copy*; click *Public* on one | Category and Drive folder change; it becomes Private |
 
+### Payments reported by members (3.29)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Test member → My page → *Paid maintenance? Tell the Society* with a screenshot | Listed as waiting; emails to the TEST Society mailbox and the member |
+| 2 | Test site accounts → Payments → *Payments reported by members* → Verify… → tick found → Verify | Receipt made, balance down; member sees *Verified* with the receipt; email |
+| 3 | Another report → *Ask for details* → member adds a file | Back to waiting, round 2 |
+
 ---
 
 ## D. Clearing the test copy

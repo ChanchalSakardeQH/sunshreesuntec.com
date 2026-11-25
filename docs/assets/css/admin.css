@@ -441,3 +441,13 @@ fieldset.lib-guide { border: 1px solid var(--line); border-radius: 8px; padding:
 .nt-run { border: 1px solid var(--line); border-radius: 8px; padding: .5rem .8rem; margin: .5rem 0; }
 .nt-run summary { cursor: pointer; }
 #nt-box > summary { cursor: pointer; }
+
+/* 3.29: payments reported by members */
+#pcl-box > summary { cursor: pointer; }
+.pcl-count { display: inline-block; min-width: 1.4em; padding: 0 .45em; border-radius: 999px; background: #c0392b; color: #fff; font-size: .8rem; text-align: center; }
+.pcl-count:empty { display: none; }
+.pcl-table td { vertical-align: top; }
+.pcl-table .sub { display: block; font-size: .82rem; color: var(--muted); }
+.pcl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .5rem 1rem; }
+.pcl-dup { background: #fff4e0; border: 1px solid #f0c27a; border-radius: 8px; padding: .45rem .7rem; }
+#pcl-dialog { width: min(44rem, 94vw); }

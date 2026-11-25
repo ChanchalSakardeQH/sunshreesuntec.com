@@ -208,6 +208,36 @@
     <!-- PAYMENTS -->
     <section class="tab" data-tab="payments" hidden>
       <h1>Payments and receipts</h1>
+
+      <details class="callout" id="pcl-box">
+        <summary><strong>Payments reported by members</strong> <span class="pcl-count" id="pcl-count"></span></summary>
+        <p class="small-note">A unit’s owner, family member or tenant reports a payment with the proof. Check it in the Society’s bank statement, then <strong>Verify and make the receipt</strong> (the receipt is made as for any payment, and the member is emailed), <strong>Ask for details</strong>, or mark it <strong>Not found in the bank</strong>.</p>
+        <div class="filter-row"><label>Show<select id="pcl-show"><option value="submitted">Waiting to be checked</option><option value="query">Asked for details</option><option value="verified">Verified</option><option value="rejected">Not found</option><option value="all">All</option></select></label></div>
+        <div class="table-scroll"><table class="pcl-table">
+          <thead><tr><th>Unit</th><th>Paid on</th><th class="num">Amount (₹)</th><th>How / reference</th><th>Reported by</th><th>Status</th><th></th></tr></thead>
+          <tbody id="pcl-rows"></tbody>
+        </table></div>
+        <p class="form-msg" id="pcl-msg" role="status"></p>
+        <dialog id="pcl-dialog">
+          <form id="pcl-form" class="form" method="dialog" novalidate>
+            <h2 id="pcl-title">Verify the payment</h2>
+            <p class="small-note" id="pcl-info"></p>
+            <p class="pcl-dup" id="pcl-dup" hidden></p>
+            <div class="form-grid pcl-grid">
+              <label>Date credited / paid<input type="date" name="date" required></label>
+              <label>Amount (₹)<input type="number" name="amount" min="1" step="1" required></label>
+              <label>Mode<select name="mode"></select></label>
+              <label>UTR / cheque / ref. no.<input type="text" name="reference"></label>
+              <label>Bank (for cheques)<input type="text" name="bank"></label>
+              <label>Against bill no.<input type="text" name="billNo"></label>
+            </div>
+            <label>Note on the receipt<input type="text" name="note"></label>
+            <label class="check"><input type="checkbox" name="matched"> I have found this amount in the Society’s bank statement</label>
+            <p class="form-msg" role="alert"></p>
+            <div class="form-actions"><button class="btn btn-primary" type="submit" id="pcl-verify">Verify and make the receipt</button><button class="btn" type="button" data-close>Cancel</button></div>
+          </form>
+        </dialog>
+      </details>
       <form id="pay-form" class="form entry-form" data-perm="recordPayments" novalidate>
         <label class="wide">Unit<select name="unitId" id="pay-unit" required><option value="">Choose unit</option></select></label>
         <p class="wide pay-info muted" id="pay-info"></p>
@@ -1692,7 +1722,7 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
       </form>
     </section>
-    <p class="muted mt" id="version-note">Software version 3.28.0</p>
+    <p class="muted mt" id="version-note">Software version 3.29.0</p>
   </main>
 
   <script type="module" src="assets/js/admin.js"></script>

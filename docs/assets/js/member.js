@@ -314,6 +314,7 @@ function renderStatus(user) {
 function wireForms() {
   wireMemberDocs();
   wireMyTransfers();
+  wirePayClaims();
   const { A, F, auth, db } = fb;
   $('#auth-panels').hidden = false;
   const sayGoogle = (text, kind, details) => showMsg($('#google-box'), text, kind, details);
@@ -762,12 +763,134 @@ function wireMyTransfers() {
   });
 }
 
+/* 3.29: payments reported by the unit's members (paymentClaims), verified by the Treasurer / Accountant */
+let pcList = [], pcNew = [], pcKeep = [], pcEdit = null;
+const PC_STATUS = { submitted: 'Waiting for the Treasurer to check the bank', verified: 'Verified', rejected: 'Not found in the bank', query: 'More details needed', withdrawn: 'Withdrawn' };
+async function loadPayClaims() {
+  const { F, db } = fb, f = $('#pc-form');
+  if (!f.date.value) f.date.value = todayIST();
+  if (!f.paidBy.value) f.paidBy.value = profile.name || '';
+  // Own reports, and (for those who see the unit's account) everyone's for the unit.
+  const own = await F.getDocs(F.query(F.collection(db, 'paymentClaims'), F.where('uid', '==', fb.auth.currentUser.uid))).catch(() => ({ docs: [] }));
+  const unit = profile.access !== 'basic' ? await F.getDocs(F.query(F.collection(db, 'paymentClaims'), F.where('unitId', '==', profile.unit))).catch(() => ({ docs: [] })) : { docs: [] };
+  const map = new Map([...own.docs, ...unit.docs].map((d) => [d.id, { id: d.id, ...d.data() }]));
+  pcList = [...map.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)) || (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  if (profile.access !== 'basic' && f.billNo.options.length <= 1) {
+    const bills = await F.getDocs(F.query(F.collection(db, 'bills'), F.where('unitId', '==', profile.unit))).catch(() => ({ docs: [] }));
+    f.billNo.innerHTML = '<option value="">—</option>' + bills.docs.map((d) => d.data()).sort((a, b) => b.month.localeCompare(a.month)).slice(0, 12)
+      .map((b) => `<option value="${esc(b.billNo)}">${esc(b.billNo)} – ${monthLabel(b.month)} (₹${fmt(b.total)})</option>`).join('');
+  }
+  renderPayClaims();
+}
+function renderPayClaims() {
+  const me = fb.auth.currentUser.uid;
+  $('#pc-rows').innerHTML = pcList.map((c) => {
+    const mine = c.uid === me, open = mine && ['submitted', 'query'].includes(c.status);
+    return `<tr><td>${ddmmyyyy(c.date)}</td><td class="num">${fmt(c.amount)}</td><td>${esc(c.mode)}${c.reference ? `<span class="sub">${esc(c.reference)}</span>` : ''}</td>
+      <td>${esc(c.name || '')}${c.relation ? `<span class="sub">${esc(relationLabel(c.relation))}</span>` : ''}</td>
+      <td><span class="pc-st ${esc(c.status)}">${esc(PC_STATUS[c.status] || c.status)}</span>${c.status === 'verified' ? `<span class="sub">Receipt ${esc(c.receiptNo || '')}${c.paymentId ? ` · <a href="print.html?receipt=${encodeURIComponent(c.paymentId)}" target="_blank" rel="noopener">View</a>` : ''}</span>` : ''}${c.decisionNote && c.status !== 'verified' ? `<span class="sub">${esc(c.decisionNote)}</span>` : ''}</td>
+      <td>${(c.files || []).map((x) => `<button class="file-link" type="button" data-pc-file="${esc(c.id)}" data-fid="${esc(x.id)}" title="${esc(x.name)}">📎 Proof</button>`).join(' ')}
+        ${open ? `<button class="btn btn-small" type="button" data-pc-edit="${esc(c.id)}">${c.status === 'query' ? 'Add details' : 'Change'}</button><button class="btn btn-small" type="button" data-pc-withdraw="${esc(c.id)}">Withdraw</button>` : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">No payments reported yet.</td></tr>';
+}
+function renderPcFiles() {
+  $('#pc-file-list').innerHTML = pcKeep.map((x, i) => `<li class="${x.keep ? '' : 'removing'}"><span>${esc(x.name)}</span> <button class="btn-link" type="button" data-pc-keep="${i}">${x.keep ? 'Remove' : 'Keep'}</button></li>`).join('')
+    + pcNew.map((x, i) => `<li><span>${esc(x.name)}</span> <span class="muted">new</span> <button class="btn-link" type="button" data-pc-drop="${i}">Remove</button></li>`).join('');
+}
+function pcReset() {
+  const f = $('#pc-form');
+  pcEdit = null; pcNew = []; pcKeep = [];
+  f.reset(); f.date.value = todayIST(); f.paidBy.value = profile.name || '';
+  $('#pc-save').textContent = 'Send to the Society'; $('#pc-cancel').hidden = true;
+  renderPcFiles();
+}
+function wirePayClaims() {
+  const f = $('#pc-form');
+  $('#pc-files').addEventListener('change', (e) => {
+    for (const x of e.target.files) {
+      if (!/^image\/|^application\/pdf$/.test(x.type)) { setMsg(f, `${x.name}: only photos and PDF files.`); continue; }
+      if (pcNew.length + pcKeep.filter((k) => k.keep).length >= 3) { setMsg(f, 'Up to 3 files.'); break; }
+      pcNew.push(x);
+    }
+    e.target.value = '';
+    renderPcFiles();
+  });
+  $('#pc-file-list').addEventListener('click', (e) => {
+    const k = e.target.closest('[data-pc-keep]'), d = e.target.closest('[data-pc-drop]');
+    if (k) { const x = pcKeep[Number(k.dataset.pcKeep)]; x.keep = !x.keep; }
+    if (d) pcNew.splice(Number(d.dataset.pcDrop), 1);
+    renderPcFiles();
+  });
+  $('#pc-cancel').addEventListener('click', pcReset);
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = (k) => f[k].value.trim(), amount = Math.round(Number(v('amount')));
+    if (!v('date') || v('date') > todayIST()) return setMsg(f, 'Give the date you paid (not a future date).');
+    if (!(amount > 0)) return setMsg(f, 'Give the amount paid.');
+    if (!/Cash/.test(v('mode')) && !v('reference')) return setMsg(f, 'Give the UTR / transaction or cheque number, so the Treasurer can find it in the bank statement.');
+    const kept = pcKeep.filter((x) => x.keep).map(({ keep, ...x }) => x);
+    if (!kept.length && !pcNew.length) return setMsg(f, 'Attach the proof: a screenshot of the transfer, the bank slip or the statement.');
+    const { F, db } = fb;
+    await busy($('#pc-save'), async () => {
+      try {
+        await loadDriveCfg(fb);
+        if (pcNew.length && !driveReady()) throw new Error('The Society’s storage is not available just now; please try again later.');
+        const added = [], label = plainUnit(profile.unit);
+        for (let i = 0; i < pcNew.length; i++) {
+          setMsg(f, `Uploading the proof ${i + 1} of ${pcNew.length}…`, true);
+          const file = await prepareFile(pcNew[i]);
+          const ext = (file.name.match(/\.(\w+)$/)?.[1] || (file.type === 'application/pdf' ? 'pdf' : 'jpg')).toLowerCase();
+          const r = await driveCall(fb, 'memberUpload', { unitId: profile.unit, unitLabel: label, wing: wingOf(profile.unit), record: 'payment',
+            name: `${label} payment ${v('date')} Rs ${amount} ${safeName(v('reference') || v('mode'), 40)} - ${safeName(file.name.replace(/\.\w+$/, ''), 40)}.${ext}`,
+            mimeType: file.type, data: await toBase64(file), note: `Payment of Rs ${amount} on ${v('date')} reported by ${profile.name}` });
+          added.push(r.file);
+        }
+        const data = { date: v('date'), amount, mode: v('mode'), reference: v('reference'), bank: v('bank'), paidBy: v('paidBy'), billNo: v('billNo'), note: v('note'), files: [...kept, ...added] };
+        let id = pcEdit?.id;
+        if (pcEdit) {
+          await F.updateDoc(F.doc(db, 'paymentClaims', id), { ...data, status: 'submitted', round: (pcEdit.round || 1) + (pcEdit.status === 'query' ? 1 : 0), ...(pcEdit.status === 'query' ? { answer: v('note') } : {}), updatedAt: F.serverTimestamp() });
+        } else {
+          const ref = await F.addDoc(F.collection(db, 'paymentClaims'), { ...data, unitId: profile.unit, unit: label, uid: fb.auth.currentUser.uid, name: profile.name || '',
+            relation: profile.relation || '', email: fb.auth.currentUser.email || profile.email || '', status: 'submitted', round: 1, submittedAt: F.serverTimestamp() });
+          id = ref.id;
+        }
+        // The Society is told (and you get an acknowledgement); the report is saved either way.
+        let mailed = true;
+        try { await driveCall(fb, 'paymentClaim', { claimId: id }); } catch (err) { mailed = false; console.warn('payment report email', err); }
+        pcReset();
+        setMsg($('#pc-msg'), `Sent. The Treasurer will check the Society’s bank account and make the receipt.${mailed ? ' You will get an email.' : ''}`, true);
+        await loadPayClaims();
+      } catch (err) { setMsg(f, errorText(err)); }
+    });
+  });
+  $('#pc-rows').addEventListener('click', async (e) => {
+    const ed = e.target.closest('[data-pc-edit]'), wd = e.target.closest('[data-pc-withdraw]'), fl = e.target.closest('[data-pc-file]');
+    if (fl) return openMemberFile({ claimId: fl.dataset.pcFile, fileId: fl.dataset.fid }, 'proof', $('#pc-msg'));
+    if (ed) {
+      const c = pcList.find((x) => x.id === ed.dataset.pcEdit), f2 = $('#pc-form');
+      pcEdit = c; pcNew = []; pcKeep = (c.files || []).map((x) => ({ ...x, keep: true }));
+      for (const k of ['date', 'amount', 'mode', 'reference', 'bank', 'paidBy', 'billNo', 'note']) if (f2[k]) f2[k].value = c[k] ?? '';
+      if (c.status === 'query') f2.note.value = '';
+      $('#pc-save').textContent = c.status === 'query' ? 'Send the details' : 'Save changes'; $('#pc-cancel').hidden = false;
+      setMsg(f2, c.status === 'query' ? `The Treasurer asks: ${c.decisionNote || 'more details'}. Add them in the note and attach any proof.` : '', true);
+      renderPcFiles(); f2.scrollIntoView({ behavior: 'smooth' });
+    }
+    if (wd) {
+      const c = pcList.find((x) => x.id === wd.dataset.pcWithdraw);
+      if (!confirm('Withdraw this payment report?')) return;
+      try { await fb.F.updateDoc(fb.F.doc(fb.db, 'paymentClaims', c.id), { status: 'withdrawn', updatedAt: fb.F.serverTimestamp() }); await loadPayClaims(); }
+      catch (err) { setMsg($('#pc-msg'), errorText(err)); }
+    }
+  });
+}
+
 async function loadAccount() {
   const { F, db } = fb;
   const unitId = profile.unit;
   await loadDriveCfg(fb).catch(() => null);
   loadMyDocs().catch((err) => console.warn('unit documents', err));
   loadMyTransfers().catch((err) => console.warn('transfers', err));
+  loadPayClaims().catch((err) => console.warn('payment reports', err));
   loadInterestInfo().catch((err) => console.warn('interest info', err));
   $('#account-unit').textContent = unitLabel(unitId);
   $('#account-name').textContent = `${profile.name} · ${relationLabel(profile.relation)}`;

@@ -6,6 +6,56 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.29.0] – 2026-11-25 – Payments reported by members, verified by the Treasurer / Accountant
+
+### Added
+- **Member page → Paid maintenance? Tell the Society.** Any approved member of the unit — owner, family member or tenant (also with basic access) — reports a payment: date, amount, how (NEFT, IMPS, UPI, cheque, cash deposit in the bank, demand draft), UTR / transaction / cheque no. (required except for cash), from which bank / account, paid by, against which bill (optional), note, and the **proof** (screenshot, bank slip or statement; photos or PDF, up to 3, kept in the unit's Drive folder *Payments reported*).
+  - The Society's mailbox is emailed at once (to check the bank) and the member gets an acknowledgement. It is **not** in the balance until verified.
+  - The member's list shows each report: *Waiting for the Treasurer to check the bank*, *More details needed* (with the question; *Add details* sends it back with more proof), *Verified* (receipt no., with a link to it), *Not found in the bank* (with the reason). Waiting reports can be changed or withdrawn. Members with the unit's full account also see reports made by others of the unit (e.g. the owner sees the tenant's).
+- **Accounts → Payments → Payments reported by members** (those who record payments, e.g. the Treasurer and the Accountant; the box opens with a red count when something is waiting).
+  - Each report with the proof (*Proof*), the reference, bank and who paid.
+  - **Verify…**: the payment form filled from the report (correct the date or amount to what the bank shows); a warning when a receipt with the same reference, or the same amount within 5 days, is already recorded for the unit; *I have found this amount in the Society's bank statement* must be ticked; then the receipt is made as for any payment (balance, ledger, interest cleared first, public dues), linked to the report (`claimId`), and the member is emailed the receipt number (the Society copied).
+  - **Ask for details** (the question is emailed and shown to the member) or **Not found** (the reason is emailed).
+
+---
+
+added it in version 3.29.0. A new test suite (22 checks), all 27 earlier suites and 191 Drive script checks pass, but only against test data, not your live site.
+
+**What members do (their page → "Paid maintenance? Tell the Society")**
+
+- Anyone approved for the unit can report a payment: owner, family member or tenant, including tenants who can't see the unit's accounts.
+- They enter the date, amount, how they paid (NEFT, IMPS, UPI, cheque, cash deposit or demand draft), the UTR or cheque number, the bank, who paid, and optionally which bill it was against.
+- They must attach proof: up to 3 screenshots, bank slips or statement pages. These are saved in the unit's Drive folder under "Payments reported".
+- [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com) gets an email right away, and the member gets an acknowledgement.
+- The payment does not reduce the balance until it is verified.
+- The member can follow the status: waiting, more details needed (they add details and send again), verified with the receipt number, or not found in the bank with the reason. The owner can also see payments reported by the tenant.
+
+**What the Treasurer or Accountant does (Payments → "Payments reported by members")**
+
+- A red count shows how many are waiting. Anyone who can record payments can act on them; committee members can too.
+- **Proof** opens the screenshot or slip.
+- **Verify…** opens the usual payment form, already filled in. You can correct the date or amount to match the bank statement, and you must tick "I have found this amount in the Society's bank statement".
+- Saving makes a normal receipt: the balance and ledger update as for any payment. The member is emailed the receipt number, with a copy to the Society.
+- **Duplicate warning:** the form warns you if a receipt with the same reference, or the same amount within 5 days, is already recorded for that unit.
+- **Ask for details** and **Not found** send the member an email with your note.
+
+---
+
+
+
+### Rules
+
+- `paymentClaims/{id}`: created by an approved member of the unit for themselves (status *submitted*, amount, date, mode, reference, up to 5 files, server time); read by the member who made it, the unit's members with full access and the team with *view*; the member changes or withdraws it while it is waiting or answers a question; those who record payments set *verified* (only with the receipt no.), *rejected* or *query*. Never deleted.
+
+### Drive script (version 16)
+- Member uploads of kind `payment` (*Units › wing › unit › Payments reported*); `paymentClaim` (member: emails the Society and acknowledges, once per round); `claimDecision` (record payments: emails the member the outcome, Society cc, once per decision); proofs open for the member (`memberFetch` with `claimId`) and the team (`fetch` with `claimId`).
+
+### Tested
+- New suite t329 (22 checks): tenant reports (reference and proof required; proof uploaded as *payment*; Society told), listed as waiting; owner sees it, can't change it; Accountant sees it with a count, opens the proof, asks for details (emailed); member adds details (round 2, two proofs, Society told again); verify window filled, no false duplicate, bank check required, receipt made (balance down, linked), member emailed; member sees *Verified* with the receipt; a report matching an existing receipt is flagged and marked not found; a watchman sees nothing.
+- 11 new Drive script checks (191 in all). All earlier suites pass.
+
+---
+
 ## [3.28.0] – 2026-11-25 – Recovery notices, pausing the website, library categories, copies of member emails
 
 ### Added
@@ -20,44 +70,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
   - **Move to another category:** tick documents (or all shown) → *Move to* → *Move*; changing the category in *Edit* does the same. The file is moved to the matching Drive folder too (storage script 15; with an older script only the website's category changes, and the page says so).
   - **Public / private:** each entry's *Public* / *Private* button switches it in one click (with its words, so search follows); *Make public* / *Make private* for the ticked ones.
 - **Emails to members copy the Society:** invitations to pre-registered members, reminders and the other *Email* buttons open the mail with **cc sunshreesuntec@gmail.com**; emails sent from the Society's account by the storage script are copied to it too, so every email to a member is on record in the Society's mailbox.
-
----
-
-in version 3.28.0. A new test suite (24 checks), all 26 earlier suites and 180 Drive script checks pass, but only against test data. The PDFs themselves must be generated on the live website, because I don't have your members' real figures here.
-
-**7) The 3rd final recovery letter (Bills → Demand / recovery notices)**
-
-- **What prints per unit:** your *Suntec_Final_Notice_Bilingual* letter (Marathi page and English page) filled in with the unit's values, then the unit's bill, then the "How this bill is worked out" page.
-- The letter content:
-  - It says "Final Recovery Notice" and mentions the 1st Demand Notice dated 17/01/2026 and the 2nd dated 22/10/2026, sent by Registered Post.
-  - The amount is each unit's dues on the letter date. If something was paid after the bill, it adds "less ₹… received after the bill". The English page also gives the amount in words.
-  - The reference number gets the unit added, e.g. SSSCHS/MAINT/RP/2026-27/003/C101.
-  - It is signed by the Chairman from the website's committee list (Mr Saji Rajan), with his mobile number.
-  - Shops are printed as "Shop / दुकान" instead of "Flat / फ्लॅट".
-- **Steps:** *List the units with dues* → untick any you want to leave out → *Prepare the notices*. Then use **Open all** for one PDF to print for posting, or **Open / save PDF** for each unit's own set.
-- **After posting:** type in the Registered Post numbers and press **Record in the correspondence register**. This adds one outward letter per unit with its post number.
-- **Please check:** the date, subject, reference and Marathi text are all editable in the form; check them before printing.
-
-**5) Interest wording in letters**
- The interest clause now reads "18% per annum from 13/04/2013 and 12% per annum from 01/07/2026" in both languages, replacing the 21% in the earlier letters. It is built from the interest rates already saved in the website settings, and you can edit it before preparing the notices.
-
-**1)–3) Library**
-
-- **New categories:** Application sent / received, Letter sent / received, and Scanned copy.
-- **Moving:** tick documents and choose **Move to** a category; changing the category in Edit works too. The file in Drive moves to the matching folder as well.
-- **Public / Private:** each document has a one-click **Public / Private** button. **Make public** and **Make private** change all ticked documents at once.
-
-**4) Pause the website (Website tab)**
-
-- **Pause the website now** shows every visitor and member (website and app) only a "Website under maintenance" page in English and Marathi, with an optional "expected back by" date.
-- No data is touched, and monthly bills and backups carry on.
-- Committee and staff keep working on the accounts page, and a red bar there reminds them the site is paused. **Resume the website** ends the pause.
-
-**6) Copy to [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com)**
-
-- Emails to pre-registered members, reminders and the other *Email* buttons now open with [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com) in CC.
-- Emails sent from the Society's own account by the Drive script are copied there too.
-- I applied this to all emails sent to members, not only pre-registration emails, so every one is on record in the Society's mailbox.
 
 ### Rules
 - `public/status`: written with the *website* permission (read by everyone, like the rest of `public`).

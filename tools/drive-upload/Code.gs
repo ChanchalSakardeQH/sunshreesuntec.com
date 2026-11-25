@@ -64,6 +64,11 @@
  *
  * Version 15 (3.28): libraryMove moves a library document's file to the folder of its new category; emails to members
  * (reminders, invitations) are copied to the Society's own mailbox (cc), so the Society keeps a record of each.
+ *
+ * Version 16 (3.29): payments reported by members. A member uploads the proof of a payment (record 'payment', kept in
+ * Units/<wing>/<unit>/Payments reported), paymentClaim emails the Society that a payment was reported (and the member
+ * an acknowledgement), claimDecision emails the member when the Treasurer / Accountant verifies it (with the receipt
+ * number) or cannot match it with the bank. The proofs open for the member (memberFetch) and the team (fetch) by claimId.
  */
 var MAX_BYTES = 15 * 1024 * 1024;
 var MIME_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
@@ -74,7 +79,7 @@ var UNIT_FOLDER = { members: 'Members and shares', tenants: 'Tenants and agreeme
 var MAX_BACKUP = 20 * 1024 * 1024;
 /* Documents members upload (units/<id>/memberDocs) → folder in the unit's folder. */
 var MEMBER_DOC_FOLDER = { ownership: 'Ownership (sale deeds and Index II)', rental: 'Tenants and agreements', police: 'Tenants and agreements',
-  pastRental: 'Tenants and agreements', occupants: 'Occupants', other: 'Communication' };
+  pastRental: 'Tenants and agreements', occupants: 'Occupants', other: 'Communication', payment: 'Payments reported' };
 var MAX_MEMBER_PDF = 25 * 1024 * 1024;   // a complete sale deed scan can be large
 var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -91,7 +96,7 @@ function config_() {
 function doGet() {
   var test = false;
   try { test = config_().test; } catch (e) { /* not set up */ }
-  return json_({ ok: true, service: 'Sunshree Suntec records', version: 15, test: test });
+  return json_({ ok: true, service: 'Sunshree Suntec records', version: 16, test: test });
 }
 
 function doPost(e) {
@@ -99,7 +104,7 @@ function doPost(e) {
     var req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     var cfg = config_();
     var who = verifyToken_(cfg, req.idToken);
-    var memberActions = { memberUpload: memberUpload_, memberFetch: memberFetch_, memberAgreement: memberAgreement_, accessRequest: accessRequest_ };
+    var memberActions = { memberUpload: memberUpload_, memberFetch: memberFetch_, memberAgreement: memberAgreement_, accessRequest: accessRequest_, paymentClaim: paymentClaim_ };
     var out;
     if (req.action === 'fetch' && req.libraryId) req.action = 'libraryFetch';   // anyone signed in opening a library document
     if (req.action === 'libraryFetch') {
@@ -112,7 +117,7 @@ function doPost(e) {
         backupRegister: backupRegister_, memberMail: memberMail_, accessDecision: accessDecision_, committeeUndertaking: committeeUndertaking_, libraryFromLink: libraryFromLink_,
         fullBackup: fullBackupAction_, listBackups: listBackups_, restoreBackup: restoreBackupAction_,
         settingsBackup: settingsBackup_, listSettingsBackups: listSettingsBackups_, readSettingsBackup: readSettingsBackup_,
-        libraryMove: libraryMove_ };
+        libraryMove: libraryMove_, claimDecision: claimDecision_ };
       var fn = actions[req.action];
       if (!fn) throw new Error('Unknown request.');
       out = fn(cfg, req, who, team);
@@ -292,6 +297,11 @@ function fetchFile_(cfg, req, who, team) {
     rec = readDoc_(cfg, req.idToken, path);
     if (!rec) throw new Error('You can’t see this committee record.');
     list = req.committeeUid ? [rec.m20 && rec.m20.file] : req.undertakingId ? [rec.pdf] : [rec.letterFile];
+  } else if (req.claimId) {
+    // 3.29: proof of a payment reported by a member.
+    rec = readDoc_(cfg, req.idToken, 'paymentClaims/' + encodeURIComponent(String(req.claimId)));
+    if (!rec) throw new Error('You can’t see this payment report.');
+    list = rec.files || [];
   } else if (req.correspondenceId) {
     if (!/^[A-Za-z0-9_-]{1,60}$/.test(String(req.correspondenceId))) throw new Error('Unknown letter.');
     rec = readDoc_(cfg, req.idToken, 'correspondence/' + encodeURIComponent(req.correspondenceId));
@@ -635,6 +645,11 @@ function memberFetch_(cfg, req, who, m) {
     var a = readDoc_(cfg, req.idToken, 'memberAgreements/' + encodeURIComponent(String(req.agreementId)));
     if (!a || a.uid !== who.uid) throw new Error('You can’t see this agreement.');
     list = a.pdf ? [a.pdf] : [];
+  } else if (req.claimId) {
+    // 3.29: the proof attached to a payment the member reported (the rules decide who reads the report).
+    var c = readDoc_(cfg, req.idToken, 'paymentClaims/' + encodeURIComponent(String(req.claimId)));
+    if (!c) throw new Error('You can’t see this payment report.');
+    list = c.files || [];
   } else {
     if (req.unitId !== m.unit || !/^[A-Za-z0-9_-]{1,60}$/.test(String(req.recordId || ''))) throw new Error('You can open only your own unit’s documents.');
     // 3.23: also the scans of the unit's membership transfer (record 'transfers'); the rules decide who reads it.
@@ -779,6 +794,58 @@ function accessDecision_(cfg, req, who, team) {
   sendMail_(cfg, { to: r.email, cc: society, replyTo: society, name: 'Sunshree Suntec CHS',
     subject: 'Sunshree Suntec: your application to view the Society’s accounts is ' + (r.status === 'approved' ? 'approved' : 'not approved') + ' (' + unit + ')', body: body });
   var out = { emailed: true, to: r.email, cc: society };
+  props.setProperty(key, JSON.stringify(out));
+  return out;
+}
+
+/* ---------------- payments reported by members (3.29) ---------------- */
+
+function claimText_(c) {
+  return ['Unit: ' + accessUnit_(c.unit), 'Reported by: ' + c.name + (c.relation ? ' (' + c.relation + ')' : '') + ', ' + c.email,
+    'Paid on: ' + fmtDay_(c.date), 'Amount: Rs ' + Number(c.amount).toLocaleString('en-IN'), 'Mode: ' + c.mode + (c.reference ? ', ref. ' + c.reference : ''),
+    c.bank ? 'From bank / account: ' + c.bank : '', c.paidBy ? 'Paid by: ' + c.paidBy : '', c.billNo ? 'Against bill: ' + c.billNo : '', c.note ? 'Note: ' + c.note : '',
+    'Proof attached: ' + ((c.files || []).length ? c.files.length + ' file(s), kept in the unit’s folder “Payments reported”' : 'none')].filter(String).join('\n');
+}
+/** A member reported a payment: the Society is told (to check the bank), the member gets an acknowledgement. Once per report and status. */
+function paymentClaim_(cfg, req, who, m) {
+  var id = String(req.claimId || '');
+  if (!/^[A-Za-z0-9_-]{1,60}$/.test(id)) throw new Error('Unknown payment report.');
+  var c = readDoc_(cfg, req.idToken, 'paymentClaims/' + id);
+  if (!c || c.uid !== who.uid) throw new Error('Unknown payment report.');
+  var props = PropertiesService.getScriptProperties(), key = 'claim_' + id + '_' + (c.round || 1), done = props.getProperty(key);
+  if (done) return JSON.parse(done);
+  var society = Session.getEffectiveUser().getEmail();
+  sendMail_(cfg, { to: society, replyTo: c.email, name: 'Sunshree Suntec website',
+    subject: 'Payment reported by ' + accessUnit_(c.unit) + ': Rs ' + Number(c.amount).toLocaleString('en-IN') + ' on ' + fmtDay_(c.date) + ((c.round || 1) > 1 ? ' (more details)' : ''),
+    body: 'A member has reported a payment. Please check it against the bank statement and verify it on the accounts page (Payments → Payments reported by members).\n\n' + claimText_(c) + '\n\nReport no.: ' + id });
+  sendMail_(cfg, { to: c.email, replyTo: society, name: 'Sunshree Suntec CHS',
+    subject: 'Sunshree Suntec: we have your payment details (' + accessUnit_(c.unit) + ')',
+    body: 'Dear ' + c.name + ',\n\nThank you. The Society has received the details of your payment:\n\n' + claimText_(c) +
+      '\n\nThe Treasurer / Accountant will check it against the Society’s bank account. When it is verified, the receipt will be on your page (My account) and you will get an email. Until then it is not yet in your balance.\n\nRegards,\nSunshree Suntec Co-op. Housing Society Ltd.' });
+  var out = { emailed: true };
+  props.setProperty(key, JSON.stringify(out));
+  return out;
+}
+/** The Treasurer / Accountant verified a reported payment (receipt made) or could not match it: the member is told. */
+function claimDecision_(cfg, req, who, team) {
+  if (!team.can('recordPayments')) throw new Error('Only those who record payments verify reported payments.');
+  var id = String(req.claimId || '');
+  if (!/^[A-Za-z0-9_-]{1,60}$/.test(id)) throw new Error('Unknown payment report.');
+  var c = readDoc_(cfg, req.idToken, 'paymentClaims/' + id);
+  if (!c || ['verified', 'rejected', 'query'].indexOf(c.status) < 0) throw new Error('This payment report hasn’t been decided yet.');
+  var props = PropertiesService.getScriptProperties(), key = 'claimDecision_' + id + '_' + c.status + '_' + (c.round || 1), done = props.getProperty(key);
+  if (done) return JSON.parse(done);
+  var society = Session.getEffectiveUser().getEmail(), unit = accessUnit_(c.unit);
+  var subject = c.status === 'verified' ? 'Sunshree Suntec: payment received, receipt ' + c.receiptNo + ' (' + unit + ')'
+    : c.status === 'rejected' ? 'Sunshree Suntec: we could not find your payment (' + unit + ')' : 'Sunshree Suntec: more details needed for your payment (' + unit + ')';
+  var body = 'Dear ' + c.name + ',\n\n' + (c.status === 'verified'
+    ? 'Your payment of Rs ' + Number(c.amount).toLocaleString('en-IN') + ' on ' + fmtDay_(c.date) + ' is received in the Society’s bank account. Receipt no. ' + c.receiptNo + ' is on your page (My account → Receipts).'
+    : c.status === 'rejected'
+      ? 'We could not match your payment of Rs ' + Number(c.amount).toLocaleString('en-IN') + ' on ' + fmtDay_(c.date) + ' with the Society’s bank account' + (c.decisionNote ? ': ' + c.decisionNote : '.') + '\nIf you have paid, please reply to this email with the bank’s transaction slip or statement.'
+      : 'Please add more details to your payment of Rs ' + Number(c.amount).toLocaleString('en-IN') + ' on ' + fmtDay_(c.date) + (c.decisionNote ? ': ' + c.decisionNote : '.') + '\nOpen your page (My account → Payments reported) to add them.')
+    + '\n\nRegards,\n' + (c.decidedByName || team.name) + ', ' + (c.decidedRole || team.role) + '\nSunshree Suntec Co-op. Housing Society Ltd.';
+  sendMail_(cfg, { to: c.email, cc: society, replyTo: society, name: 'Sunshree Suntec CHS', subject: subject, body: body });
+  var out = { emailed: true, to: c.email };
   props.setProperty(key, JSON.stringify(out));
   return out;
 }

@@ -3,7 +3,7 @@
 **Society:** Sunshree Suntec Co-operative Housing Society Ltd., Sr. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411048. Reg. No. PNA/PNA(4)/HSG/(TC)/12471/2012-13 dated 30/10/2012.
 **Website:** https://sunshreesuntec.com
 **Accounts:** https://sunshreesuntec.com/admin.html
-**Software version:** see `CHANGELOG.md` (this document describes version 3.28.0).
+**Software version:** see `CHANGELOG.md` (this document describes version 3.29.0).
 
 This document explains what the system does, where the data lives, how every amount on a bill is calculated, who can see or change what, and how to answer common questions from members, auditors and the Registrar's office.
 
@@ -151,6 +151,7 @@ All data is in Cloud Firestore. Amounts are whole rupees.
 | `libraryDocs/{id}` (3.20) | Library entry: title, category, issued by, number / reference, date, year, language, keywords, description, official source, public, the file in the Drive (id, name, type, size), words read and pages, removed, who added and changed it; for bye-law forms (3.24) `formKey` (e.g. appendix-15) and `guide` (no, aka, law, signedBy, stamp, use, attach) | Committee and staff with *library* |
 | `libraryDocs/{id}/index/{n}` (3.20) | The words inside the document (space-separated, unique, lower case), in chunks of up to 700 KB, with the entry's public flag | Same |
 | `units/{id}/transfers/{caseId}` (3.23) | A membership transfer of the unit: type (death / sale), the list of documents as it was when started (`items`: id, name, note, letter, libraryId), what was received (`got`: date or not needed, by whom), scans (`files` with the item they belong to), outgoing and new member(s), date of the deed or of death, deed no., possession date, share certificate no., committee resolution date and reference, certificate endorsed on, new certificate no., notes, status (open / completed / cancelled), who started and changed it | Read: *view* and the unit's approved members; write: *maintain unit files*; delete: committee |
+| `paymentClaims/{id}` (3.29) | A payment reported by a unit's member: unit, uid, name, relation, email, date, amount, mode, reference, bank, paid by, bill no., note, proof files, status (submitted / query / verified / rejected / withdrawn), round, answer, decision (note, by, role, at), payment id and receipt no. when verified | Create: approved member of the unit; read: the reporter, the unit's full-access members, *view*; decide: *record payments* |
 | `public/status` (3.28) | Website paused: paused, title / message (English, Marathi), until, at, by; resumedAt, resumedBy | Read: everyone; write: *website* permission |
 | `noticeRuns/{id}` (3.28) | Demand / recovery notices prepared: subject (English, Marathi), letter date, reference, month of the bills enclosed, days, minimum dues, earlier notices, interest clauses, signer; units (unit, name, type, dues, bill no., date and total, registered post no.); recorded (unit → correspondence no.) | Read: *view*; write: *generate bills* or committee |
 | `settings/fullBackup` (3.25) | Written by the storage script: last full backup (ok, kind, by, at, docs, users, bytes, file name, seconds, copies removed, records per collection), a failure (failedAt, error), the last restore | Read: *view*; written by the script with the Society account's access |
@@ -306,6 +307,9 @@ Scope is all units or one block. A penalty above ₹5,000 per member is refused.
 ---
 
 ## 8. Payments, receipts and interest
+
+### 8.0 Payments reported by members (3.29)
+A unit's owner, family member or tenant reports a payment on their page (*Paid maintenance? Tell the Society*) with the UTR / cheque no. and the proof. The Society's mailbox is told. Payments → *Payments reported by members* (red count): open the proof, find the credit in the bank statement, then **Verify…** (the payment form is filled from the report; correct date / amount to the bank; tick *found in the bank statement*; a warning shows if a receipt with the same reference or amount is already there) → the receipt is made as usual and the member is emailed. Otherwise **Ask for details** or **Not found** (both emailed). Nothing reaches the balance until verified.
 
 ### 8.1 Recording a payment
 Payments → choose unit → date, amount, mode (NEFT, IMPS, UPI, Cheque, Cash, Demand Draft), UTR / cheque no. (required for non-cash), bank, against bill no. The system:

@@ -308,6 +308,7 @@ function wireOnce() {
   wirePrereg();
   wireTransfers();
   wireSitePause();
+  wirePayClaimsAdmin();
   wireNotices();
   loadPauseState().catch(() => null);
   wireCommittee();
@@ -847,9 +848,110 @@ function wirePayments() {
 
 let lastPayments = [];
 async function loadPayments() {
+  loadPayClaimsAdmin().catch((err) => console.warn('payment reports', err));
   $('#pay-unit').innerHTML = '<option value="">Choose unit</option>' + unitOptions(true);
   if (payFor) { $('#pay-unit').value = payFor; $('#pay-unit').dispatchEvent(new Event('change')); payFor = null; }
   await listPayments($('#pay-month').value || monthOf(todayIST()));
+}
+
+/* ---------------- 3.29: payments reported by members (paymentClaims) ---------------- */
+let pclList = [], pclCur = null;
+const PCL_STATUS = { submitted: 'Waiting to be checked', query: 'Asked for details', verified: 'Verified', rejected: 'Not found in the bank', withdrawn: 'Withdrawn by the member' };
+async function loadPayClaimsAdmin() {
+  const { F, db } = fb;
+  const snap = await F.getDocs(F.collection(db, 'paymentClaims')).catch(() => null);
+  $('#pcl-box').hidden = !snap;
+  if (!snap) return;
+  pclList = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const waiting = pclList.filter((c) => c.status === 'submitted').length;
+  $('#pcl-count').textContent = waiting ? String(waiting) : '';
+  if (waiting && canDo('recordPayments')) $('#pcl-box').open = true;
+  renderPayClaimsAdmin();
+}
+function renderPayClaimsAdmin() {
+  const show = $('#pcl-show').value, can = canDo('recordPayments');
+  const list = pclList.filter((c) => show === 'all' || c.status === show);
+  $('#pcl-rows').innerHTML = list.map((c) => `<tr><td class="unit">${esc(c.unit)}</td><td>${dmy(c.date)}${c.billNo ? `<span class="sub">Bill ${esc(c.billNo)}</span>` : ''}</td><td class="num">${fmt(c.amount)}</td>
+      <td>${esc(c.mode)}${c.reference ? `<span class="sub">${esc(c.reference)}</span>` : ''}${c.bank ? `<span class="sub">${esc(c.bank)}</span>` : ''}${c.paidBy ? `<span class="sub">Paid by ${esc(c.paidBy)}</span>` : ''}${c.note ? `<span class="sub">“${esc(c.note)}”</span>` : ''}</td>
+      <td>${esc(c.name)}<span class="sub">${esc(relationLabel(c.relation || ''))} · ${esc(c.email || '')}</span><span class="sub">${whenShort(c.submittedAt)}</span></td>
+      <td>${esc(PCL_STATUS[c.status] || c.status)}${c.receiptNo ? `<span class="sub">Receipt ${esc(c.receiptNo)}</span>` : ''}${c.decisionNote ? `<span class="sub">${esc(c.decisionNote)}</span>` : ''}${c.decidedByName ? `<span class="sub">by ${esc(c.decidedByName)}</span>` : ''}</td>
+      <td><div class="mc-actions">${(c.files || []).map((x, i) => `<button class="btn btn-small" type="button" data-pcl-file="${esc(c.id)}" data-fid="${esc(x.id)}">Proof${c.files.length > 1 ? ` ${i + 1}` : ''}</button>`).join('')}
+        ${can && ['submitted', 'query'].includes(c.status) ? `<button class="btn btn-small btn-primary" type="button" data-pcl-verify="${esc(c.id)}">Verify…</button><button class="btn btn-small" type="button" data-pcl-query="${esc(c.id)}">Ask for details</button><button class="btn btn-small btn-danger" type="button" data-pcl-reject="${esc(c.id)}">Not found</button>` : ''}</div></td></tr>`).join('')
+    || `<tr><td colspan="7" class="empty">${show === 'submitted' ? 'Nothing waiting.' : 'None.'}</td></tr>`;
+}
+/** Already a receipt with the same reference, or the same amount for the unit within 5 days? */
+async function pclDuplicates(c) {
+  const { F, db } = fb;
+  const snap = await F.getDocs(F.query(F.collection(db, 'payments'), F.where('unitId', '==', c.unitId))).catch(() => ({ docs: [] }));
+  const ref = String(c.reference || '').replace(/\s+/g, '').toUpperCase(), day = (d) => new Date(`${d}T00:00:00Z`).getTime() / 864e5;
+  return snap.docs.map((d) => d.data()).filter((p) => p.status !== 'cancelled' && ((ref.length >= 6 && String(p.reference || '').replace(/\s+/g, '').toUpperCase().includes(ref))
+    || (Math.round(p.amount) === Math.round(c.amount) && Math.abs(day(p.date) - day(c.date)) <= 5)));
+}
+async function pclDecide(c, status, note) {
+  const { F, db } = fb;
+  await F.updateDoc(F.doc(db, 'paymentClaims', c.id), { status, decisionNote: note || '', decidedBy: uid, decidedByName: me?.name || '', decidedRole: me?.role || '', decidedAt: F.serverTimestamp(), updatedAt: F.serverTimestamp() });
+  let mailed = true;
+  try { await loadDriveCfg(fb); await driveCall(fb, 'claimDecision', { claimId: c.id }); } catch (err) { mailed = false; console.warn('claim email', err); }
+  return mailed;
+}
+function wirePayClaimsAdmin() {
+  const f = $('#pcl-form'), msg = $('#pcl-msg'), { F, db } = fb;
+  f.mode.innerHTML = PAYMENT_MODES.map((m) => `<option>${m}</option>`).join('');
+  $('#pcl-show').addEventListener('change', renderPayClaimsAdmin);
+  $('#pcl-dialog [data-close]').addEventListener('click', () => $('#pcl-dialog').close());
+  $('#pcl-rows').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const c = pclList.find((x) => x.id === (b.dataset.pclFile || b.dataset.pclVerify || b.dataset.pclQuery || b.dataset.pclReject));
+    if (!c) return;
+    if (b.dataset.pclFile) return openDriveCopy({ claimId: c.id, fileId: b.dataset.fid });
+    if (b.dataset.pclVerify) {
+      pclCur = c; f.reset(); setMsg(f, '');
+      $('#pcl-title').textContent = `Verify: ${c.unit}, ₹${fmt(c.amount)} on ${dmy(c.date)}`;
+      $('#pcl-info').textContent = `Reported by ${c.name} (${relationLabel(c.relation || '')}, ${c.email}). Check the proof and the Society’s bank statement; correct the date or amount to what the bank shows.`;
+      f.date.value = c.date; f.amount.value = c.amount; f.reference.value = c.reference || ''; f.bank.value = /cheque|draft/i.test(c.mode) ? c.bank || '' : ''; f.billNo.value = c.billNo || '';
+      f.mode.value = PAYMENT_MODES.find((m) => c.mode.toLowerCase().startsWith(m.toLowerCase())) || (/cash/i.test(c.mode) ? 'Cash' : 'NEFT');
+      f.note.value = `Reported by ${c.name} on ${dmy(todayIST())}${c.paidBy && c.paidBy !== c.name ? `; paid by ${c.paidBy}` : ''}`.slice(0, 120);
+      const dups = await pclDuplicates(c);
+      $('#pcl-dup').hidden = !dups.length;
+      $('#pcl-dup').textContent = dups.length ? `Check first: ${dups.map((p) => `receipt ${p.receiptNo} of ₹${fmt(p.amount)} on ${dmy(p.date)}${p.reference ? ` (${p.reference})` : ''}`).join('; ')} is already recorded for this unit — it may be the same payment.` : '';
+      $('#pcl-dialog').showModal();
+      return;
+    }
+    const isQuery = Boolean(b.dataset.pclQuery);
+    const dflt = isQuery ? 'Please attach the bank statement showing the debit.' : 'Not found in the Society’s bank statement.';
+    const answer = prompt(isQuery ? 'What should the member add? (they are emailed and see it on their page)' : 'Why can’t it be matched? (the member is emailed)', dflt);
+    if (answer === null) return;
+    const note = answer.trim() || dflt;
+    await busy(b, async () => {
+      try {
+        const mailed = await pclDecide(c, isQuery ? 'query' : 'rejected', note);
+        msg.className = 'form-msg ok'; msg.textContent = `${c.unit}: ${isQuery ? 'asked for details' : 'marked not found'}${mailed ? '; the member is emailed' : ' (the email could not be sent)'}.`;
+        await loadPayClaimsAdmin();
+      } catch (err) { msg.className = 'form-msg'; msg.textContent = errorText(err); }
+    });
+  });
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const c = pclCur;
+    if (!f.matched.checked) return setMsg(f, 'Tick that you have found it in the bank statement.');
+    if (!f.date.value || !(Number(f.amount.value) > 0)) return setMsg(f, 'Give the date and the amount.');
+    busy($('#pcl-verify'), async () => {
+      try {
+        const fresh = await F.getDoc(F.doc(db, 'paymentClaims', c.id));
+        if (!['submitted', 'query'].includes(fresh.data()?.status)) throw new Error('This report was changed meanwhile; reload the page.');
+        const r = await recordPayment(fb, { unitId: c.unitId, date: f.date.value, amount: Number(f.amount.value), mode: f.mode.value, reference: f.reference.value.trim(), bank: f.bank.value.trim(),
+          billNo: f.billNo.value.trim(), note: f.note.value.trim(), claimId: c.id });
+        await F.updateDoc(F.doc(db, 'paymentClaims', c.id), { status: 'verified', paymentId: r.id, receiptNo: r.receiptNo, decisionNote: '', decidedBy: uid, decidedByName: me?.name || '', decidedRole: me?.role || '', decidedAt: F.serverTimestamp(), updatedAt: F.serverTimestamp() });
+        let mailed = true;
+        try { await loadDriveCfg(fb); await driveCall(fb, 'claimDecision', { claimId: c.id }); } catch (err) { mailed = false; console.warn('claim email', err); }
+        $('#pcl-dialog').close();
+        msg.className = 'form-msg ok'; msg.innerHTML = `${esc(c.unit)}: receipt <strong>${esc(r.receiptNo)}</strong> made for ₹${fmt(r.amount)}${mailed ? '; the member is emailed' : ''}. <a href="print.html?receipt=${encodeURIComponent(r.id)}" target="_blank" rel="noopener">View the receipt</a>`;
+        await loadPayClaimsAdmin();
+        await listPayments($('#pay-month').value || monthOf(todayIST()));
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
 }
 
 async function listPayments(month) {
@@ -2517,7 +2619,7 @@ function holderOf(post, exceptUid) {
 }
 async function openDriveCopy(payload) {
   const w = window.open('', '_blank');
-  try { const url = await driveFileUrl(fb, payload); if (w) w.location = url; else location.href = url; }
+  try { await loadDriveCfg(fb); const url = await driveFileUrl(fb, payload); if (w) w.location = url; else location.href = url; }
   catch (err) { if (w) w.close(); alert(errorText(err)); }
 }
 async function uploadCommitteeFile(file, sub, name, note) {

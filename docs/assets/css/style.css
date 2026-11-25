@@ -463,3 +463,14 @@ dl.lib-guide { display: grid; grid-template-columns: max-content 1fr; gap: .15re
 dl.lib-guide dt { color: var(--muted, #666); }
 dl.lib-guide dd { margin: 0; }
 .my-transfers .mt-form { color: var(--ink-2, #444); }
+
+/* 3.29: payments reported by members */
+.my-payclaims .pc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .6rem 1rem; }
+.my-payclaims .pc-table td { vertical-align: top; }
+.my-payclaims .sub { display: block; font-size: .82rem; color: var(--muted, #666); }
+.pc-st { font-weight: 600; font-size: .88rem; }
+.pc-st.submitted { color: #8a5300; }
+.pc-st.verified { color: #1d6b3a; }
+.pc-st.rejected { color: #a3261d; }
+.pc-st.query { color: #8a5300; }
+.pc-st.withdrawn { color: var(--muted, #666); font-weight: 400; }

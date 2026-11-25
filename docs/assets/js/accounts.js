@@ -263,6 +263,7 @@ export async function recordPayment(fb, p) {
       receiptNo, fy, unitId: p.unitId, unit: unit.unit, block: unit.block, name: unit.name || '',
       date: p.date, amount, mode: p.mode, reference: p.reference || '', bank: p.bank || '', note: p.note || '',
       billNo: p.billNo || '', balanceBefore: before, balanceAfter: after, interestCleared, status: 'ok',
+      ...(p.claimId ? { claimId: p.claimId } : {}),   // 3.29: a payment reported by the member, verified
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     };
     tx.set(counterRef, { next: seq + 1 });

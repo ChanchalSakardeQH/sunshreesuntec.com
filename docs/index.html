@@ -387,6 +387,33 @@
             <p class="form-msg" id="md-msg" role="alert"></p>
           </section>
 
+          <!-- 3.29: payments reported by the unit's members, verified by the Treasurer / Accountant -->
+          <section class="my-payclaims" id="my-payclaims" aria-labelledby="pc-title">
+            <h3 class="mt-sm" id="pc-title">Paid maintenance? Tell the Society</h3>
+            <p class="muted">If you (owner, family member or tenant) paid the unit’s maintenance by bank transfer, UPI, cheque or deposit, give the details and the proof here. The Treasurer / Accountant checks the Society’s bank account and makes the receipt; you get an email, and the receipt appears under My account. Until it is verified it is not in the balance.</p>
+            <form id="pc-form" class="form" novalidate>
+              <div class="form-grid pc-grid">
+                <label>Paid on<input type="date" name="date" required></label>
+                <label>Amount (₹)<input type="number" name="amount" min="1" step="1" inputmode="numeric" required></label>
+                <label>How<select name="mode"><option>NEFT</option><option>IMPS</option><option>UPI</option><option>Cheque</option><option>Cash deposit in the bank</option><option>Demand Draft</option></select></label>
+                <label>UTR / transaction / cheque no.<input type="text" name="reference" maxlength="80" autocomplete="off"></label>
+                <label>From bank / account name<input type="text" name="bank" maxlength="80"></label>
+                <label>Paid by<input type="text" name="paidBy" maxlength="80"></label>
+                <label>Against bill <span class="muted">(optional)</span><select name="billNo"><option value="">—</option></select></label>
+              </div>
+              <label>Note <span class="muted">(optional)</span><input type="text" name="note" maxlength="500"></label>
+              <label>Proof: screenshot, bank slip or statement (photos or PDF, up to 3)<input type="file" id="pc-files" accept="image/*,application/pdf" multiple></label>
+              <ul class="file-list" id="pc-file-list"></ul>
+              <p class="form-msg" role="alert"></p>
+              <div class="form-actions"><button class="btn btn-primary" type="submit" id="pc-save">Send to the Society</button><button class="btn" type="button" id="pc-cancel" hidden>Cancel</button></div>
+            </form>
+            <div class="table-scroll"><table class="pc-table">
+              <thead><tr><th scope="col">Paid on</th><th scope="col" class="num">Amount (₹)</th><th scope="col">How</th><th scope="col">Reported by</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+              <tbody id="pc-rows"></tbody>
+            </table></div>
+            <p class="form-msg" id="pc-msg" role="status"></p>
+          </section>
+
           <!-- 3.23: membership transfer documents (on the death of a member, or on sale of the unit) -->
           <section class="my-transfers" id="my-transfers" aria-labelledby="my-transfers-title">
             <h3 class="mt-sm" id="my-transfers-title">Membership transfer documents</h3>
