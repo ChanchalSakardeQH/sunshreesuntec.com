@@ -187,6 +187,8 @@ Enforced by `firestore.rules` on Google's servers, not just by the web pages. Co
 | `units/…/ledger` | *view*; approved member (own unit) | Created by money operations; **never changed or deleted** |
 | `bills` | *view*; approved member (own unit) | Created with *generate bills*; **never changed or deleted** |
 | `payments` | *view*; approved member (own unit) | Created with *record payments*; only marked cancelled with *cancel receipts*; **never deleted** |
+| `auditLog` (activity trail, 3.34) | Committee; staff given *See the activity trail* | Created by the person making a money change, in the same commit (own uid, server time, fixed fields); **never changed or deleted** |
+| `settings/audit` (3.34) | *view* | Committee. When `required` is true, a change to a unit's `balance` / `interestDue` must set `auditId` to a new `auditLog` entry by the same person for that unit (`balanceAudited()`) |
 | `counters` | *record payments* | *record payments* (inside the payment) |
 | `liftExpenses` | *view* | Added / deleted (before billing) with *lift expenses* |
 | `settings/billing` | *view* | Committee; *generate bills* may update only the last-billed month |
@@ -372,6 +374,18 @@ Source: Sundry Debtors – Group Summary, 1 Apr 2018 to 30 Sep 2026 (closing bal
 ### Corrections
 Units → Open → Add a correction: debit (adds to dues) or credit (reduces dues), with date and particulars. Use for verified opening balances, waived amounts approved by the committee, or entries made against the wrong unit. Tick **Opening balance is now verified** to remove the flag.
 
+### 10A. Activity trail (3.34)
+**Accounts → Activity** (committee; staff or auditors given *See the activity trail*). One permanent entry in `auditLog` for every change to money in the accounts, written by `audit.js`:
+
+- **Entry:** `at` (server time), `by` (uid), `byName`, `byRole`, `byKind` (committee / staff / system), `action`, `where` (web / app / scheduler), `siteVersion`, and as applicable `unitId`, `unit`, `amount`, `debit`, `credit`, `balanceBefore`, `balanceAfter`, `refs` (payment, bill, ledger entry, adjustments, claim, interest run, lift expense, past receipt), `refNo` (receipt / bill no.), `reason`, `detail`, `changes[{field, from, to}]` (field by field), `count`, `units[]`, `undoOf` (the entry a correction puts right).
+- **Actions:** receipt issued / cancelled; reported payment decided; bill generated (one per unit, also by the monthly scheduler) and the month's run; charge taken off a bill; correction; charge debited; charges put on a coming bill / cancelled; interest on past arrears calculated / cancelled; balance set to the ledger total; old receipt (2011–2016) corrected / added; unit added / edited (rates, category, per-unit amounts, BPM, name, status — field by field) / deleted; areas etc. saved; lift expense added / deleted; billing settings or rates changed (field by field); opening and Tally imports; year closed / reopened; the trail setting; corrections made from the trail (`undo`).
+- **Same commit:** receipts, cancellations, bills, corrections, charges taken off bills, balance fixes and batches of charges / interest write their entry in the same transaction or batch as the change, and the unit gets `auditId` = the entry. Other changes (settings, unit details, imports) write it straight after.
+- **Screen:** filters (period, person, committee / staff, kind of change, unit, search including old and new values), totals (entries, by staff, receipts issued and cancelled, corrections, corrected), **Export CSV**, **Load older entries** (the latest 3,000 load first; a chosen unit loads all of its entries). *Who changed this account* in the unit file opens the trail for that unit.
+- **Putting a mistake right** (button on the entry, with a reason; the correction is a new entry linked by `undoOf`, and the original shows *Corrected … by …*): a receipt → **Cancel this receipt** (*cancel receipts*); a correction or debited charge → **Reverse with an opposite entry** dated today, same kind and head (*corrections*); a bill → **Credit this bill's amount back** (committee; bills stay as issued); charges put on a coming bill → **Cancel those still waiting** (*corrections*). Charges already on bills are taken off under Bills → Charges.
+- **Check all balances against their ledgers:** every unit's balance compared with the total of its ledger entries (memo lines left out); a difference means a change without its ledger entry. The committee can **Set to the ledger total** (`fixBalanceToLedger`, entry *balance.fix*); the ledger is not changed.
+- **Require an entry for every balance change** (committee, `settings/audit.required`): the rules then refuse a balance change without its entry, even from an old copy of the website or app. Turn it on only when everyone uses 3.34 or later (Android app rebuilt from it).
+- **Archive:** the scheduled full backups to Drive (3.25) include `auditLog`; the CSV is for reading in Excel. Expenses keep their own log (Expenses), past receipts also keep `pastReceiptEdits`.
+
 ---
 
 ## 11. The public dues page
@@ -494,7 +508,7 @@ The rules enforce this: `approvedFor()` needs `access` full (records without `ac
 
 **Deleting test or mistaken records (committee only).** *Open* a record in *Rejected and removed* → **Delete permanently** removes it and its whole history. In *Sign-in history* the committee can tick entries and **Delete selected**. Neither can be undone. The person's sign-in account itself stays in Firebase console → Authentication → Users (delete it there if needed); if they sign in again they are asked to send a new request.
 
-**Sign-in history (Members tab).** Every attempt (Google, email and password, registration, password reset; website and app; including ones that failed or were closed) with filters for period, result, method and website/app, counts (attempts, people or devices, signed in, failed, closed, *still not in* = had a problem and no successful sign-in in the period), **Export CSV**, and a red box for the most frequent failure codes with what to do. Example: *closed-at-once* in the app means Google refused this app copy; the box shows the app's SHA-1 to add in Firebase. The history keeps the latest 1,000 attempts on screen; older ones stay in the database. Writing is allowed before sign-in (so failures are recorded) but only with the fixed fields and lengths in the rules.
+**Sign-in history (Members tab).** Every attempt (Google, email and password, registration, password reset; website and app; including ones that failed or were closed) with filters for period, result, method and website/app, counts (attempts, people or devices, signed in, failed, closed, *still not in* = had a problem and no successful sign-in in the period), **Export CSV**, and a red box for the most frequent failure codes with what to do. Example: *closed-at-once* in the app means Google refused this app copy; the box shows the app's SHA-1 to add in Firebase. **3.33.1:** Google also refuses an app copy with *[16] Account reauth failed* (or *[10]*), reported by Play services as `TYPE_USER_CANCELED`, sometimes after a few seconds; `REFUSED_RE` in `signin.js` recognises the message, so it is a failure with code *app-not-accepted* (not *Closed*), the phone shows a plain message and a confirm offering `https://sunshreesuntec.com/` in the phone's browser (links outside the app open there), and the history keeps the app's SHA-1. App 2.0.1 answers `status: error, code: app-not-accepted` itself. Entries saved by app 2.0.0 as *Closed* with that message are shown as *Failed · app-not-accepted* on the accounts page (`savedAs` keeps the stored code). The history keeps the latest 1,000 attempts on screen; older ones stay in the database. Writing is allowed before sign-in (so failures are recorded) but only with the fixed fields and lengths in the rules.
 
 ## 12-1. Reminders and invitations (3.16)
 
@@ -662,6 +676,7 @@ Accounts → **Staff** → Add staff: full name, Gmail address, mobile, role, an
 | Approve members | Approve / remove member logins | – | Yes | – |
 | Website | Notices, committee and contact details | – | Yes | – |
 | Residents directory | Units, names, mobiles of approved people (Directory tab) | – | Yes | – |
+| See the activity trail (3.34) | Accounts → Activity: who changed what in the accounts (read only; correcting needs the money permission) | – | – | – |
 | Committee only | Settings (rates, charge basis, society / bank details), opening import, staff, agreement, access by role | – | – | – |
 
 Defaults are pre-ticked when inviting; the committee may give or withhold any permission per person.

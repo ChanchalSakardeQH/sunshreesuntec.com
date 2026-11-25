@@ -6,6 +6,101 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.34.0] – 2026-11-25 – Activity trail: who changed what in the accounts, and putting mistakes right
+
+### Added
+- **Accounts → Activity** (new tab): a permanent trail of every change to money in the accounts — by the committee, staff or the monthly scheduler. Each entry shows **who** (name, role, committee or staff), **when** (server time), **what**, the **unit**, the **amount**, the unit's **balance before and after**, the receipt or bill number, the **reason**, and for rates, unit details and settings each **field's old and new value**. It also says whether it came from the website, the Android app or the scheduler, and which software version.
+  - Covers: receipts issued and cancelled; payments reported by members (decided); bills (one entry per unit) and the month's run; charges taken off bills; corrections; charges debited; charges put on coming bills and cancelled; interest on past arrears calculated and cancelled; old receipts 2011–2016 corrected or added; units added, edited (rates, category, per-unit amounts, BPM, name, status) or deleted; areas, inlets, vehicles, lifts saved; lift expenses; billing settings and rates; opening and Tally imports; financial year closed or reopened.
+  - Filters: period, person, committee / staff only, kind of change, unit, and search (receipt, bill, amount, reason, old or new value). Totals, **Export CSV**, **Load older entries**.
+  - **Who changed this account** in each unit file opens the trail for that unit (all its entries).
+- **Putting a mistake right from the trail** (with a reason; the correction is a new entry linked to the original, which then shows *Corrected … by …*):
+  - a receipt entered by mistake → **Cancel this receipt** (it stays in the register, marked cancelled);
+  - a wrong correction or debited charge → **Reverse with an opposite entry** (dated today, same head, in the unit's ledger);
+  - a bill → **Credit this bill's amount back** (committee only; bills stay as issued);
+  - charges put on a coming bill → **Cancel those still waiting**.
+- **Check all balances against their ledgers:** lists any unit whose balance differs from the total of its ledger entries (a change made without its entry); the committee can **Set to the ledger total** (recorded in the trail).
+- **Require an entry for every balance change** (committee, in the Activity tab): once on, the database refuses any change to a unit's balance that doesn't come with its activity entry by the same person — even from an older copy of the website or app.
+- New staff permission **See the activity trail** (read only). Given by default to the *Auditor* role.
+
+### How it is protected
+- Entries are written by the person making the change, with their own sign-in and the server's time, and **in the same database commit** as receipts, cancellations, bills, corrections and charges, so one can't be saved without the other. Nobody can change or delete an entry from the website — not even the committee.
+- The entries are included in the scheduled full backups to the Society's Google Drive (3.25).
+
+### Changed
+- Database rules: new `auditLog`; `settings/audit`; a unit's money fields may also carry `auditId`; balance changes checked against the trail when required. **Publish the rules.**
+- Monthly bills on GitHub (`scripts/generate-bills.mjs`) write their trail entries too (shown as *Monthly bills (scheduled)*).
+
+### Upgrade notes
+- Publish the website and the **database rules**. Rebuild the Android app (it carries the website), so payments recorded in the app are in the trail.
+- Leave *Require an entry* off until every staff member uses website 3.34 or the rebuilt app; turn it on then.
+- Only the Firebase project owner (in the Firebase console) could remove entries; keep that account to the website owner.
+
+---
+
+Version 3.34.0 adds a new **Activity** tab. It keeps a permanent record of every money change in the accounts, whether made by the committee, staff or the automatic monthly bills. All test suites pass, but only on test data. I couldn't test the new database rules here, so try them on your test copy before the live site.
+
+**What each entry records:**
+
+- **Who and when:** the person's name and role, whether committee or staff, and the time from Google's server (not the phone or PC clock).
+- **What changed:** what was done, the unit, the amount, and the unit's balance before and after.
+- **References:** the receipt or bill number and the reason given.
+- **Rates and settings:** for rate, unit-detail and billing-setting changes, each field's old value and new value.
+- **Where from:** whether it came from the website, the Android app or the monthly bills on GitHub.
+- What's covered:
+  - receipts issued and cancelled;
+  - bills, and charges added, taken off a bill or cancelled;
+  - corrections and interest runs;
+  - old 2011–2016 receipt fixes;
+  - unit edits, lift expenses, billing settings, imports, and closing or reopening a financial year.
+
+**How you can investigate:**
+
+- Filter by period, person, staff only, type of change or unit, or search for a receipt number, amount or old value.
+- **Export CSV** for Excel.
+- In each unit file, **Who changed this account** shows that unit's full history.
+- **Check all balances against their ledgers** finds any unit whose balance was changed without a matching ledger entry. The committee can then set it back to the ledger total.
+
+**Fixing a mistake** is one button on the entry, plus a reason:
+
+- A wrong receipt → **Cancel this receipt**.
+- A wrong correction or charge → **Reverse with an opposite entry**.
+- A wrong bill → **Credit this bill's amount back** (committee only; the bill itself stays as issued).
+- Charges not yet billed → **Cancel those still waiting**.
+
+The fix is saved as a new entry linked to the original, and the original is marked "Corrected … by …".
+
+**Who can see it and what's protected:**
+
+- Each entry is saved together with the payment, bill or correction it records, so one can't be saved without the other.
+- Nobody, including the committee, can edit or delete an entry from the website. Only the Firebase project owner could, in the Firebase console, so keep that account with you.
+- Entries are included in the scheduled Google Drive backups.
+- The committee can see the tab. Staff only see it if you tick the new permission **See the activity trail**, which is now ticked by default for the Auditor role.
+
+-----
+
+### Tested
+- New suite t334 (25 checks): entries for a receipt, a correction, a unit edit and a month's bills by a staff accountant (name, role, kind, balance before/after, links, server time, version); the unit points at its entry; Activity tab, filters by kind and unit, search by changed value, totals; reversing a wrong correction and cancelling a wrong receipt from the trail (linked, marked corrected, no second button); bills offered as credit back; balance check and set to ledger total; CSV; require setting; unit file link; auditor sees but can't correct; manager without the permission doesn't see it; permission listed on the Staff page. All earlier suites pass.
+
+---
+
+## [3.33.1] – 2026-11-25 – App: Google sign-in refused with “[16] Account reauth failed” looked like nothing happened
+
+### Fixed
+- In the Android app, Google sign-in failed on members' phones (samsung SM-A356E Android 17, Xiaomi 23076PC4BI Android 15) with `TYPE_USER_CANCELED · [16] Account reauth failed`. Play services reports Google refusing the app copy — its signing SHA-1 is not registered in Firebase — as “cancelled by the user”, here after 3–4 seconds, so the app treated it as the person closing the chooser: a small grey “closed before an account was chosen” note, and *Closed* in the sign-in history.
+  - The page now recognises “reauth failed”, “[16]” and “[10]” (`REFUSED_RE`): a red message (“Google didn’t accept the sign-in from this app on your phone … not your mistake … sign in on sunshreesuntec.com in Chrome”), the details line with the code, Google's message and the app's SHA-1, and a confirm that opens the website in the phone's browser.
+  - The sign-in history records it as **Failed · app-not-accepted** with the app's SHA-1. Entries already saved by app 2.0.0 as *Closed* with that message show as *Failed · app-not-accepted*, and the red problem box says what to add in Firebase (the release key's SHA-1, and the Play Console *App signing key certificate* SHA-1 if installed from the Play Store).
+  - Android app 2.0.1 (`MainActivity.kt`): answers such a cancellation as `error / app-not-accepted` itself.
+- A person really closing the Google chooser still gets the gentle “try again” note and *Closed*.
+
+### Notes
+- **The fix for members is in Firebase, not in the app:** add the SHA-1 of the key that signed the app they installed (Firebase console → Project settings → Your apps → Android app → Add fingerprint). It works a few minutes later without reinstalling.
+- The website inside the app is packed into the APK, so the new messages reach phones with the next app build (2.0.1); the accounts page shows the corrected history at once.
+
+### Tested
+- New suite t3331 (12 checks): app 2.0.0's “cancelled after 3 s with [16]” answer shown as a failure with code, message and SHA-1; browser offered; Cancel stays, OK opens the website; app 2.0.1's answer handled the same; a real close stays *Closed*; accounts page turns old *Closed* entries into *Failed · app-not-accepted* with the help text. t34 updated for the new message and code. All earlier suites pass.
+
+---
+
 ## [3.33.0] – 2026-11-25 – Member agreement: dues of the unit, earlier NOC, 10-day reconciliation
 
 ### Added
@@ -22,50 +117,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 ### Notes
 - Publishing the new version asks every approved member to accept again at their next visit. Have the section checked by the Society's advocate and adopted by Managing Committee resolution (and General Body where the bye-laws require) before publishing. Recovery of a previous owner's dues from a new purchaser depends on the bye-laws, the transfer documents and the undertaking on admission; an NOC issued by the Society may be relied on by the purchaser, so the clause does not take away that defence.
 - No change to the database rules or the Drive script.
-
-----
-
-Version 3.33.0 is ready. The member portal agreement now has a new section, **"Dues of the unit, detailed statements and reconciliation"**. It sits right after "Maintenance charges, payments and financial records". All test suites pass. I tried it only on test data.
-
-**What the section says:**
-
-- **Dues:** the member pays all dues of the unit shown in the Society's books. That includes old arrears, and arrears from a previous owner's time as far as the member is liable for them. That liability comes from the MCS Act 1960, the bye-laws, the transfer terms or the undertaking signed on admission.
-
-- **Earlier NOC:** a no-dues certificate, NOC or letter given earlier, even by a previous committee, only shows the dues known at that time. On its own it doesn't stop the Society recovering amounts its books or audit later show unpaid, within the time limit the law allows. The member can still rely on the certificate before the Registrar.
-
-- **How bills are sent:** by detailed bills and statements on the portal, by physical letter or bill (including Registered Post), by email or by other ways the Society announces. Each statement shows the period, the charges, the payments and how the interest was worked out.
-
-- Disputes ("raise consent"):
-
-   the member writes within 
-
-  10 days
-
-   with proof (receipts, bank statements, the old NOC). The Society checks it against its books and the bank and 
-
-  corrects proven errors promptly
-
-   with a revised bill. Otherwise it replies with its reasons.
-
-  - No interest is charged on amounts found not due.
-  - The part not disputed is paid meanwhile.
-  - Not disputing in 10 days counts as accepted only for record-keeping; legal rights stay.
-
-- **Previous owner:** the Society may also recover from the previous owner, and anything recovered is credited to the unit.
-
-**Other changes:**
-
-- **Declaration:** members now confirm a fifth line above their signature about arrears and the 10-day dispute.
-- **Admin page:** Members → Member portal agreement has a new button, "Add the section on dues of the unit". It adds the section to your current published text.
-- **Bills:** the "How this bill is worked out" page and Annexure B now carry a box explaining how to dispute an amount. The bill note now says "10 days, with proof" instead of 7 days.
-
-**To make it live:**
-
-1. Upload the zip. The database rules and the Drive script don't change this time.
-2. Before publishing, have the advocate check the section and adopt it by Managing Committee resolution (General Body too if your bye-laws require it). The NOC part needs the most care: a buyer who relied on the Society's own NOC can still use it as a defence, and the wording deliberately leaves that right in place.
-3. Press the new button, then Preview, then "Publish as version 2" (or whatever the next number is). Every approved member will be asked to accept the new version at their next visit.
-
-----
 
 ### Tested
 - New suite t333 (12 checks): draft includes the section after maintenance; key terms; adding twice refused; added to an older published text and published as version 2 with version 1 unchanged; member asked again; five-line declaration stored; older text keeps four lines. t332 gains X9 (dispute box); t313 updated for 16 sections and five confirmations. All earlier suites pass.

@@ -274,15 +274,29 @@ service cloud.firestore {
     }
 
     // ---------- accounts ----------
+    // 3.34: the activity trail. When the committee requires it (settings/audit.required), a change to a unit's balance
+    // must point (auditId) at a new activity entry written in the same commit by the same person, for that unit.
+    function auditRequired() {
+      return exists(/databases/$(database)/documents/settings/audit)
+        && get(/databases/$(database)/documents/settings/audit).data.get('required', false) == true;
+    }
+    function balanceAudited(unitId) {
+      return !changes().hasAny(['balance', 'interestDue']) || !auditRequired()
+        || (request.resource.data.get('auditId', '') != resource.data.get('auditId', '')
+            && existsAfter(/databases/$(database)/documents/auditLog/$(request.resource.data.auditId))
+            && getAfter(/databases/$(database)/documents/auditLog/$(request.resource.data.auditId)).data.by == request.auth.uid
+            && getAfter(/databases/$(database)/documents/auditLog/$(request.resource.data.auditId)).data.get('unitId', '') == unitId);
+    }
+
     match /units/{unitId} {
       allow read: if perm('view') || approvedFor(unitId);
       allow create, delete: if isCommittee();
       // Money operations may change only the balance fields; unit editors only descriptive fields.
       // Rates, charge category, per-unit amounts, BPM and billing on/off stay with the committee.
-      allow update: if isCommittee()
-        || (moneyPerm() && changes().hasOnly(['balance', 'interestDue', 'lastBillId', 'unverified', 'updatedAt']))
+      allow update: if balanceAudited(unitId) && (isCommittee()
+        || (moneyPerm() && changes().hasOnly(['balance', 'interestDue', 'lastBillId', 'unverified', 'auditId', 'updatedAt']))
         || (perm('editUnits') && changes().hasOnly(['name', 'type', 'status', 'carpetArea', 'areaSource', 'inlets',
-                                                    'twoWheelers', 'fourWheelers', 'liftGroup', 'updatedAt']));
+                                                    'twoWheelers', 'fourWheelers', 'liftGroup', 'updatedAt'])));
       match /ledger/{entryId} {
         allow read: if perm('view') || approvedFor(unitId);
         allow create: if moneyPerm() && request.resource.data.date > lockDate();
@@ -635,6 +649,24 @@ service cloud.firestore {
     match /fyClosing/{fy} {
       allow read: if perm('view');
       allow write: if isCommittee();
+    }
+
+    // 3.34: the activity trail — one permanent entry per change to money in the accounts. Written by the person making
+    // the change (their own uid, server time); read by the committee and those given "See the activity trail";
+    // never changed or deleted from the website (only the project owner, in the Firebase console, could).
+    match /auditLog/{id} {
+      function entryOk(d) {
+        return d.by == request.auth.uid && d.at == request.time
+          && d.action is string && d.action.size() > 0 && d.action.size() <= 40
+          && d.keys().hasOnly(['at', 'by', 'byName', 'byRole', 'byKind', 'action', 'where', 'siteVersion', 'unitId', 'unit',
+                               'amount', 'debit', 'credit', 'balanceBefore', 'balanceAfter', 'count', 'refs', 'refNo', 'reason',
+                               'detail', 'changes', 'units', 'undoOf'])
+          && d.get('detail', '').size() <= 600 && d.get('reason', '').size() <= 300
+          && d.get('changes', []).size() <= 40 && d.get('units', []).size() <= 500;
+      }
+      allow read: if isCommittee() || perm('auditTrail');
+      allow create: if isTeam() && active() && entryOk(request.resource.data);
+      allow update, delete: if false;
     }
 
     match /settings/{docId} {

@@ -11,6 +11,7 @@ import {
   computeBill, billNumber, billId, monthBounds, monthLabel, todayIST, addDays, round, liftExpenseEndMonth, buildContext, maskedDues
 } from '../docs/assets/js/billing-core.js';
 import { DEFAULT_BILLING } from '../docs/assets/js/defaults.js';
+const SITE_VERSION = 'scheduler';
 
 const key = process.env.FIREBASE_SERVICE_ACCOUNT;
 if (!key) {
@@ -72,6 +73,15 @@ for (const doc of unitsSnap.docs) {
         source: 'scheduler', createdAt: FieldValue.serverTimestamp(), createdBy: 'github-actions'
       };
       const newBalance = calc.arrears + calc.current;
+      // 3.34: the activity trail entry for this bill (by the monthly scheduler).
+      const auditRef = db.collection('auditLog').doc();
+      tx.set(auditRef, {
+        at: FieldValue.serverTimestamp(), by: 'github-actions', byName: 'Monthly bills (scheduled)', byRole: 'Scheduler', byKind: 'system',
+        action: 'bill.generate', where: 'scheduler', siteVersion: SITE_VERSION, unitId: unit.id, unit: unit.unit,
+        amount: calc.current, debit: calc.current, balanceBefore: round(unit.balance), balanceAfter: newBalance,
+        refs: { bill: billRef.id }, refNo: bill.billNo,
+        detail: `${monthLabel(monthKey)}: arrears ₹${calc.arrears}, this month ₹${calc.current}, total ₹${calc.total} (scheduler)`
+      });
       tx.set(billRef, bill);
       tx.set(unitRef.collection('ledger').doc(), {
         date: billDate, particulars: `Bill ${bill.billNo} for ${monthLabel(monthKey)}`, receipt: '',
@@ -80,7 +90,7 @@ for (const doc of unitsSnap.docs) {
       });
       tx.update(unitRef, {
         balance: newBalance, interestDue: Math.max(0, round(unit.interestDue)) + calc.interest,
-        lastBillId: billRef.id, updatedAt: FieldValue.serverTimestamp()
+        lastBillId: billRef.id, auditId: auditRef.id, updatedAt: FieldValue.serverTimestamp()
       });
       for (const id of calc.adjIds || []) {
         tx.update(db.doc(`billAdjustments/${id}`), { status: 'billed', billId: billRef.id, billNo: bill.billNo, billedAt: FieldValue.serverTimestamp() });

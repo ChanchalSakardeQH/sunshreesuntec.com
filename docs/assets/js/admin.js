@@ -1,6 +1,7 @@
 // Committee accounts: dashboard, monthly bills, payments + receipts, unit ledgers, member access, website content, settings.
 import { initFirebase, errorText, inApp, saveBlob, signOutUser, SITE_VERSION, PROJECT_ID } from './firebase.js';
-import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, showMsg } from './signin.js';
+import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, showMsg, REFUSED_RE } from './signin.js';
+import { setAuditActor, auditIn, auditNow, diffFields, ACTIONS, GROUPS, actionLabel, actionGroup, loadAudit, loadUnitAudit, undoneMap, fixFor, balanceMismatches, auditCsv as trailCsv, ms as auMs } from './audit.js';
 import { initExpenses, loadExpenses, openExpenseById } from './expenses.js';
 import { initOfflineUi, requireOnline } from './offline.js';
 import { PERMS, PERM_LABEL, COMMITTEE_ONLY, permsFor, isCommitteeRecord, can, DEFAULT_AGREEMENT, setRolePolicies, rolePolicy, roleNames, DEFAULT_ROLE_POLICIES, accessEnds, accessEnded } from './staff.js';
@@ -10,7 +11,7 @@ import {
   loadLiftExpenses, addLiftExpense, deleteLiftExpense, unitsServedBy, saveUnitMeasurements, addUnit, publicDuesNeedMasking,
   loadAllLedgers, fyStatement, fyBills, fyPayments, closeFinancialYear, reopenFinancialYear,
   importTallyHistory, mergeLedger, loadHistory, loadMergedLedgers, TAKEOVER_DATE,
-  suggestMapping, historiesFromExport, saveTallyArchive, loadTallyArchive
+  suggestMapping, historiesFromExport, saveTallyArchive, loadTallyArchive, fixBalanceToLedger
 } from './accounts.js';
 import {
   listArchive, uploadArchiveDoc, openArchiveDoc, archiveBlob, deleteArchiveDoc, ARCHIVE_CATEGORIES,
@@ -47,8 +48,8 @@ import { getDues, getNotices, fmt, esc, fmtDate, relationLabel, defaultAccess } 
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'letters', 'library', 'transfers', 'members', 'expenses', 'directory', 'website', 'staff', 'settings', 'profile'];
-const TAB_NEED = { letters: 'letters', library: 'library', transfers: 'view', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'membersTab', expenses: 'expenses', directory: 'directory', website: 'website', staff: 'committee', settings: 'committee', profile: null };
+const TABS = ['dashboard', 'bills', 'payments', 'units', 'unitfile', 'lift', 'reports', 'documents', 'letters', 'library', 'transfers', 'members', 'expenses', 'directory', 'activity', 'website', 'staff', 'settings', 'profile'];
+const TAB_NEED = { letters: 'letters', library: 'library', transfers: 'view', documents: 'view', reports: 'view', unitfile: 'view', dashboard: 'view', bills: 'view', payments: 'view', units: 'view', lift: 'view', members: 'membersTab', expenses: 'expenses', directory: 'directory', activity: 'auditTrail', website: 'website', staff: 'committee', settings: 'committee', profile: null };
 
 let me = null;          // this person's admins record (committee or staff)
 let agreement = null;   // current staff agreement
@@ -188,6 +189,7 @@ async function startSession(user) {
   }
 
   me = { uid: user.uid, email: user.email, ...snap.data() };
+  setAuditActor(me);
   if (me.active === false) { gate('Your access has been suspended by the committee.', true); return; }
   if (accessEnded(me)) { gate(`Your access ended on ${esc(accessEnds(me).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }))}. Please contact the committee if you still need it.`, true); return; }
 
@@ -285,7 +287,7 @@ function route() {
   $('#admin-nav').classList.remove('open');
   $('#no-units').hidden = units.length > 0 || ['settings', 'staff', 'profile', 'members', 'website', 'directory', 'expenses', 'library'].includes(id) || !canDo('view');
   if (id === 'settings' && !units.length) setTimeout(() => $('#import-box').scrollIntoView({ behavior: 'smooth' }), 50);
-  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, letters: loadCorrespondence, library: loadLibraryAdmin, transfers: loadTransfers, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
+  const load = { dashboard: loadDashboard, bills: loadBills, payments: loadPayments, units: renderUnits, unitfile: loadUnitFile, reports: loadReports, documents: loadDocuments, letters: loadCorrespondence, library: loadLibraryAdmin, transfers: loadTransfers, lift: loadLift, members: loadMembers, expenses: loadExpenses, directory: loadDirectory, activity: loadActivity, website: loadWebsite, settings: loadSettings, staff: loadStaff, profile: loadProfile }[id];
   load().catch((err) => { console.error(err); alert(errorText(err)); });
 }
 
@@ -314,6 +316,7 @@ function wireOnce() {
   loadPauseState().catch(() => null);
   wireCommittee();
   wireLibraryAdmin();
+  wireActivity();
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
     reloadBilling: async () => { billing = await loadBilling(fb); return lastBilled(); } });
   initCorrespondence({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units });
@@ -543,9 +546,15 @@ function wireCharges() {
       try {
         if (when === 'bill') {
           for (let i = 0; i < set.length; i += 400) {
-            const batch = F.writeBatch(db);
-            for (const x of set.slice(i, i + 400)) batch.set(F.doc(F.collection(db, 'billAdjustments')), { unitId: x.u.id, unit: x.u.unit, month: f.month.value, code, amount: x.amount, detail,
-              status: 'pending', source: 'charge', createdBy: uid, createdByName: me?.name || '', createdAt: F.serverTimestamp() });
+            const batch = F.writeBatch(db), part = set.slice(i, i + 400), ids = [];
+            for (const x of part) {
+              const ref = F.doc(F.collection(db, 'billAdjustments')); ids.push(ref.id);
+              batch.set(ref, { unitId: x.u.id, unit: x.u.unit, month: f.month.value, code, amount: x.amount, detail,
+                status: 'pending', source: 'charge', createdBy: uid, createdByName: me?.name || '', createdAt: F.serverTimestamp() });
+            }
+            auditIn(batch, fb, { action: 'charge.add', count: part.length, amount: part.reduce((t, x) => t + x.amount, 0), units: part.map((x) => x.u.id), refs: { adjustments: ids },
+              ...(part.length === 1 ? { unitId: part[0].u.id, unit: part[0].u.unit } : {}),
+              detail: `${LABEL[code]}: ${detail} · on the bills of ${monthLabel(f.month.value)} · ${part.map((x) => `${x.u.unit} ₹${x.amount}`).join(', ')}` });
             await batch.commit();
           }
         } else {
@@ -590,7 +599,11 @@ function wireCharges() {
       try {
         for (let i = 0; i < ids.length; i += 400) {
           const batch = F.writeBatch(db);
-          for (const id of ids.slice(i, i + 400)) batch.update(F.doc(db, 'billAdjustments', id), { status: 'cancelled', cancelledAt: F.serverTimestamp(), cancelledBy: uid });
+          const part = ids.slice(i, i + 400), list = part.map((id) => chAdj.find((a) => a.id === id)).filter(Boolean);
+          for (const id of part) batch.update(F.doc(db, 'billAdjustments', id), { status: 'cancelled', cancelledAt: F.serverTimestamp(), cancelledBy: uid });
+          auditIn(batch, fb, { action: 'charge.cancel', count: part.length, amount: list.reduce((t, a) => t + (Number(a.amount) || 0), 0), units: list.map((a) => a.unitId), refs: { adjustments: part },
+            ...(list.length === 1 ? { unitId: list[0].unitId, unit: list[0].unit } : {}),
+            detail: list.length ? `${LABEL[list[0].code] || list[0].code}: ${list[0].detail || ''} · ${monthLabel(list[0].month)} · ${list.map((a) => `${a.unit} ₹${a.amount}`).join(', ')}` : `${part.length} charges` });
           await batch.commit();
         }
         const m = $('#ch-msg'); m.className = 'form-msg ok'; m.textContent = `${ids.length} cancelled.`;
@@ -867,6 +880,8 @@ async function addPastInterest(btn) {
           status: 'pending', createdAt: F.serverTimestamp(), createdBy: uid
         });
       }
+      auditIn(batch, fb, { action: 'interest.run', count: rows.length, amount: total, refNo: no, refs: { interestRun: runRef.id }, units: rows.map((r) => r.u.id),
+        detail: `${no}: interest on arrears ${monthLabel(from)} to ${monthLabel(to)}, on the bills of ${monthLabel(billMonth)}` });
       await batch.commit();
       // A copy of the calculation in the Society's Drive, next to the reference documents.
       const copy = btoa(unescape(encodeURIComponent(`${no}\r\n${piCsv(true)}`)));
@@ -905,6 +920,7 @@ async function cancelPiRun(id, btn) {
       let n = 0, billed = 0;
       snap.docs.forEach((d) => { if (d.data().status === 'pending') { batch.update(d.ref, { status: 'cancelled', cancelledAt: F.serverTimestamp(), cancelledBy: uid }); n++; } else if (d.data().status === 'billed') billed++; });
       if (!billed) batch.update(F.doc(db, 'interestRuns', id), { status: 'cancelled', cancelledAt: F.serverTimestamp(), cancelledBy: uid });
+      auditIn(batch, fb, { action: 'interest.cancel', count: n, refs: { interestRun: id }, detail: `${n} units cancelled${billed ? `; ${billed} already billed stay` : ''}` });
       await batch.commit();
       const m = $('#pi-runs-msg'); m.className = 'form-msg ok'; m.textContent = `${n} unit${n === 1 ? '' : 's'} cancelled.${billed ? ` ${billed} already billed stay as billed.` : ''}`;
       await renderPiRuns();
@@ -1060,6 +1076,7 @@ async function pclDuplicates(c) {
 async function pclDecide(c, status, note) {
   const { F, db } = fb;
   await F.updateDoc(F.doc(db, 'paymentClaims', c.id), { status, decisionNote: note || '', decidedBy: uid, decidedByName: me?.name || '', decidedRole: me?.role || '', decidedAt: F.serverTimestamp(), updatedAt: F.serverTimestamp() });
+  await auditNow(fb, { action: 'claim.decide', unitId: c.unitId, unit: c.unit, amount: c.amount, refs: { claim: c.id }, reason: note || '', detail: `Payment of ₹${c.amount} on ${c.date} (${c.mode} ${c.reference || ''}) reported by the member: ${status === 'query' ? 'asked for details' : 'not found in the bank'}` });
   let mailed = true;
   try { await loadDriveCfg(fb); await driveCall(fb, 'claimDecision', { claimId: c.id }); } catch (err) { mailed = false; console.warn('claim email', err); }
   return mailed;
@@ -1325,7 +1342,7 @@ function wireUnits() {
     }));
     await busy($('button[type=submit]', f), async () => {
       try {
-        await saveUnitMeasurements(fb, rows);
+        await saveUnitMeasurements(fb, rows, units);
         await refreshCore();
         renderUnits();
         setMsg(f, `Saved ${rows.length} units.`, true);
@@ -1345,6 +1362,7 @@ function wireUnits() {
     await busy(e.currentTarget, async () => {
       try {
         await fb.F.deleteDoc(fb.F.doc(fb.db, 'units', editing));
+        await auditNow(fb, { action: 'unit.delete', unitId: u.id, unit: u.unit, balanceBefore: round(u.balance), detail: `${u.unit} ${u.name || ''} removed (no entries)` });
         await rebuildPublicDues(fb, dues.blocks);
         await refreshCore();
         renderUnits();
@@ -3111,6 +3129,7 @@ const RESULT_PILL = { ok: '<span class="status-pill ok">Signed in</span>', cance
 const RESULT_WORD = { ok: 'Signed in', cancelled: 'Closed', failed: 'Failed' };
 // Plain-language explanation of common failure codes, with what the committee can do.
 const PROBLEM_HELP = {
+  'app-not-accepted': 'Google refused the sign-in from the Android app (“[16] Account reauth failed” — Google reports it as “closed by the user”, but the person didn’t close anything). The app copy on these phones is signed with a key whose SHA-1 isn’t in Firebase. Add it in Firebase console → Project settings → Your apps → the Android app → Add fingerprint: the SHA-1 shown below (app 2.0.1 and later report it), or, for an older app, the release key’s SHA-1 (build menu option 7 or 9) and — if members installed it from the Play Store — the “App signing key certificate” SHA-1 from Play Console → Test and release → Setup → App signing. It works a few minutes later, without rebuilding the app. Meanwhile members can sign in on the website in Chrome.',
   'closed-at-once': 'Google closed its account chooser straight away in the app. Google doesn’t accept this app copy yet: add the app’s SHA-1 fingerprint (shown below) in Firebase console → Project settings → Your apps → Android app → Add fingerprint. It works a few minutes later, without rebuilding the app.',
   'no-client-id': 'The app was built without the Web client ID. Add WEB_CLIENT_ID in app-config.properties (build menu option 7) and build again.',
   'no-account': 'The phone has no Google account. The member can add one in the phone’s Settings → Accounts, or use email and password.',
@@ -3126,7 +3145,9 @@ async function loadSigninLog() {
   const { F, db } = fb;
   try {
     const snap = await F.getDocs(F.query(F.collection(db, 'signInLog'), F.orderBy('at', 'desc'), F.limit(1000)));
-    signinLog = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (tsDate(b.at) || 0) - (tsDate(a.at) || 0));
+    // 3.33.1: an app attempt Google refused ("[16] Account reauth failed") was saved by app 2.0.0 as "closed"; show it as failed.
+    signinLog = snap.docs.map((d) => ({ id: d.id, ...d.data() })).map((e) => (e.method === 'google' && e.result === 'cancelled' && REFUSED_RE.test(e.detail || '')
+      ? { ...e, result: 'failed', code: 'app-not-accepted', savedAs: e.code } : e)).sort((a, b) => (tsDate(b.at) || 0) - (tsDate(a.at) || 0));
     $('#si-foot').textContent = signinLog.length >= 1000 ? 'Showing the latest 1,000 attempts.' : '';
   } catch (err) {
     signinLog = [];
@@ -3235,7 +3256,7 @@ function renderSigninLog() {
       <td>${esc(METHOD_TEXT[e.method] || e.method)}${e.page === 'admin' ? ' <span class="status-pill">Committee page</span>' : ''}</td>
       <td>${e.where === 'app' ? `App${e.appVersion ? ' ' + esc(e.appVersion) : ''}` : 'Website'}</td>
       <td>${RESULT_PILL[e.result] || esc(e.result)}</td>
-      <td class="si-detail">${[e.code, e.detail, e.device, e.ms ? `${(e.ms / 1000).toFixed(1)} s` : ''].filter(Boolean).map(esc).join(' · ')}</td></tr>`).join('')
+      <td class="si-detail">${[e.code === 'app-not-accepted' ? 'app-not-accepted (Google refused the app: its SHA-1 isn’t in Firebase)' : e.code, e.detail, e.device, e.ms ? `${(e.ms / 1000).toFixed(1)} s` : ''].filter(Boolean).map(esc).join(' · ')}</td></tr>`).join('')
     || `<tr><td colspan="${del ? 7 : 6}" class="empty">No sign-in attempts in this period.</td></tr>`;
   if (del) { $('#si-all').checked = false; $('#si-delete').disabled = true; $('#si-delete').textContent = 'Delete selected'; }
 }
@@ -3817,6 +3838,7 @@ function wireSettings() {
     await busy($('button[type=submit]', mf), async () => {
       try {
         await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'billing'), { method, mmc }, { merge: true });
+        await auditNow(fb, { action: 'settings.billing', changes: diffFields(billing, { method, mmc }), detail: `Charge method ${method === 'mmc' ? 'Monthly Maintenance Calculation (2026 Rules)' : 'AGM 2015 category rates'}` });
         billing = await loadBilling(fb);
         renderMmcRows();
         mmcSummary();
@@ -3875,6 +3897,7 @@ function wireSettings() {
     await busy($('button[type=submit]', bf), async () => {
       try {
         await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'billing'), patch, { merge: true });
+        await auditNow(fb, { action: 'settings.billing', changes: diffFields(billing, patch), detail: 'Rates, categories, funds or interest' });
         await saveSite({ interestRatePA, interestPeriods: interestPeriodsOf({ interestPeriods }), chargesBasis: String(fd.get('chargesBasis')).trim() }); // printed on bills and shown to members
         billing = await loadBilling(fb);
         renderCategories();
@@ -5941,4 +5964,192 @@ function renderOldCollections(head) {
       <td class="num">${fmt(prCounts(r) ? r.amount : (r.listedAmount || 0))}</td><td>${prStatePill(r)}</td></tr>`).join('')}</tbody></table></div>`;
   rpCsv = { name: `old-receipts-${rpData.fy}`, rows: [['Date', 'Receipt no', 'Unit', 'Paid for', 'Months / details', 'Mode', 'Remark', 'Amount', 'Counted', 'Checked'],
     ...list.map((r) => [r.date, r.receiptNo, unitName(r.unitId), r.head, r.period, r.mode, r.remark, prCounts(r) ? r.amount : 0, prCounts(r) ? 'yes' : (prStatusLabel[r.status] || r.status), VERIFY_LABEL[r.verify?.state || 'unchecked']])] };
+}
+
+/* ---------------- activity trail (3.34) ---------------- */
+
+let auList = [], auMax = 3000, auChecked = null;
+const auWhen = (e) => { const t = auMs(e.at); return t ? new Date(t).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; };
+const auUnitLabel = (id) => units.find((u) => u.id === id)?.unit || id;
+
+async function loadActivity() {
+  const pick = sessionStorage.getItem('auditUnit');
+  auList = await loadAudit(fb, auMax);
+  $('#au-unit').innerHTML = '<option value="">All units</option>' + units.map((u) => `<option value="${esc(u.id)}">${esc(u.unit)}${u.name ? ' – ' + esc(u.name) : ''}</option>`).join('');
+  $('#au-group').innerHTML = '<option value="">Everything</option>' + Object.entries(GROUPS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')
+    + '<option value="undone">Corrected from the trail</option>';
+  if (pick) { sessionStorage.removeItem('auditUnit'); $('#au-unit').value = pick; $('#au-days').value = '0'; }
+  await auUnitEntries();
+  $('#au-more').hidden = auList.length < auMax;
+  await loadAuditSetting();
+  renderActivity();
+}
+
+/** A chosen unit: also its older entries beyond what is loaded. */
+async function auUnitEntries() {
+  const id = $('#au-unit').value;
+  if (!id) return;
+  const more = await loadUnitAudit(fb, id).catch(() => []);
+  const have = new Set(auList.map((e) => e.id));
+  auList = [...auList, ...more.filter((e) => !have.has(e.id))].sort((a, b) => auMs(b.at) - auMs(a.at));
+}
+
+function auFiltered() {
+  const days = Number($('#au-days').value), who = $('#au-who').value, kind = $('#au-kind').value, group = $('#au-group').value, unit = $('#au-unit').value;
+  const q = ($('#au-q').value || '').trim().toLowerCase();
+  const since = days ? Date.now() - days * 86400000 : 0;
+  const undone = undoneMap(auList);
+  return auList.filter((e) => (!since || auMs(e.at) >= since) && (!who || e.by === who) && (!kind || e.byKind === kind)
+    && (!group || (group === 'undone' ? Boolean(undone[e.id] || e.undoOf) : actionGroup(e.action) === group))
+    && (!unit || e.unitId === unit || (e.units || []).includes(unit))
+    && (!q || [e.byName, e.byRole, actionLabel(e.action), e.unit, e.refNo, e.detail, e.reason, String(e.amount ?? ''), ...(e.changes || []).map((c) => `${c.field} ${c.from} ${c.to}`)].join(' ').toLowerCase().includes(q)));
+}
+
+function renderActivity() {
+  const people = {};
+  auList.forEach((e) => { if (e.by && !people[e.by]) people[e.by] = `${e.byName || e.by}${e.byRole ? ` (${e.byRole})` : ''}`; });
+  const who = $('#au-who').value;
+  $('#au-who').innerHTML = '<option value="">Everyone</option>' + Object.entries(people).sort((a, b) => a[1].localeCompare(b[1])).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
+  $('#au-who').value = people[who] ? who : '';
+  const list = auFiltered(), undone = undoneMap(auList);
+  const sum = (a, f) => list.filter((e) => a.includes(e.action)).reduce((t, e) => t + (Number(e[f]) || 0), 0);
+  const staffN = list.filter((e) => e.byKind === 'staff').length;
+  $('#au-summary').innerHTML = [
+    ['Entries', list.length], ['By staff', staffN], ['People', new Set(list.map((e) => e.by)).size],
+    ['Receipts issued', `₹ ${fmt(sum(['payment.record'], 'credit'))}`], ['Receipts cancelled', `₹ ${fmt(sum(['payment.cancel'], 'debit'))}`],
+    ['Corrections: debit / credit', `₹ ${fmt(sum(['correction', 'charge.debit', 'undo'], 'debit'))} / ₹ ${fmt(sum(['correction', 'charge.debit', 'charge.reverse', 'undo'], 'credit'))}`],
+    ['Corrected from the trail', list.filter((e) => undone[e.id]).length]
+  ].map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${typeof v === 'number' ? v : esc(v)}</dd></div>`).join('');
+  $('#au-rows').innerHTML = list.slice(0, 1500).map((e) => {
+    const fix = fixFor(e), fixed = undone[e.id];
+    const bal = e.balanceBefore !== undefined || e.balanceAfter !== undefined ? `${e.balanceBefore !== undefined ? amt(e.balanceBefore) : '—'} → ${e.balanceAfter !== undefined ? amt(e.balanceAfter) : '—'}` : '';
+    const money = e.debit ? `${fmt(e.debit)} Dr` : e.credit ? `${fmt(e.credit)} Cr` : e.amount !== undefined ? fmt(e.amount) : '';
+    const changes = e.changes?.length ? `<details><summary>${e.changes.length} change${e.changes.length === 1 ? '' : 's'}</summary><ul class="au-changes">${e.changes.map((c) => `<li><b>${esc(c.field)}</b>: ${esc(c.from)} → ${esc(c.to)}</li>`).join('')}</ul></details>` : '';
+    const tags = [fixed ? `<span class="status-pill au-fixed">Corrected ${esc(auWhen(fixed))} by ${esc(fixed.byName || '')}</span>` : '',
+      e.undoOf ? `<span class="status-pill au-undo">Correction of an earlier entry</span>` : '',
+      e.where === 'app' ? '<span class="sub">Android app</span>' : e.where === 'scheduler' ? '<span class="sub">automatic</span>' : ''].join('');
+    const unitCell = e.unitId ? `<a href="#unitfile" data-au-file="${esc(e.unitId)}">${esc(e.unit || e.unitId)}</a>` : e.units?.length ? `${e.units.length} units` : '';
+    return `<tr data-au="${esc(e.id)}"${e.undoOf ? ' class="au-row-undo"' : fixed ? ' class="au-row-fixed"' : ''}>
+      <td>${esc(auWhen(e))}</td>
+      <td>${esc(e.byName || '—')}<span class="sub">${esc(e.byRole || '')}${e.byKind === 'staff' ? ' · staff' : e.byKind === 'committee' ? ' · committee' : ''}</span></td>
+      <td>${esc(actionLabel(e.action))}${tags}</td>
+      <td class="unit">${unitCell}</td>
+      <td class="num">${money}</td>
+      <td class="num">${bal}</td>
+      <td class="au-detail">${e.refNo ? `<b>${esc(e.refNo)}</b> · ` : ''}${esc(e.detail || '')}${e.reason ? `<span class="sub">Reason: ${esc(e.reason)}</span>` : ''}${changes}</td>
+      <td>${fix && !fixed && canDo(fix.perm) ? `<button class="btn btn-small" type="button" data-au-fix="${esc(e.id)}">${esc(fix.label)}</button>` : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="empty">No activity for this choice.</td></tr>';
+  if (list.length > 1500) $('#au-msg').textContent = `Showing the latest 1,500 of ${list.length}. Narrow the period or the person, or export the CSV for all.`;
+}
+
+async function auFix(e, btn) {
+  const fix = fixFor(e);
+  if (!fix) return;
+  const { F, db } = fb;
+  const when = auWhen(e), who = e.byName || 'someone';
+  const reason = prompt(`${fix.label}\n\n${actionLabel(e.action)} by ${who} on ${when}${e.unit ? ` — ${e.unit}` : ''}${e.refNo ? ` — ${e.refNo}` : ''}\n${e.detail || ''}\n\nWhy is it being corrected? (kept in the trail${fix.how === 'cancelReceipt' ? ' and on the receipt' : ' and in the unit’s ledger'})`, 'Entered by mistake');
+  if (reason === null) return;
+  const why = reason.trim() || 'Entered by mistake';
+  await busy(btn, async () => {
+    try {
+      if (fix.how === 'cancelReceipt') {
+        const p = await F.getDoc(F.doc(db, 'payments', e.refs.payment));
+        if (!p.exists() || p.data().status === 'cancelled') throw new Error('This receipt is already cancelled.');
+        await cancelPayment(fb, e.refs.payment, why, e.id);
+      } else if (fix.how === 'opposite') {
+        let kind = 'adjustment', code = '', text = '';
+        if (e.refs?.ledger) {
+          const l = await F.getDoc(F.doc(db, 'units', e.unitId, 'ledger', e.refs.ledger)).catch(() => null);
+          if (l?.exists()) { kind = l.data().kind === 'charge' ? 'charge' : 'adjustment'; code = l.data().code || ''; text = l.data().particulars || ''; }
+        }
+        if (e.action === 'bill.generate') text = `Bill ${e.refNo}`;
+        const debit = round(e.credit || 0), credit = round(e.debit || 0);
+        if (!confirm(`${e.unit}: ${debit ? `debit ₹${fmt(debit)}` : `credit ₹${fmt(credit)}`} today, reversing “${text || e.detail || actionLabel(e.action)}”. Go ahead?`)) return;
+        await addAdjustment(fb, e.unitId, { date: todayIST(), particulars: `Reversal of ${text || actionLabel(e.action)} (entered ${when.split(',')[0]} by ${who}) – ${why}`.slice(0, 240),
+          debit, credit, kind, ...(code ? { code } : {}), reason: why, undoOf: e.id });
+      } else if (fix.how === 'cancelPending') {
+        const ids = e.refs.adjustments || [];
+        const snaps = await Promise.all(ids.map((id) => F.getDoc(F.doc(db, 'billAdjustments', id))));
+        const live = snaps.filter((s) => s.exists() && s.data().status === 'pending');
+        if (!live.length) throw new Error('None of these charges is still waiting: they are already on bills or cancelled. Take them off the bills under Bills → Charges.');
+        if (!confirm(`Cancel ${live.length} of ${ids.length} charge${ids.length === 1 ? '' : 's'} still waiting for a bill?`)) return;
+        const batch = F.writeBatch(db);
+        live.forEach((s) => batch.update(s.ref, { status: 'cancelled', cancelledAt: F.serverTimestamp(), cancelledBy: uid }));
+        auditIn(batch, fb, { action: 'undo', undoOf: e.id, count: live.length, reason: why, refs: { adjustments: live.map((s) => s.id) },
+          amount: live.reduce((t, s) => t + (Number(s.data().amount) || 0), 0), units: live.map((s) => s.data().unitId),
+          ...(live.length === 1 ? { unitId: live[0].data().unitId, unit: live[0].data().unit } : {}),
+          detail: `Cancelled before billing: ${live.map((s) => `${s.data().unit} ₹${s.data().amount}`).join(', ')}` });
+        await batch.commit();
+      }
+      units = await loadUnits(fb);
+      const m = $('#au-msg'); m.className = 'form-msg ok'; m.textContent = 'Corrected. The correction is in the trail, linked to the original entry.';
+      await loadActivity();
+    } catch (err) { alert(errorText(err)); }
+  });
+}
+
+async function auCheckBalances(btn) {
+  await busy(btn, async () => {
+    const ledgers = await loadAllLedgers(fb, units);
+    auChecked = balanceMismatches(units, ledgers);
+    const box = $('#au-check-box'); box.hidden = false;
+    box.innerHTML = auChecked.length
+      ? `<div class="callout warn-note"><h2>${auChecked.length} unit${auChecked.length === 1 ? '' : 's'} where the balance doesn’t match the ledger</h2>
+        <p>The ledger entries are the record (they can’t be changed). A different balance means a change was made without its ledger entry. Look at the unit’s activity first; the committee can then set the balance to the ledger total.</p>
+        <div class="table-wrap"><table class="data"><thead><tr><th>Unit</th><th>Name</th><th class="num">Balance</th><th class="num">Ledger total</th><th class="num">Difference</th><th></th></tr></thead><tbody>
+        ${auChecked.map((x) => `<tr><td class="unit">${esc(x.unit)}</td><td>${esc(x.name)}</td><td class="num">${amt(x.balance)}</td><td class="num">${amt(x.ledger)}</td><td class="num">${fmt(x.diff)}</td>
+          <td><div class="row-actions"><button class="btn btn-small" type="button" data-au-show="${esc(x.id)}">Activity</button>${canDo('committee') ? `<button class="btn btn-small" type="button" data-au-setbal="${esc(x.id)}">Set to the ledger total</button>` : ''}</div></td></tr>`).join('')}
+        </tbody></table></div></div>`
+      : `<p class="form-msg ok">All ${units.length} balances match their ledgers.</p>`;
+  });
+}
+
+async function loadAuditSetting() {
+  const box = $('#au-setting-box');
+  if (!canDo('committee')) { box.hidden = true; return; }
+  const s = await fb.F.getDoc(fb.F.doc(fb.db, 'settings', 'audit')).catch(() => null);
+  const d = s?.exists() ? s.data() : {};
+  $('#au-required').checked = d.required === true;
+  $('#au-required-note').textContent = d.changedByName ? `${d.required ? 'Turned on' : 'Turned off'} by ${d.changedByName}${d.changedAt ? ' on ' + auWhen({ at: d.changedAt }) : ''}.` : 'Off.';
+}
+
+function wireActivity() {
+  ['#au-days', '#au-who', '#au-kind', '#au-group'].forEach((s) => $(s).addEventListener('change', renderActivity));
+  $('#au-unit').addEventListener('change', async () => { await auUnitEntries(); renderActivity(); });
+  $('#au-q').addEventListener('input', renderActivity);
+  $('#au-more').addEventListener('click', (e) => busy(e.currentTarget, async () => { auMax += 5000; await loadActivity(); }));
+  $('#au-csv').addEventListener('click', () => {
+    const list = auFiltered();
+    saveBlob(new Blob(['﻿' + trailCsv(list, auUnitLabel)], { type: 'text/csv' }), `activity-trail-${todayIST()}.csv`).catch((err) => alert(errorText(err)));
+  });
+  $('#au-check').addEventListener('click', (e) => auCheckBalances(e.currentTarget).catch((err) => alert(errorText(err))));
+  $('#au-check-box').addEventListener('click', async (e) => {
+    const show = e.target.closest('[data-au-show]');
+    if (show) { $('#au-unit').value = show.dataset.auShow; $('#au-days').value = '0'; await auUnitEntries(); renderActivity(); $('#au-rows').scrollIntoView({ behavior: 'smooth' }); return; }
+    const b = e.target.closest('[data-au-setbal]');
+    if (!b) return;
+    const x = auChecked.find((r) => r.id === b.dataset.auSetbal);
+    const reason = prompt(`${x.unit}: set the balance from ₹${fmt(x.balance)} to the ledger total ₹${fmt(x.ledger)}?\n\nReason (kept in the trail):`, 'Balance did not match the ledger');
+    if (reason === null) return;
+    await busy(b, async () => {
+      try { await fixBalanceToLedger(fb, x.id, x.ledger, reason.trim() || 'Balance did not match the ledger'); units = await loadUnits(fb); await auCheckBalances($('#au-check')); await loadActivity(); }
+      catch (err) { alert(errorText(err)); }
+    });
+  });
+  $('#au-rows').addEventListener('click', (e) => {
+    const f = e.target.closest('[data-au-file]');
+    if (f) { fileUnit = f.dataset.auFile; sessionStorage.setItem('fileUnit', fileUnit); return; }
+    const b = e.target.closest('[data-au-fix]');
+    if (b) auFix(auList.find((x) => x.id === b.dataset.auFix), b);
+  });
+  $('#uf-activity').addEventListener('click', () => { if (fileUnit) sessionStorage.setItem('auditUnit', fileUnit); });
+  $('#au-required').addEventListener('change', async (e) => {
+    const on = e.target.checked;
+    if (on && !confirm('Require an activity entry for every balance change?\n\nPayments, bills and corrections from an older copy of the website or Android app (before 3.34) will then be refused. Make sure everyone has the new version first.')) { e.target.checked = false; return; }
+    try {
+      await fb.F.setDoc(fb.F.doc(fb.db, 'settings', 'audit'), { required: on, changedBy: uid, changedByName: me?.name || '', changedAt: fb.F.serverTimestamp() }, { merge: true });
+      await auditNow(fb, { action: 'audit.setting', detail: on ? 'Every balance change must now come with its activity entry' : 'Activity entry no longer required for balance changes (still written by this version)' });
+      await loadActivity();
+    } catch (err) { e.target.checked = !on; alert(errorText(err)); }
+  });
 }

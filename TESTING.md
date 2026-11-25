@@ -203,6 +203,25 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 1 | Bills → Charges to recover → Deemed Conveyance Legal Fee → ₹6,500 for all → on the bills of next month | Listed as waiting; next month's bills have the line |
 | 2 | Legal Notice & Recovery Expenses → the units of a notice at ₹350 → debit now | Ledger entries; balances up by ₹350 |
 
+### Activity trail (3.34) — on the test copy
+| # | Do | Expected |
+|---|---|---|
+| 1 | Sign in as a test Accountant (staff) → record a payment, add a correction, edit a unit's rate | Accounts → Activity (as committee): three entries with the Accountant's name and role, *staff*, balance before → after, the receipt no., the old → new rate |
+| 2 | On the correction → **Reverse with an opposite entry** | Ledger has the opposite entry dated today; balance back; original shows *Corrected … by …*; the new entry says *Correction of an earlier entry* |
+| 3 | On the receipt → **Cancel this receipt** | Receipt marked cancelled with the reason; balance back |
+| 4 | **Check all balances against their ledgers** | “All … balances match” (or the units that don't) |
+| 5 | Unit file → **Who changed this account** | The trail for that unit only |
+| 6 | **Export CSV** | Opens in Excel with all columns |
+| 7 | Turn on *Require an entry*; record a payment with website 3.34 | Works. (With a pre-3.34 copy it is refused: “Missing or insufficient permissions”.) |
+| 8 | Sign in as a staff member without *See the activity trail* | No Activity tab |
+
+### App: Google refusing the app (3.33.1)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Install a test APK signed with a key whose SHA-1 is **not** in the test Firebase project → *Continue with Google* | Red “Google didn’t accept the sign-in from this app…”, grey line with *app-not-accepted* and the SHA-1, then “Open sunshreesuntec.com in the phone’s browser?” |
+| 2 | Accounts → Members → Sign-in history | *Failed*, *app-not-accepted (Google refused the app…)*, red box with the SHA-1 to add |
+| 3 | Add that SHA-1 in the test Firebase project, wait 5 minutes, try again | Signed in |
+
 ### Member agreement – dues of the unit (3.33)
 | # | Do | Expected |
 |---|---|---|

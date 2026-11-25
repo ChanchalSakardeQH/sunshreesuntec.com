@@ -10,6 +10,7 @@
 // verify.state: 'unchecked' | 'verified' (matches the receipt book) | 'corrected' (changed after checking) | 'disputed'
 
 import { fyBounds, financialYear } from './billing-core.js';
+import { auditNow, diffFields } from './audit.js';
 
 /** Heads that are part of the member's maintenance account. Other heads are shown but don't change the dues balance. */
 export const DUES_HEADS = ['Maintenance', 'Lift AMC'];
@@ -80,6 +81,9 @@ export async function savePastReceipt(fb, unitId, before, changes, verify, reaso
     before: Object.fromEntries(Object.keys(changed).map((k) => [k, before[k] ?? null])), after: changed,
     verifyBefore: before.verify?.state || 'unchecked', verifyAfter: v.state, reason: reason || '', by: auth.currentUser.uid, byName: byName || '', at: F.serverTimestamp()
   });
+  await auditNow(fb, { action: 'pastReceipt.edit', unitId, unit: unitId.replace(/-/g, ' '), amount: after.amount, refNo: `Old ${after.receiptNo ?? before.receiptNo ?? ''}`, reason,
+    changes: [...diffFields(before, changed), ...((before.verify?.state || 'unchecked') !== v.state ? [{ field: 'checked', from: before.verify?.state || 'unchecked', to: v.state }] : [])],
+    refs: { pastReceipt: before.id }, detail: `Receipt of ${after.date || ''} ₹${after.amount ?? ''}${verify.note ? ' · ' + verify.note : ''}` });
   return Object.keys(changed);
 }
 
@@ -97,6 +101,8 @@ export async function addPastReceipt(fb, unitId, rec, verify, reason, byName) {
     unitId, receiptId: id, receiptNo: data.receiptNo || '', before: null, after: data, verifyBefore: null, verifyAfter: verify.state,
     reason: reason || '', by: auth.currentUser.uid, byName: byName || '', at: F.serverTimestamp()
   });
+  await auditNow(fb, { action: 'pastReceipt.add', unitId, unit: unitId.replace(/-/g, ' '), amount: data.amount, refNo: `Old ${data.receiptNo || ''}`, reason, refs: { pastReceipt: id },
+    detail: `Receipt of ${data.date || ''} ₹${data.amount ?? ''} added from the receipt book (${verify.state})` });
   return id;
 }
 

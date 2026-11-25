@@ -7,6 +7,7 @@ import {
   fyBounds, longDate
 } from './billing-core.js';
 import { DEFAULT_BILLING, DEFAULT_SITE, OCTOBER_2026_BILL } from './defaults.js';
+import { auditIn, auditNow, diffFields } from './audit.js';
 
 /* ---------- financial year lock ---------- */
 
@@ -121,6 +122,9 @@ export async function generateBill(fb, unitId, opts) {
       source, createdAt: F.serverTimestamp(), createdBy: auth.currentUser?.uid || source
     };
     const newBalance = calc.arrears + calc.current;
+    const auditId = auditIn(tx, fb, { action: 'bill.generate', unitId, unit: unit.unit, amount: calc.current, debit: calc.current,
+      balanceBefore: round(unit.balance), balanceAfter: newBalance, refs: { bill: billRef.id }, refNo: bill.billNo,
+      detail: `${monthLabel(monthKey)}: arrears ₹${calc.arrears}, this month ₹${calc.current}, total ₹${calc.total}${source !== 'admin' ? ` (${source})` : ''}` });
     tx.set(billRef, bill);
     tx.set(F.doc(F.collection(db, 'units', unitId, 'ledger')), {
       date: billDate, particulars: `Bill ${bill.billNo} for ${monthLabel(monthKey)}`, receipt: '',
@@ -129,7 +133,7 @@ export async function generateBill(fb, unitId, opts) {
     });
     tx.update(unitRef, {
       balance: newBalance, interestDue: Math.max(0, round(unit.interestDue)) + calc.interest,
-      lastBillId: billRef.id, updatedAt: F.serverTimestamp()
+      lastBillId: billRef.id, auditId, updatedAt: F.serverTimestamp()
     });
     // Interest on past arrears added to this bill (3.15): marked as billed, with the bill it went on.
     for (const id of calc.adjIds || []) tx.update(F.doc(db, 'billAdjustments', id), { status: 'billed', billId: billRef.id, billNo: bill.billNo, billedAt: F.serverTimestamp() });
@@ -157,6 +161,8 @@ export async function generateMonth(fb, opts, onProgress = () => {}) {
     onProgress(i + 1, units.length);
   }
   if (made.length) await markBilled(fb, opts.monthKey, made.length);
+  if (made.length || failed.length) await auditNow(fb, { action: 'bill.month', count: made.length, refNo: opts.monthKey,
+    detail: `${monthLabel(opts.monthKey)}: ${made.length} bills made, ${skipped.length} already there or not billed${failed.length ? `, ${failed.length} failed (${failed.slice(0, 10).map((f) => f.unit).join(', ')})` : ''}` });
   return { made, skipped, failed };
 }
 
@@ -225,6 +231,8 @@ export async function addLiftExpense(fb, e, units, lastBilledMonth) {
     ...(e.expenseId ? { expenseId: e.expenseId, voucherNo: e.voucherNo || '' } : {}),
     createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
   });
+  await auditNow(fb, { action: 'lift.add', amount, count: served.length, units: served.map((u) => u.id), refs: { liftExpense: ref.id }, refNo: e.invoiceNo || e.voucherNo || '',
+    detail: `Lift ${e.lift} ${e.kind}: ${e.description || ''} · ₹${amount} from ${monthLabel(e.startMonth)} in ${Math.min(24, Math.max(1, round(e.instalments) || 1))} instalment(s), ${served.length} units` });
   return { id: ref.id, units: served.length };
 }
 
@@ -233,6 +241,7 @@ export async function deleteLiftExpense(fb, exp, lastBilledMonth) {
     throw new Error('This expense is already on generated bills. Correct individual units under Units → Add a correction instead.');
   }
   await fb.F.deleteDoc(fb.F.doc(fb.db, 'liftExpenses', exp.id));
+  await auditNow(fb, { action: 'lift.delete', amount: round(exp.amount), refs: { liftExpense: exp.id }, refNo: exp.invoiceNo || '', detail: `Lift ${exp.lift} ${exp.kind}: ${exp.description || ''} · ₹${round(exp.amount)} from ${monthLabel(exp.startMonth)}` });
 }
 
 /* ---------- payments and receipts ---------- */
@@ -266,6 +275,8 @@ export async function recordPayment(fb, p) {
       ...(p.claimId ? { claimId: p.claimId } : {}),   // 3.29: a payment reported by the member, verified
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     };
+    const auditId = auditIn(tx, fb, { action: 'payment.record', unitId: p.unitId, unit: unit.unit, amount, credit: amount, balanceBefore: before, balanceAfter: after,
+      refs: { payment: payRef.id, claim: p.claimId || '' }, refNo: receiptNo, detail: `${p.date} · ${p.mode}${p.reference ? ' ' + p.reference : ''}${p.bank ? ' · ' + p.bank : ''}${p.billNo ? ' · against ' + p.billNo : ''}${p.note ? ' · ' + p.note : ''}` });
     tx.set(counterRef, { next: seq + 1 });
     tx.set(payRef, payment);
     tx.set(F.doc(F.collection(db, 'units', p.unitId, 'ledger')), {
@@ -273,14 +284,14 @@ export async function recordPayment(fb, p) {
       receipt: receiptNo, debit: 0, credit: amount, kind: 'payment', ref: payRef.id,
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     });
-    tx.update(unitRef, { balance: after, interestDue: Math.max(0, round(unit.interestDue)) - interestCleared, updatedAt: F.serverTimestamp() });
+    tx.update(unitRef, { balance: after, interestDue: Math.max(0, round(unit.interestDue)) - interestCleared, auditId, updatedAt: F.serverTimestamp() });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after });
     return { id: payRef.id, ...payment };
   });
 }
 
 /** Cancels a receipt (bounced cheque, wrong entry). The receipt stays on record, marked cancelled. */
-export async function cancelPayment(fb, paymentId, reason) {
+export async function cancelPayment(fb, paymentId, reason, undoOf = '') {
   const { F, db, auth } = fb;
   const payRef = F.doc(db, 'payments', paymentId);
   const pubRef = F.doc(db, 'private', 'dues');
@@ -293,13 +304,16 @@ export async function cancelPayment(fb, paymentId, reason) {
     const [unitSnap, pubSnap] = await Promise.all([tx.get(unitRef), tx.get(pubRef)]);
     const unit = { id: pay.unitId, ...unitSnap.data() };
     const after = round(unit.balance) + pay.amount;
+    const auditId = auditIn(tx, fb, { action: undoOf ? 'undo' : 'payment.cancel', unitId: pay.unitId, unit: unit.unit, amount: pay.amount, debit: pay.amount,
+      balanceBefore: round(unit.balance), balanceAfter: after, refs: { payment: paymentId }, refNo: pay.receiptNo, reason, undoOf,
+      detail: `Receipt ${pay.receiptNo} of ${pay.date} (₹${pay.amount}, ${pay.mode}${pay.reference ? ' ' + pay.reference : ''}) cancelled` });
     tx.update(payRef, { status: 'cancelled', cancelReason: reason || '', cancelledAt: F.serverTimestamp(), cancelledBy: auth.currentUser.uid });
     tx.set(F.doc(F.collection(db, 'units', pay.unitId, 'ledger')), {
       date: todayIST(), particulars: `Receipt ${pay.receiptNo} cancelled${reason ? ' – ' + reason : ''}`,
       receipt: pay.receiptNo, debit: pay.amount, credit: 0, kind: 'reversal', ref: paymentId,
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     });
-    tx.update(unitRef, { balance: after, interestDue: Math.max(0, round(unit.interestDue)) + (pay.interestCleared || 0), updatedAt: F.serverTimestamp() });
+    tx.update(unitRef, { balance: after, interestDue: Math.max(0, round(unit.interestDue)) + (pay.interestCleared || 0), auditId, updatedAt: F.serverTimestamp() });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after });
   });
 }
@@ -345,10 +359,30 @@ export async function reverseBilledCharge(fb, adjId, reason, byName) {
       receipt: '', debit: 0, credit: amt, kind: 'charge', code: a.code, ref: a.billId, createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     });
     const after = round(unit.balance) - amt;
-    tx.update(unitRef, { balance: after, updatedAt: F.serverTimestamp() });
+    const auditId = auditIn(tx, fb, { action: 'charge.reverse', unitId: a.unitId, unit: unit.unit, amount: amt, credit: amt, balanceBefore: round(unit.balance), balanceAfter: after,
+      refs: { bill: a.billId, adjustment: adjId }, refNo: bill.billNo, reason, detail: `${LABEL[a.code] || a.code}: ${a.detail || ''} taken off ${bill.billNo}` });
+    tx.update(unitRef, { balance: after, auditId, updatedAt: F.serverTimestamp() });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after });
     tx.update(adjRef, { status: 'reversed', reversedAt: F.serverTimestamp(), reversedBy: auth.currentUser.uid, reversedByName: byName || '', reason, correctionDate: date });
     return { billNo: bill.billNo, amount: amt };
+  });
+}
+
+/**
+ * 3.34: sets a unit's balance to the total of its ledger entries (committee), when the activity trail's check finds a
+ * balance that doesn't match its ledger (a change made without its entry). The ledger is the record; nothing is added to it.
+ */
+export async function fixBalanceToLedger(fb, unitId, ledgerTotal, reason) {
+  const { F, db } = fb;
+  const unitRef = F.doc(db, 'units', unitId), pubRef = F.doc(db, 'private', 'dues');
+  return F.runTransaction(db, async (tx) => {
+    const [unitSnap, pubSnap] = await Promise.all([tx.get(unitRef), tx.get(pubRef)]);
+    const unit = { id: unitId, ...unitSnap.data() };
+    const after = round(ledgerTotal);
+    const auditId = auditIn(tx, fb, { action: 'balance.fix', unitId, unit: unit.unit, amount: Math.abs(after - round(unit.balance)), balanceBefore: round(unit.balance), balanceAfter: after, reason,
+      detail: `Balance ₹${round(unit.balance)} set to the ledger total ₹${after}` });
+    tx.update(unitRef, { balance: after, auditId, updatedAt: F.serverTimestamp() });
+    patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after });
   });
 }
 
@@ -363,11 +397,15 @@ export async function addAdjustment(fb, unitId, e) {
     const [unitSnap, pubSnap] = await Promise.all([tx.get(unitRef), tx.get(pubRef)]);
     const unit = { id: unitId, ...unitSnap.data() };
     const after = round(unit.balance) + debit - credit;
-    tx.set(F.doc(F.collection(db, 'units', unitId, 'ledger')), {
+    const ledgerRef = F.doc(F.collection(db, 'units', unitId, 'ledger'));
+    const auditId = auditIn(tx, fb, { action: e.undoOf ? 'undo' : e.kind === 'charge' ? 'charge.debit' : 'correction', unitId, unit: unit.unit, amount: debit || credit, debit, credit,
+      balanceBefore: round(unit.balance), balanceAfter: after, refs: { ledger: ledgerRef.id }, refNo: e.receipt || '', reason: e.reason || '', undoOf: e.undoOf || '',
+      detail: `${e.date} · ${e.particulars}` });
+    tx.set(ledgerRef, {
       date: e.date, particulars: e.particulars, receipt: e.receipt || '', debit, credit, kind: e.kind || 'adjustment', ...(e.code ? { code: e.code } : {}),
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     });
-    tx.update(unitRef, { balance: after, ...(e.clearUnverified ? { unverified: false } : {}), updatedAt: F.serverTimestamp() });
+    tx.update(unitRef, { balance: after, ...(e.clearUnverified ? { unverified: false } : {}), auditId, updatedAt: F.serverTimestamp() });
     patchPublic(tx, F, pubRef, pubSnap, { ...unit, balance: after, ...(e.clearUnverified ? { unverified: false } : {}) });
   });
 }
@@ -390,13 +428,17 @@ export async function addUnit(fb, u, blocks) {
     category: categoryIdFor({ ...u, id }), liftGroup: liftGroupFor(u), constructionCost: null,
     charges: {}, active: true, order, updatedAt: F.serverTimestamp()
   });
+  await auditNow(fb, { action: 'unit.add', unitId: id, unit: u.unit, balanceAfter: 0, detail: `${u.unit} (${u.type}) ${u.name || ''} added at ₹0, to be verified` });
   await rebuildPublicDues(fb, blocks);
   return id;
 }
 
 /** Saves carpet area, inlets, vehicles and lift for many units at once. rows: [{ id, ...fields }] */
-export async function saveUnitMeasurements(fb, rows) {
+export async function saveUnitMeasurements(fb, rows, before = []) {
   const { F, db } = fb;
+  const was = Object.fromEntries(before.map((u) => [u.id, u]));
+  const changes = rows.flatMap(({ id, ...f }) => diffFields(was[id] || {}, f).map((c) => ({ ...c, field: `${was[id]?.unit || id} ${c.field}` })));
+  if (changes.length || !before.length) await auditNow(fb, { action: 'unit.measurements', count: rows.length, units: rows.map((r) => r.id), changes, detail: `${rows.length} units saved${before.length ? `, ${changes.length} values changed` : ''}` });
   for (let i = 0; i < rows.length; i += 400) {
     const batch = F.writeBatch(db);
     for (const { id, ...fields } of rows.slice(i, i + 400)) batch.update(F.doc(db, 'units', id), { ...fields, updatedAt: F.serverTimestamp() });
@@ -404,9 +446,13 @@ export async function saveUnitMeasurements(fb, rows) {
   }
 }
 
-export async function updateUnitDetails(fb, unitId, patch) {
+export async function updateUnitDetails(fb, unitId, patch, reason = '') {
   const { F, db } = fb;
+  let was = {};
+  try { const s = await F.getDoc(F.doc(db, 'units', unitId)); was = s.exists() ? s.data() : {}; } catch {}
   await F.updateDoc(F.doc(db, 'units', unitId), { ...patch, updatedAt: F.serverTimestamp() });
+  const changes = diffFields(was, patch);
+  if (changes.length) await auditNow(fb, { action: 'unit.edit', unitId, unit: was.unit || unitId, changes, reason, detail: changes.map((c) => c.field).join(', ') });
 }
 
 /* ---------- one-time import ---------- */
@@ -450,6 +496,7 @@ export async function importOpening(fb, dues, { includeOctober = true } = {}, on
     onProgress(i + 1, dues.units.length * (includeOctober ? 2 : 1));
   }
   await flush();
+  await auditNow(fb, { action: 'opening.import', count: dues.units.length, amount: dues.units.reduce((s, u) => s + (Number(u.owner) || 0), 0), detail: `Opening balances as on 30 Sep 2026 for ${dues.units.length} units${includeOctober ? ', with the October 2026 bill' : ''}` });
   await rebuildPublicDues(fb, dues.blocks);
 
   if (includeOctober) {
@@ -529,6 +576,7 @@ export async function closeFinancialYear(fb, statement, note) {
     note: note || '', closedAt: F.serverTimestamp(), closedBy: auth.currentUser.uid, status: 'closed'
   });
   await F.setDoc(F.doc(db, 'settings', 'billing'), { lockedUpTo: statement.to }, { merge: true });
+  await auditNow(fb, { action: 'fy.close', amount: round(statement.total?.closing), refNo: statement.fy, reason: note || '', detail: `${statement.fy} closed; entries up to ${statement.to} locked; ${statement.rows.length} units, closing ₹${round(statement.total?.closing)}` });
 }
 
 /** prevLock = lock date to go back to (end of the last year that stays closed, or '' if none). */
@@ -537,6 +585,7 @@ export async function reopenFinancialYear(fb, fy, reason, prevLock) {
   const prevEnd = prevLock || '';
   await F.setDoc(F.doc(db, 'fyClosing', fy), { status: 'reopened', reopenReason: reason, reopenedAt: F.serverTimestamp(), reopenedBy: auth.currentUser.uid }, { merge: true });
   await F.setDoc(F.doc(db, 'settings', 'billing'), { lockedUpTo: prevEnd }, { merge: true });
+  await auditNow(fb, { action: 'fy.reopen', refNo: fy, reason, detail: `${fy} reopened; locked up to ${prevEnd || 'nothing'}` });
 }
 
 /* ---------- Tally ledger history (1 Apr 2018 to the takeover date) ---------- */
@@ -561,6 +610,7 @@ export async function importTallyHistory(fb, data, units, onProgress = () => {})
     });
     done.push(u.unit);
   }
+  await auditNow(fb, { action: 'tally.import', count: done.length, detail: `Tally history up to ${take} saved for ${done.length} units${missing.length ? `; not in the file: ${missing.slice(0, 20).join(', ')}` : ''}` });
   return { done, missing, diffs };
 }
 

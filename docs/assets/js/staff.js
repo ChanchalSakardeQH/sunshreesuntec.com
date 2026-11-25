@@ -19,7 +19,8 @@ export const PERMS = [
   ['directory', 'Residents directory: units, names and mobile numbers (for visitors, deliveries, emergencies)'],
   ['submitExpenses', 'Add expenses with bill photos (their own; others’ only with view or approve access)'],
   ['approveExpenses', 'Approve or reject expenses (never their own)'],
-  ['payExpenses', 'Record expense payments, staff advances and paybacks']
+  ['payExpenses', 'Record expense payments, staff advances and paybacks'],
+  ['auditTrail', 'See the activity trail: who changed what in the accounts, and when (for auditors and the office in charge)']
 ];
 export const PERM_LABEL = Object.fromEntries(PERMS);
 
@@ -43,7 +44,7 @@ export const DEFAULT_ROLE_POLICIES = {
   'Office Assistant': { group: 'staff', perms: ['view', 'recordPayments', 'unitRecords', 'correspondence', 'library', 'submitExpenses'], agreement: true, days: 0 },
   'Housekeeping': { group: 'staff', perms: ['directory', 'submitExpenses'], agreement: true, days: 0 },
   'Watchman / Security': { group: 'staff', perms: ['directory', 'submitExpenses'], agreement: true, days: 0 },
-  'Auditor': { group: 'official', perms: ['view'], agreement: false, days: 90 },
+  'Auditor': { group: 'official', perms: ['view', 'auditTrail'], agreement: false, days: 90 },
   'Government official (DDR / Registrar)': { group: 'official', perms: ['view'], agreement: false, days: 30 },
   'Other': { group: 'staff', perms: [], agreement: true, days: 0 }
 };
