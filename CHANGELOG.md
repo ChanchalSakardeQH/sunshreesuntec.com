@@ -6,6 +6,72 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.33.0] – 2026-11-25 – Member agreement: dues of the unit, earlier NOC, 10-day reconciliation
+
+### Added
+- **New section in the member portal agreement – “Dues of the unit, detailed statements and reconciliation”** (after *Maintenance charges, payments and financial records*):
+  - the member pays the unit's dues shown in the Society's books, including arrears of earlier periods and **arrears of a previous owner** to the extent the member is liable under the MCS Act 1960, the Rules, the bye-laws, the terms of transfer or the undertaking given on admission;
+  - a **no-dues certificate, NOC or letter issued earlier, including by a previous Managing Committee**, records the dues known at that time and does not by itself stop the Society recovering amounts its books, audit or reconciliation later show unpaid — as far as the law allows and within limitation — while the member can still rely on it before the competent authority;
+  - the Society may send **detailed bills and statements** (with the month-by-month interest working) on the portal, by physical letter or bill (including Registered Post), by email or by other notified means;
+  - the member may **dispute any entry in writing within 10 days, with proof** (receipts, bank statements, the earlier certificate); the Society checks it against its books and bank, **corrects proven errors promptly** with a revised bill and informs the member, or gives reasons; no interest on amounts found not due; the undisputed part is paid meanwhile; silence for 10 days is acceptance for administration only and statutory remedies stay;
+  - arrears of a previous owner may also be recovered from that owner and credited to the unit.
+- **Declaration above the signature:** a fifth line when the agreement has this section (“…including arrears of earlier periods or of a previous owner, may be recovered on a detailed bill or statement, and that I may dispute any entry with proof within 10 days…”). Older versions keep four lines.
+- **Accounts → Members → Member portal agreement:** *Add the section on dues of the unit* puts the section into the published text (after maintenance charges) for review and publishing as a new version.
+- **Bills:** the “How this bill is worked out” page and Annexure B carry a box on how to dispute an amount (10 days, proof, earlier NOC, prompt correction, no interest on amounts not due); the bill's note now says 10 days with proof (was 7 days).
+
+### Notes
+- Publishing the new version asks every approved member to accept again at their next visit. Have the section checked by the Society's advocate and adopted by Managing Committee resolution (and General Body where the bye-laws require) before publishing. Recovery of a previous owner's dues from a new purchaser depends on the bye-laws, the transfer documents and the undertaking on admission; an NOC issued by the Society may be relied on by the purchaser, so the clause does not take away that defence.
+- No change to the database rules or the Drive script.
+
+----
+
+Version 3.33.0 is ready. The member portal agreement now has a new section, **"Dues of the unit, detailed statements and reconciliation"**. It sits right after "Maintenance charges, payments and financial records". All test suites pass. I tried it only on test data.
+
+**What the section says:**
+
+- **Dues:** the member pays all dues of the unit shown in the Society's books. That includes old arrears, and arrears from a previous owner's time as far as the member is liable for them. That liability comes from the MCS Act 1960, the bye-laws, the transfer terms or the undertaking signed on admission.
+
+- **Earlier NOC:** a no-dues certificate, NOC or letter given earlier, even by a previous committee, only shows the dues known at that time. On its own it doesn't stop the Society recovering amounts its books or audit later show unpaid, within the time limit the law allows. The member can still rely on the certificate before the Registrar.
+
+- **How bills are sent:** by detailed bills and statements on the portal, by physical letter or bill (including Registered Post), by email or by other ways the Society announces. Each statement shows the period, the charges, the payments and how the interest was worked out.
+
+- Disputes ("raise consent"):
+
+   the member writes within 
+
+  10 days
+
+   with proof (receipts, bank statements, the old NOC). The Society checks it against its books and the bank and 
+
+  corrects proven errors promptly
+
+   with a revised bill. Otherwise it replies with its reasons.
+
+  - No interest is charged on amounts found not due.
+  - The part not disputed is paid meanwhile.
+  - Not disputing in 10 days counts as accepted only for record-keeping; legal rights stay.
+
+- **Previous owner:** the Society may also recover from the previous owner, and anything recovered is credited to the unit.
+
+**Other changes:**
+
+- **Declaration:** members now confirm a fifth line above their signature about arrears and the 10-day dispute.
+- **Admin page:** Members → Member portal agreement has a new button, "Add the section on dues of the unit". It adds the section to your current published text.
+- **Bills:** the "How this bill is worked out" page and Annexure B now carry a box explaining how to dispute an amount. The bill note now says "10 days, with proof" instead of 7 days.
+
+**To make it live:**
+
+1. Upload the zip. The database rules and the Drive script don't change this time.
+2. Before publishing, have the advocate check the section and adopt it by Managing Committee resolution (General Body too if your bye-laws require it). The NOC part needs the most care: a buyer who relied on the Society's own NOC can still use it as a defence, and the wording deliberately leaves that right in place.
+3. Press the new button, then Preview, then "Publish as version 2" (or whatever the next number is). Every approved member will be asked to accept the new version at their next visit.
+
+----
+
+### Tested
+- New suite t333 (12 checks): draft includes the section after maintenance; key terms; adding twice refused; added to an older published text and published as version 2 with version 1 unchanged; member asked again; five-line declaration stored; older text keeps four lines. t332 gains X9 (dispute box); t313 updated for 16 sections and five confirmations. All earlier suites pass.
+
+---
+
 ## [3.32.0] – 2026-11-25 – Annexures to every bill: interest on past arrears month by month; charges by head and the lift
 
 ### Added
@@ -16,34 +82,6 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 ### Notes
 - A correction to a bill (3.31) is not counted twice in Annexure B: the revised bill's lines already show it.
 - Nothing new is stored and no rules change: members already read their unit's bills, ledger and bill charges.
-
----
-
-Version 3.32.0 adds two extra pages to every bill PDF, after "How this bill is worked out". Members get them automatically when they open their bill from their own page. A new test suite (9 checks) and all 30 earlier suites pass, but only against test data. I haven't seen the real C 401 pages.
-
-**Annexure A: Penal interest on past arrears, month by month**
- This page appears only on bills that carry interest on past arrears, like C 401's ₹24,691 (₹23,957 at 18% + ₹734 at 12%).
-
-- The rule, in three plain steps:
-  1. Arrears at the start of each month = the account balance on the 1st, less any penal interest already billed, so interest is never charged on interest.
-  2. Interest for the month = arrears × yearly rate ÷ 12.
-  3. Months with no arrears, or already charged on their own bill, are left out.
-- **A worked example:** ₹10,000 × 18% ÷ 12 = ₹150 for the month.
-- **Year by year:** months with arrears, the lowest and highest arrears, the rate, and the interest.
-- **Every month** from May 2013 to November 2026, with the arrears at the start of the month and the interest to the paisa.
-
-These figures are the calculation the committee saved when the interest was added (INT/2026-27/001), so they match the bill exactly.
-
-**Annexure B: What was charged, by head, and the lift**
-
-- **Charges by head:** each year's charges split into maintenance and funds, lift, water, penal interest and other charges. 2011-12 to 2017-18 show as one figure, because only the audited year-end balances exist for those years.
-- **Lift (C and D wing units):** which lift serves the unit and how it is charged. There is the yearly lift contribution fixed by the General Body, plus AMC and repairs shared equally by the units the lift serves. Then every lift charge in the unit's account is listed with its total, e.g. "Lift Maint. Contribution C Bldg (Journal 47) ₹15,000".
-
-To go live, just push the zip. There are no rules or Drive script changes. The pages also print with **Print all bills** when "With 'How this bill is worked out'" is ticked.
-
-**Before you send C 401's bill:** C 401 paid regularly, so the month table will probably show their arrears were mostly quarterly maintenance and the yearly lift contribution. These are booked on the 1st of the quarter (or in March for the lift) and paid a few weeks later. Under the current rule, interest starts from the next month. If the committee decides that's unfair to regular payers, it can waive part of it with a credit correction on the unit (Units → correction). Changing the rule itself, for example only charging interest on amounts more than a set number of days overdue, would need a General Body decision first.
-
-----
 
 ### Tested
 - New suite t332 (9 checks): two annexures; Annexure A with the amount, run and rule, every month with arrears and interest, the year with both rates; Annexure B with maintenance and lift columns, the C wing lift named and the lift contribution listed, maintenance from Tally and from these bills; the explanation points to them. All earlier suites pass.

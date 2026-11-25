@@ -8,6 +8,7 @@ import { mergeLedger } from './accounts.js';
 import { preLedger, loadPastReceipts } from './pastreceipts.js';
 import { financialYear, money, ddmmyyyy, monthLabel, LIFT_GROUPS, LABEL, liftGroupFor } from './billing-core.js';
 import { esc } from './data.js';
+import { DUES_DAYS } from './memberagreement.js';
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const rs = (n) => `₹ ${money(Math.abs(r2(n)), { slash: false })}${n < 0 ? ' Cr' : ''}`;
@@ -78,6 +79,11 @@ export function chargesByHead(entries, bills, upto, billId) {
   return { rows: [...rows.values()].sort((a, b) => a.fy.localeCompare(b.fy)), lift };
 }
 
+/** 3.33: how to dispute an entry (as in the portal agreement): within 10 days, with proof; errors corrected promptly. */
+function disputeBox(site) {
+  return `<div class="x-dispute"><b>If you think an amount is wrong</b> — including arrears of earlier years or of a previous owner, or an amount covered by a no-dues certificate or NOC given to you earlier — write to the Society within <b>${DUES_DAYS} days</b> of receiving this bill: on the portal, by email to ${esc(site.society?.email || 'the Society’s email address')}, or by letter at the office. Attach your proof (receipts, bank statements, the NOC or letter). The Society checks it against its books and the bank, corrects proven errors promptly with a revised bill or statement, and does not charge interest on any amount found not due; otherwise it replies with its reasons. Please pay the part you do not dispute. Your rights before the Registrar and the Co-operative Court are not affected.</div>`;
+}
+
 function interestAnnex(b, data, site) {
   const adjs = data.pastInterest || [];
   if (!adjs.length) return '';
@@ -109,11 +115,12 @@ function interestAnnex(b, data, site) {
       <tbody>${fyRows}</tbody><tfoot><tr><td colspan="4">Interest on past arrears on this bill</td><td class="num"><b>${rs(total)}</b></td></tr></tfoot></table>
     <h3>Every month</h3>
     <div class="x-cols">${col(months.slice(0, third))}${col(months.slice(third, 2 * third))}${col(months.slice(2 * third))}</div>
-    <p class="x-note">Amounts in rupees; the interest of each month is shown to the paisa and the total is rounded to the rupee. If a month’s arrears look wrong, compare them with the statement on the member page and write to the Society within 7 days, quoting the bill number.</p>
+    <p class="x-note">Amounts in rupees; the interest of each month is shown to the paisa and the total is rounded to the rupee. If a month’s arrears look wrong, compare them with the statement on the member page.</p>
+    ${disputeBox(site)}
   </div></section>`;
 }
 
-function headsAnnex(b, data) {
+function headsAnnex(b, data, site) {
   if (!data.ledgerRead) return '';
   const { rows, lift } = chargesByHead(data.entries, data.bills, b.billDate, b.id);
   if (!rows.length) return '';
@@ -131,6 +138,8 @@ function headsAnnex(b, data) {
     <p>${g ? `This unit is served by the ${esc(LIFT_GROUPS[g] || g)}. ` : ''}The lift is charged separately from maintenance, only to the units it serves: the yearly lift contribution fixed by the General Body, and the lift’s AMC, repairs and other costs shared equally by the units served (each share is on the bill of its month). These are the lift charges in this unit’s account:</p>
     ${lift.length ? `<table class="x-table"><thead><tr><th>Date</th><th>Particulars</th><th class="num">Amount</th></tr></thead><tbody>${lift.map((x) => `<tr><td>${ddmmyyyy(x.date)}</td><td>${esc(x.text)}</td><td class="num">${rs(x.amount)}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td colspan="2">Lift charges in total</td><td class="num"><b>${rs(lift.reduce((t, x) => t + x.amount, 0))}</b></td></tr></tfoot></table>` : '<p class="x-note">No lift charge is recorded in this unit’s account yet.</p>'}` : ''}
+    <p class="x-note">The account of a unit carries its dues from one owner to the next; arrears of an earlier period, including a previous owner’s, are part of the unit’s balance where the Society’s books show them unpaid.</p>
+    ${disputeBox(site)}
     <p class="x-note">Heads in the old books are read from their wording (e.g. “Lift Maint. Contribution C Bldg” is lift, “Society Maintenance Charges (C Building)” is maintenance). Payments are not split by head: a payment reduces the balance as a whole.</p>
   </div></section>`;
 }
@@ -250,6 +259,6 @@ export function explainHTML(b, data, site, basis = '') {
     <h3>4. Arrears: how ${rs(b.arrears)} built up</h3>
     ${arrearsHTML}
 
-    <p class="x-foot">Questions or a correction: write to ${esc(site.society?.email || 'the Society office')}${site.society?.contactNo ? ` or call ${esc(site.society.contactNo)}` : ''} within 7 days, quoting the bill number. Payments made after ${ddmmyyyy(b.billDate)} are not in this bill; they appear in the next one.${(data.pastInterest || []).length ? ' The interest on past arrears is worked out month by month in Annexure A.' : ''} Annexure B splits the charges by head${(data.unit && liftGroupFor({ block: b.block, ...data.unit })) ? ' and lists the lift charges' : ''}.</p>
-  </div></section>${interestAnnex(b, data, site)}${headsAnnex(b, data)}`;
+    <p class="x-foot">Questions or a correction: write to ${esc(site.society?.email || 'the Society office')}${site.society?.contactNo ? ` or call ${esc(site.society.contactNo)}` : ''} within ${DUES_DAYS} days, quoting the bill number and with your proof (see Annexure A or the portal agreement). Payments made after ${ddmmyyyy(b.billDate)} are not in this bill; they appear in the next one.${(data.pastInterest || []).length ? ' The interest on past arrears is worked out month by month in Annexure A.' : ''} Annexure B splits the charges by head${(data.unit && liftGroupFor({ block: b.block, ...data.unit })) ? ' and lists the lift charges' : ''}.</p>
+  </div></section>${interestAnnex(b, data, site)}${headsAnnex(b, data, site)}`;
 }

@@ -9,7 +9,7 @@ import { mergeLedger } from './accounts.js';
 import { SELF_REGISTER_ROLES, rolePolicy, PERM_LABEL } from './staff.js';
 import { loadPastReceipts, preLedger } from './pastreceipts.js';
 import { loadAuditYears, listArchive, openArchiveDoc, archiveBlob, yearEndRows } from './archive.js';
-import { agreementHTML, MEMBER_DECLARATION } from './memberagreement.js';
+import { agreementHTML, declarationFor } from './memberagreement.js';
 import { RATE_HISTORY } from './defaults.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { TRANSFER_TYPES, DEFAULT_CHECKLISTS, caseProgress, openLetter, LETTERS, libraryFor } from './transfers.js';
@@ -453,7 +453,7 @@ const person = (user) => ({ name: profile.name, email: user.email, unit: unitLab
 function showAgreement(user) {
   $('#ma-doc').innerHTML = agreementHTML(currentAg, person(user));
   $('#ma-email').textContent = user.email;
-  $('#ma-declaration').innerHTML = MEMBER_DECLARATION.map((t) => `<li>${esc(t)}</li>`).join('');
+  $('#ma-declaration').innerHTML = declarationFor(currentAg).map((t) => `<li>${esc(t)}</li>`).join('');
   const f = $('#ma-form');
   f.reset();
   f.sign.value = profile.name || '';
@@ -474,7 +474,7 @@ async function acceptAgreement(e) {
       batch.set(F.doc(db, 'memberAgreements', id), {
         uid: user.uid, email: user.email, name: profile.name || '', mobile: profile.mobile || '', relation: profile.relation || '',
         unit: profile.unit, unitLabel: plainUnit(profile.unit), wing: wingOf(profile.unit),
-        version: v, title: currentAg.title, signedName: signed, confirmations: [...MEMBER_DECLARATION],
+        version: v, title: currentAg.title, signedName: signed, confirmations: declarationFor(currentAg),
         acceptedAt: F.serverTimestamp(), device: navigator.userAgent.slice(0, 180)
       });
       batch.update(F.doc(db, 'users', user.uid), { agreementVersion: v, agreementAcceptedAt: F.serverTimestamp(), agreementId: id });

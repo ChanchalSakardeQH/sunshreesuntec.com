@@ -14,6 +14,27 @@ export const SOCIETY = {
   address: 'S. No. 19/2, 20/1, NIBM Road, Kondhwa Khurd, Pune 411 048'
 };
 
+/**
+ * 3.33: dues of the unit — arrears from earlier periods (including a previous owner's) shown in the Society's books
+ * are recoverable on a detailed statement, an earlier NOC notwithstanding where the law permits; the member may
+ * dispute any entry with proof within 10 days and the Society corrects proven errors promptly.
+ * To be vetted by the Society's advocate and adopted by the Managing Committee / General Body before publishing.
+ */
+export const DUES_DAYS = 10;
+export const DUES_SECTION = {
+  heading: 'Dues of the unit, detailed statements and reconciliation',
+  clauses: [
+    'The member shall pay all dues of the unit shown in the Society’s books of account: maintenance charges and contributions, lawful interest on delayed payment, and other charges levied under the registered bye-laws and lawful resolutions, including arrears of earlier periods that remain unpaid, and arrears of the period of a previous owner of the unit to the extent the member is liable for them under the Maharashtra Co-operative Societies Act, 1960, the Rules, the registered bye-laws, the terms of transfer or the member’s undertaking given at the time of admission to membership.',
+    'A no-dues certificate, no-objection certificate (NOC) or letter issued earlier, including by a previous Managing Committee, records the dues as known from the records available at that time. Where the Society’s books of account, audit or reconciliation later show that amounts were due and unpaid, such certificate or letter shall not, by itself, prevent the Society from recovering those amounts, to the extent permitted by applicable law and within the period of limitation, after giving the member the details as set out below. The member’s right to rely on such a certificate before the competent authority is not affected.',
+    'The Society may communicate the dues by detailed bills and statements on the Portal (including the month-by-month calculation of any interest), by physical bills or letters (including by Registered Post), by email, or by other means of communication notified by the Society. A statement shall show the period, each charge, each payment credited, and how any interest was worked out.',
+    `Within ${DUES_DAYS} (ten) days of receiving a bill, statement or demand, the member may dispute any entry in writing — on the Portal, by email to the Society’s official email address or by letter at the Society’s office against acknowledgment — with supporting proof such as receipts, bank statements, the earlier certificate or correspondence.`,
+    'The Society shall examine the dispute against its books of account, bank records, receipts, the earlier certificate and the proof submitted. Where an error is established, the Society shall correct the account promptly, issue a revised bill or statement, and inform the member in writing; where the dispute is not accepted, the Society shall give its reasons in writing.',
+    'Interest shall not be charged on any amount found not to be due. While a dispute is being examined, the member shall pay the part of the dues that is not disputed.',
+    `If no dispute is received within ${DUES_DAYS} days, the Society may treat the statement as accepted for its administrative purposes. This does not prevent the correction of a genuine error found later by either party, and does not take away the member’s statutory rights and remedies before the Registrar, the Co-operative Court or any other competent authority.`,
+    'Where arrears relate to the period of a previous owner, the Society may also pursue recovery from that previous owner. Any amount so recovered shall be credited to the unit’s account.'
+  ]
+};
+
 export const DEFAULT_MEMBER_AGREEMENT = {
   "title": "Member Portal Use Agreement and Undertaking",
   "intro": [
@@ -57,6 +78,7 @@ export const DEFAULT_MEMBER_AGREEMENT = {
         "Interest on delayed payments and other consequences of default apply only as permitted by applicable law, the Rules, the registered bye-laws and valid resolutions of the competent Society authority."
       ]
     },
+    DUES_SECTION,
     {
       "heading": "Records relating to the member’s unit",
       "clauses": [
@@ -234,6 +256,12 @@ export function agreementHTML(ag, person = {}, accepted = null) {
  * pressing "I accept" accepts the agreement and this declaration; the statements are saved with the acceptance and
  * printed in the PDF copy.
  */
+/** The declaration shown above the signature: with the dues line when the agreement has the dues section (3.33). */
+export const DUES_DECLARATION = `I accept that the dues of my unit shown in the Society’s books, including arrears of earlier periods or of a previous owner, may be recovered on a detailed bill or statement, and that I may dispute any entry with proof within ${DUES_DAYS} days so that proven errors are corrected.`;
+export function declarationFor(ag) {
+  const has = (ag?.sections || []).some((x) => /^Dues of the unit/i.test(x.heading || ''));
+  return has ? [MEMBER_DECLARATION[0], MEMBER_DECLARATION[1], DUES_DECLARATION, ...MEMBER_DECLARATION.slice(2)] : [...MEMBER_DECLARATION];
+}
 export const MEMBER_DECLARATION = [
   'I have read the whole agreement and I accept it.',
   'I will pay my dues on time and keep my unit’s records updated on the portal (title documents with Index II, rental agreements, police verification, occupant details), with physical copies at the Society office against acknowledgment.',

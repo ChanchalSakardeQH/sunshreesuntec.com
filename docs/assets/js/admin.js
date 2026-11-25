@@ -39,7 +39,7 @@ import { collectSettings, checkSettingsFile, compareSettings, restoreSettings, s
 import { LIB_CATEGORIES, LIB_LANGS, LIB_TYPES, LIB_MAX_BYTES, pdfWords, wordList, saveIndex, setIndexPublic, loadIndex, forgetIndex, searchLibrary, fmtSize, extOf } from './library.js';
 import { POSTS, SINGLE_POSTS, M20_DAYS, DEFAULT_UNDERTAKING, m20Status, undertakingFor, addYears, addDays as cAddDays } from './committee.js';
 import { PREREG_MESSAGE, REMINDER_KINDS, REMINDER_SCRIPT_NEEDED, fillReminder, waNumber, tenDigits, validEmail, waLink, mailLink } from './reminders.js';
-import { DEFAULT_MEMBER_AGREEMENT, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
+import { DEFAULT_MEMBER_AGREEMENT, DUES_SECTION, agreementHTML as memberAgreementHTML, sectionsToText, textToSections } from './memberagreement.js';
 import { MEMBER_DOC_KINDS, DOC_STATUS, detailLines } from './memberdocs.js';
 import { initCorrespondence, loadCorrespondence, lettersForUnit, statusText as letterStatus } from './correspondence.js';
 import { RECORD_FOLDER, TARIFFS, TAX_USES, commercialSigns, uploadUnitScans, backupUnitToDrive, compareWithBackup, restoreMissing } from './unitfiles.js';
@@ -4783,7 +4783,7 @@ async function loadMemberAgreementBox(appr) {
   if (!maFilled) { fillMaForm(maCurrent?.sections ? maCurrent : DEFAULT_MEMBER_AGREEMENT); maFilled = true; }
   const committee = canDo('committee');
   $$('input, textarea', f).forEach((x) => (x.readOnly = !committee));
-  $('#ma-publish').hidden = !committee; $('#ma-reset').hidden = !committee;
+  $('#ma-publish').hidden = !committee; $('#ma-reset').hidden = !committee; $('#ma-dues').hidden = !committee;
   $('#ma-publish').textContent = `Publish as version ${v + 1}`;
   return v;
 }
@@ -4952,6 +4952,15 @@ function wireUnitFile() {
     d.innerHTML = memberAgreementHTML({ ...readMaForm(), version: (maCurrent?.version || 0) + 1 }, { name: 'Member’s name', unit: 'C 202 (C Wing)', relation: 'owner', email: 'member@example.com' });
     d.hidden = false;
     d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  // 3.33: the section on dues of the unit, put after the section on maintenance charges (or at the end).
+  $('#ma-dues').addEventListener('click', () => {
+    const f = $('#ma-edit'), secs = textToSections(f.body.value);
+    if (secs.some((x) => x.heading === DUES_SECTION.heading)) return setMsg(f, 'The section on dues of the unit is already in the text.');
+    const i = secs.findIndex((x) => /^Maintenance charges/i.test(x.heading));
+    secs.splice(i >= 0 ? i + 1 : secs.length, 0, structuredClone(DUES_SECTION));
+    f.body.value = sectionsToText(secs);
+    setMsg(f, 'Added after “Maintenance charges, payments and financial records”. Members will also confirm it in the declaration above their signature. Preview it, have it checked, then publish as a new version.', true);
   });
   $('#ma-reset').addEventListener('click', () => { if (confirm('Replace the text in the editor with the draft? Nothing is published until you press Publish.')) fillMaForm(DEFAULT_MEMBER_AGREEMENT); });
   $('#uf-backup-now').addEventListener('click', (e) => busy(e.currentTarget, async () => {

@@ -72,6 +72,10 @@ A small Google Apps Script, installed once in the Society's account, puts the fi
 
 ## Updating the script later
 
+**3.30 – 3.33 (still script version 16):** no change to the script. The accepted member agreement PDF prints whatever
+sections and declaration lines the published version has, so the 3.33 section on dues of the unit and its fifth
+declaration line appear in the PDF without updating the script.
+
 **3.29 (script version 16):** payments reported by members (proofs in *Payments reported*, emails to the Society and the
 member). No new permission: paste Code.gs, then Manage deployments → Edit → New version.
 

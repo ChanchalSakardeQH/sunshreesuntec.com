@@ -206,7 +206,7 @@ function billHTML(b, site) {
     <div class="notes">
       <div class="left">
         <ol>
-          <li>Please Inform the Society Office in case of any discrepancies in this Bill within 7 days. Point of Contact No. ${esc(contactNo)}</li>
+          <li>Please Inform the Society Office in case of any discrepancies in this Bill within 10 days, with proof. Point of Contact No. ${esc(contactNo)}</li>
           <li>Please Mention your Bill No./ Flat No./ Shop No./ Unit on the Reverse of the Cheque.</li>
           <li>${interestNote}</li>
           <li>Pay online through NEFT as per the Details Mentioned Below.</li>

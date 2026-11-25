@@ -140,3 +140,4 @@ body.no-explain .sheet.explain { display: none; }
 .explain .x-mini { font-size: 7.5pt; margin: 0; }
 .explain .x-mini th, .explain .x-mini td { padding: .3mm 1mm !important; }
 .explain.annex h2 { font-size: 12.5pt; }
+.explain .x-dispute { border: 1px solid #c9a227; background: #fff8e1; padding: 1.5mm 2.5mm; margin: 2mm 0; font-size: 8.5pt; }

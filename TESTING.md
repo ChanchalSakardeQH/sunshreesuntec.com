@@ -203,6 +203,13 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 1 | Bills → Charges to recover → Deemed Conveyance Legal Fee → ₹6,500 for all → on the bills of next month | Listed as waiting; next month's bills have the line |
 | 2 | Legal Notice & Recovery Expenses → the units of a notice at ₹350 → debit now | Ledger entries; balances up by ₹350 |
 
+### Member agreement – dues of the unit (3.33)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Accounts → Members → Member portal agreement → *Add the section on dues of the unit* → Preview | Section *Dues of the unit, detailed statements and reconciliation* after maintenance charges; pressing again says it is already there |
+| 2 | Publish as the next version; sign in as a test owner | Asked to accept again; the declaration has five lines, the third about arrears and the 10-day dispute |
+| 3 | Print a bill with *How this bill is worked out* | A box on disputing within 10 days with proof, on the explanation and on Annexure B; the bill note says 10 days |
+
 ---
 
 ## D. Clearing the test copy
