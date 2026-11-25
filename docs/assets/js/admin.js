@@ -22,7 +22,7 @@ import {
   importPastReceipts, savePastReceipt, addPastReceipt, loadPastReceiptEdits, preLedger, receiptsByYear
 } from './pastreceipts.js';
 import {
-  LABEL, ONE_OFF, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
+  LABEL, ONE_OFF, RECOVERY_HEADS, MAX_PENALTY_PER_YEAR, PREMISES_TYPES, STATUSES, PAYMENT_MODES, CATEGORY_MONTHLY,
   categoryIdFor, liftGroupFor, LIFT_GROUPS, LIFT_KINDS, addMonths, liftExpenseEndMonth, MAX_INTEREST_PA,
   interestPeriodsOf, checkInterestPeriods, monthInterestRate, pastInterest, RULES_2026_FROM,
   PARTICULARS, buildContext, mmcRates, computeBill, prepareExtras, extrasForUnit, constructionCostOf,
@@ -308,6 +308,7 @@ function wireOnce() {
   wirePrereg();
   wireTransfers();
   wireSitePause();
+  wireCharges();
   wirePayClaimsAdmin();
   wireNotices();
   loadPauseState().catch(() => null);
@@ -427,7 +428,143 @@ function wireBills() {
 async function loadBills() {
   await listBills($('#bills-month').value || monthOf(todayIST()));
   setupPastInterest().catch((err) => console.warn('past interest', err));
-  setupNotices().catch((err) => console.warn('notices', err));
+  setupNotices().catch((err) => console.warn('notices', err)).then(() => setupCharges()).catch((err) => console.warn('charges', err));
+}
+
+/* ---------------- 3.30: charges recovered from particular units ---------------- */
+let chAmounts = new Map(), chAdj = [];
+const chCan = () => canDo('committee') || canDo('corrections');
+const chUnits = () => (units.length ? units : dues.units).filter((u) => u.active !== false).slice().sort((a, b) => String(a.unit).localeCompare(String(b.unit), 'en', { numeric: true }));
+async function setupCharges() {
+  const box = $('#ch-box');
+  box.hidden = !canDo('view');
+  if (box.hidden) return;
+  const f = $('#ch-form');
+  f.hidden = !chCan();
+  if (!f.dataset.ready) {
+    f.dataset.ready = '1';
+    f.code.innerHTML = RECOVERY_HEADS.map((c) => `<option value="${c}">${esc(LABEL[c])}</option>`).join('');
+    f.month.value = addMonths(lastBilled() || monthOf(todayIST()), 1);
+    f.date.value = todayIST();
+  }
+  const snap = await fb.F.getDocs(fb.F.collection(fb.db, 'billAdjustments')).catch(() => ({ docs: [] }));
+  chAdj = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((a) => a.code !== 'interest');
+  $('#ch-from-notice').innerHTML = '<option value="">—</option>' + (ntRuns || []).map((r) => `<option value="${esc(r.id)}">${esc(r.title)} ${dmy(r.letterDate)} (${r.units.length})</option>`).join('');
+  renderChargeUnits(); renderChargeRuns();
+}
+function renderChargeUnits() {
+  const show = $('#ch-show').value;
+  const list = chUnits().filter((u) => show === 'all' || (show === 'dues' ? Math.round(Number(u.balance) || 0) > 0 : chAmounts.get(u.id) > 0));
+  $('#ch-units').innerHTML = list.map((u) => { const a = chAmounts.get(u.id) || '';
+    return `<tr class="${a ? 'on' : ''}"><td class="unit">${esc(u.unit)}</td><td>${esc(u.name || '')}</td><td class="num">${u.balance != null ? fmt(u.balance) : ''}</td>
+      <td class="num"><input type="number" min="0" step="1" data-ch-unit="${esc(u.id)}" value="${a}" aria-label="Amount for ${esc(u.unit)}"></td></tr>`; }).join('') || '<tr><td colspan="4" class="empty">No units.</td></tr>';
+  chSum();
+}
+function chSum() {
+  const set = [...chAmounts.entries()].filter(([, a]) => a > 0);
+  $('#ch-sum').textContent = set.length ? `${set.length} unit${set.length === 1 ? '' : 's'}, total ₹${fmt(set.reduce((t, [, a]) => t + a, 0))}.` : 'Put the amount against each unit to charge (or fill one amount for all units shown).';
+  $('#ch-save').disabled = !set.length;
+}
+function renderChargeRuns() {
+  // One row per head, description and month (or date): the charges added together.
+  const groups = new Map();
+  for (const a of chAdj) {
+    const k = `${a.code}|${a.detail}|${a.month}|${a.status === 'cancelled' ? 'x' : ''}`;
+    const g = groups.get(k) || groups.set(k, { code: a.code, detail: a.detail, month: a.month, list: [] }).get(k);
+    g.list.push(a);
+  }
+  const can = chCan();
+  $('#ch-runs').innerHTML = [...groups.values()].sort((a, b) => String(b.month).localeCompare(String(a.month))).map((g) => {
+    const st = g.list.every((a) => a.status === 'cancelled') ? 'Cancelled' : g.list.every((a) => a.status === 'billed') ? 'On the bills' : g.list.some((a) => a.status === 'billed') ? 'Partly billed' : 'Waiting for the bills';
+    const pend = g.list.filter((a) => a.status === 'pending');
+    return `<tr><td><strong>${esc(LABEL[g.code] || g.code)}</strong><span class="sub">${esc(g.detail || '')}</span></td><td>Bills of ${monthLabel(g.month)}</td>
+      <td class="num">${g.list.length}</td><td class="num">${fmt(g.list.reduce((t, a) => t + (a.amount || 0), 0))}</td><td>${st}</td>
+      <td>${can && pend.length ? `<button class="btn btn-small btn-danger" type="button" data-ch-cancel="${esc(pend.map((a) => a.id).join(','))}">Cancel ${pend.length === g.list.length ? '' : `${pend.length} not billed`}</button>` : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">None yet. (Charges debited at once are in each unit’s statement.)</td></tr>';
+}
+function wireCharges() {
+  const f = $('#ch-form'), { F, db } = fb;
+  $('#ch-units').addEventListener('input', (e) => {
+    const x = e.target.closest('[data-ch-unit]');
+    if (!x) return;
+    const v = Math.round(Number(x.value) || 0);
+    if (v > 0) chAmounts.set(x.dataset.chUnit, v); else chAmounts.delete(x.dataset.chUnit);
+    x.closest('tr').classList.toggle('on', v > 0);
+    chSum();
+  });
+  $('#ch-show').addEventListener('change', renderChargeUnits);
+  $('#ch-fill-all').addEventListener('click', () => {
+    const v = Math.round(Number(f.each.value) || 0);
+    if (!(v > 0)) return setMsg(f, 'Give the amount per unit first.');
+    $$('#ch-units [data-ch-unit]').forEach((x) => chAmounts.set(x.dataset.chUnit, v));
+    setMsg(f, ''); renderChargeUnits();
+  });
+  $('#ch-from-notice').addEventListener('change', (e) => {
+    const r = ntRuns.find((x) => x.id === e.target.value), v = Math.round(Number(f.each.value) || 0);
+    if (!r) return;
+    if (!(v > 0)) { e.target.value = ''; return setMsg(f, 'Give the amount per unit first (e.g. the cost of the notice, post and copies).'); }
+    for (const u of r.units) chAmounts.set(u.unitId, v);
+    if (!f.detail.value.trim()) f.detail.value = `${r.title} dated ${dmy(r.letterDate)}: registered post, printing and copies`.slice(0, 200);
+    f.code.value = 'recovery'; $('#ch-show').value = 'set'; setMsg(f, ''); renderChargeUnits();
+  });
+  $('#ch-clear').addEventListener('click', () => { chAmounts.clear(); renderChargeUnits(); });
+  f.code.addEventListener('change', () => {
+    if (f.code.value === 'conveyance' && !f.detail.value.trim()) f.detail.value = 'Deemed conveyance legal-process fee (notice dated 15/10/2026)';
+  });
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const code = f.code.value, detail = f.detail.value.trim(), when = f.when.value, all = chUnits();
+    const set = [...chAmounts.entries()].filter(([, a]) => a > 0).map(([id, a]) => ({ u: all.find((x) => x.id === id), amount: a })).filter((x) => x.u);
+    if (!detail) return setMsg(f, 'Write the description: what it is for (it is shown to the member).');
+    if (!set.length) return setMsg(f, 'Put the amount against the units to charge.');
+    if (code === 'penalty' && set.some((x) => x.amount > MAX_PENALTY_PER_YEAR)) return setMsg(f, `A penalty can’t be more than ₹${fmt(MAX_PENALTY_PER_YEAR)} a year per member (Bye-law 165).`);
+    if (when === 'bill' && !(f.month.value > (lastBilled() || ''))) return setMsg(f, `The bills of ${monthLabel(f.month.value || lastBilled())} are already made; choose a later month, or debit the accounts now.`);
+    if (when === 'now' && !f.date.value) return setMsg(f, 'Give the date.');
+    // The same head, description and month already added for a unit?
+    const dup = when === 'bill' ? set.filter((x) => chAdj.some((a) => a.unitId === x.u.id && a.code === code && a.month === f.month.value && a.detail === detail && a.status !== 'cancelled')) : [];
+    if (dup.length && !confirm(`${dup.map((x) => x.u.unit).join(', ')} already ha${dup.length === 1 ? 's' : 've'} this charge for ${monthLabel(f.month.value)}. Add it again?`)) return;
+    const total = set.reduce((t, x) => t + x.amount, 0);
+    if (!confirm(`${LABEL[code]}: “${detail}”\n${set.length} unit${set.length === 1 ? '' : 's'}, total ₹${fmt(total)}, ${when === 'bill' ? `on the bills of ${monthLabel(f.month.value)}` : `debited now, dated ${dmy(f.date.value)}`}. Go ahead?`)) return;
+    busy($('#ch-save'), async () => {
+      try {
+        if (when === 'bill') {
+          for (let i = 0; i < set.length; i += 400) {
+            const batch = F.writeBatch(db);
+            for (const x of set.slice(i, i + 400)) batch.set(F.doc(F.collection(db, 'billAdjustments')), { unitId: x.u.id, unit: x.u.unit, month: f.month.value, code, amount: x.amount, detail,
+              status: 'pending', source: 'charge', createdBy: uid, createdByName: me?.name || '', createdAt: F.serverTimestamp() });
+            await batch.commit();
+          }
+        } else {
+          let n = 0;
+          for (const x of set) {
+            setMsg(f, `Debiting ${++n} of ${set.length}: ${x.u.unit}…`, true);
+            await addAdjustment(fb, x.u.id, { date: f.date.value, particulars: `${LABEL[code]}: ${detail}`.slice(0, 240), debit: x.amount, credit: 0, kind: 'charge', code });
+          }
+          units = await loadUnits(fb);
+        }
+        chAmounts.clear();
+        setMsg(f, `${LABEL[code]}: ₹${fmt(total)} for ${set.length} unit${set.length === 1 ? '' : 's'} ${when === 'bill' ? `added to the bills of ${monthLabel(f.month.value)} (a separate line, with the description on the calculation page)` : `debited, dated ${dmy(f.date.value)}`}.`, true);
+        await setupCharges();
+      } catch (err) { setMsg(f, esc(errorText(err))); }
+    });
+  });
+  $('#ch-runs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ch-cancel]');
+    if (!b) return;
+    const ids = b.dataset.chCancel.split(',');
+    if (!confirm(`Cancel ${ids.length} charge${ids.length === 1 ? '' : 's'} not yet on a bill?`)) return;
+    busy(b, async () => {
+      try {
+        for (let i = 0; i < ids.length; i += 400) {
+          const batch = F.writeBatch(db);
+          for (const id of ids.slice(i, i + 400)) batch.update(F.doc(db, 'billAdjustments', id), { status: 'cancelled', cancelledAt: F.serverTimestamp(), cancelledBy: uid });
+          await batch.commit();
+        }
+        const m = $('#ch-msg'); m.className = 'form-msg ok'; m.textContent = `${ids.length} cancelled.`;
+        await setupCharges();
+      } catch (err) { const m = $('#ch-msg'); m.className = 'form-msg'; m.textContent = errorText(err); }
+    });
+  });
 }
 
 /* ---------------- 3.28: demand / recovery notices (noticeRuns) ---------------- */

@@ -316,7 +316,7 @@ export async function addAdjustment(fb, unitId, e) {
     const unit = { id: unitId, ...unitSnap.data() };
     const after = round(unit.balance) + debit - credit;
     tx.set(F.doc(F.collection(db, 'units', unitId, 'ledger')), {
-      date: e.date, particulars: e.particulars, receipt: e.receipt || '', debit, credit, kind: 'adjustment',
+      date: e.date, particulars: e.particulars, receipt: e.receipt || '', debit, credit, kind: e.kind || 'adjustment', ...(e.code ? { code: e.code } : {}),
       createdAt: F.serverTimestamp(), createdBy: auth.currentUser.uid
     });
     tx.update(unitRef, { balance: after, ...(e.clearUnverified ? { unverified: false } : {}), updatedAt: F.serverTimestamp() });

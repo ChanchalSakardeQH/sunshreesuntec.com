@@ -197,6 +197,12 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 2 | Test site accounts → Payments → *Payments reported by members* → Verify… → tick found → Verify | Receipt made, balance down; member sees *Verified* with the receipt; email |
 | 3 | Another report → *Ask for details* → member adds a file | Back to waiting, round 2 |
 
+### Charges to recover (3.30)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Bills → Charges to recover → Deemed Conveyance Legal Fee → ₹6,500 for all → on the bills of next month | Listed as waiting; next month's bills have the line |
+| 2 | Legal Notice & Recovery Expenses → the units of a notice at ₹350 → debit now | Ledger entries; balances up by ₹350 |
+
 ---
 
 ## D. Clearing the test copy

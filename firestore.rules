@@ -381,12 +381,18 @@ service cloud.firestore {
     }
     match /billAdjustments/{id} {
       allow read: if perm('view') || approvedFor(resource.data.unitId);
-      allow create: if isCommittee() && request.resource.data.status == 'pending' && request.resource.data.code == 'interest'
-        && request.resource.data.amount is number && request.resource.data.amount > 0
+      // 3.30: also charges recovered from particular units (deemed conveyance fee, legal notice and other expenses),
+      // added by the committee or staff with the corrections permission.
+      allow create: if request.resource.data.status == 'pending'
+        && ((isCommittee() && request.resource.data.code == 'interest')
+            || ((isCommittee() || perm('corrections')) && request.resource.data.code in ['conveyance', 'recovery', 'chequeReturn', 'penalty', 'others']
+                && request.resource.data.detail is string && request.resource.data.detail.size() > 0 && request.resource.data.detail.size() <= 200))
+        && request.resource.data.amount is number && request.resource.data.amount > 0 && request.resource.data.amount <= 1000000
         && request.resource.data.unitId is string && request.resource.data.month is string
         && request.resource.data.month > get(/databases/$(database)/documents/settings/billing).data.get('lastBilledMonth', '');
       allow update: if resource.data.status == 'pending' && (
           (isCommittee() && changes().hasOnly(['status', 'cancelledAt', 'cancelledBy']) && request.resource.data.status == 'cancelled')
+          || (perm('corrections') && resource.data.code != 'interest' && changes().hasOnly(['status', 'cancelledAt', 'cancelledBy']) && request.resource.data.status == 'cancelled')
           || (perm('generateBills') && changes().hasOnly(['status', 'billId', 'billNo', 'billedAt']) && request.resource.data.status == 'billed'));
       allow delete: if false;
     }

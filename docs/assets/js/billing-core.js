@@ -32,7 +32,10 @@ export const PARTICULARS = [
   ['majorRepairs', 'Major Repairs Fund', true],
   ['welfare', 'Welfare Fund (voluntary)', true],
   ['loan', 'Loan Instalment & Interest', true],
-  ['leaseRent', 'Lease Rent / N.A. Tax', true]
+  ['leaseRent', 'Lease Rent / N.A. Tax', true],
+  // 3.30: charges recovered from particular units
+  ['conveyance', 'Deemed Conveyance Legal Fee', true],
+  ['recovery', 'Legal Notice & Recovery Expenses', true]
 ];
 export const LABEL = Object.fromEntries(PARTICULARS.map(([c, l]) => [c, l]));
 export const OPTIONAL = new Set(PARTICULARS.filter((p) => p[2]).map((p) => p[0]));
@@ -44,7 +47,9 @@ export const CATEGORY_FIELDS = [...CATEGORY_MONTHLY, 'liftYearly', 'liftMonthly'
 
 /** One-off charges the committee can add to a month's bills. */
 export const ONE_OFF = ['majorRepairs', 'penalty', 'others', 'water', 'lift', 'liftRepairs', 'transferPremium', 'transferFee',
-  'entranceFee', 'chequeReturn', 'propertyTax', 'insurance', 'election', 'loan', 'leaseRent'];
+  'entranceFee', 'chequeReturn', 'propertyTax', 'insurance', 'election', 'loan', 'leaseRent', 'conveyance', 'recovery'];
+/** 3.30: heads for charges recovered from particular units (Bills → Charges to recover). */
+export const RECOVERY_HEADS = ['conveyance', 'recovery', 'chequeReturn', 'penalty', 'others'];
 
 /** Penalty for breach of bye-laws: at most Rs 5,000 a year (Bye-law 165). */
 export const MAX_PENALTY_PER_YEAR = 5000;

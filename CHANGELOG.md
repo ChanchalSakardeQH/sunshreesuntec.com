@@ -6,6 +6,60 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.30.0] – 2026-11-25 – Charges recovered from units: deemed conveyance fee, legal notice and other expenses
+
+### Added
+- **Bills → Charges to recover from units** (committee, and staff with *corrections*, e.g. the Accountant; others with *view* see the list):
+  - **Head on the bill:** two new heads, *Deemed Conveyance Legal Fee* and *Legal Notice & Recovery Expenses*, besides *Cheque Return Charges*, *Penalty / Other Charges* (at most ₹5,000 a year, Bye-law 165) and *Any Others Charges*. They are printed on the bill only when there is an amount.
+  - **Description** (shown on the bill's *How this bill is worked out* page and in the statement). Choosing the conveyance head fills *Deemed conveyance legal-process fee (notice dated 15/10/2026)*.
+  - **Amounts per unit:** every active unit with its dues; type an amount against each unit, or *Put it for all units shown* (e.g. ₹6,500), or take **the units of a recovery notice** (e.g. ₹350 each for registered post, printing and copies; the description is filled from the notice). Show all units, units with dues, or units with an amount.
+  - **When:** **on the bills of a month** not yet billed (default the next month; a separate line on each unit's bill, made by the monthly run or *Generate*; several charges of the same head in a month add up, their descriptions joined), or **debited at once** with a date (a ledger entry of kind *charge*, the balance and website dues updated; in the arrears of the next bill).
+  - Warnings for a charge already added for the same unit, head, description and month; a month already billed is refused.
+  - **Charges added:** grouped by head, description and month, with units, total and status (*Waiting for the bills*, *On the bills*, *Cancelled*); charges not yet billed can be cancelled.
+- *How this bill is worked out* counts charges debited at once under *Charged*.
+
+### Notes
+- Once on a bill (or debited), a charge is part of the unit's dues like any other: unpaid, it is in the arrears and attracts penal interest as the bills do.
+
+---
+
+Version 3.30.0 is ready: you can now add the ₹6,500 deemed conveyance fee and the legal notice expenses to individual units. A new test suite (15 checks) and all 28 earlier suites pass, but only on test data, so nothing has been charged to your live units yet.
+
+**Where:** Bills → **Charges to recover from units**. The committee and the Accountant can use it.
+
+**1. The ₹6,500 deemed conveyance fee (notice dated 15 October 2026)**
+
+1. Choose the head **Deemed Conveyance Legal Fee**. The description fills itself in: "Deemed conveyance legal-process fee (notice dated 15/10/2026)".
+2. Type 6500 and press **Put it for all units shown**. Clear the amount for any unit that shouldn't pay.
+3. Choose **On the bills of December 2026**. October and November are already billed, so the form won't accept an earlier month.
+4. On the December bill, each unit gets a separate line, "Deemed Conveyance Legal Fee ₹6,500". The description appears on the "How this bill is worked out" page.
+
+**2. Expenses for particular units (legal notice, post, printing, stationery, xerox)**
+
+1. Choose the head **Legal Notice & Recovery Expenses** and describe what it was for, for example "Final notice 25/11/2026: registered post, printing and copies".
+2. Type the amount against each unit. Or pick a recovery notice you prepared, and its units get the same amount each, e.g. ₹350.
+3. Choose either **on the next bill** or **debit the account now** with a date. Debiting now updates the balance immediately and shows in the member's statement; it then appears in the arrears on the next bill.
+
+**Other points**
+
+- **Other heads:** Cheque Return Charges, Penalty (limited to ₹5,000 a year per member under Bye-law 165) and Any Others Charges.
+- **Cancelling:** charges waiting for a bill are listed with their totals and can be cancelled until the bill is made.
+- **Interest:** once billed or debited, a charge is part of the unit's dues. If it stays unpaid, it attracts penal interest like everything else, which fits the October notice saying interest may be levied on overdue charges. If the fee should never attract interest, tell me and I'll keep it separate.
+
+Your notice lists A 100, C 100 and D 202 as "Not listed" but still shows ₹6,500 for them, and keeps a provisional 66th unit. Untick any unit before saving if the committee hasn't confirmed it.
+
+---
+
+
+
+### Rules
+- `billAdjustments`: besides the committee's interest on past arrears, the committee or *corrections* create charges of the heads above (with a description of up to 200 characters, amount up to ₹10,00,000, only for a month after the last billed) and cancel them while not yet billed.
+
+### Tested
+- New suite t330 (15 checks): heads and month, conveyance description, ₹6,500 for all units, one left out, added to December's bills, listed; ₹350 for the units of a notice, debited at once (ledger kind *charge*, balances up); cancelling; penalty limit; a billed month refused; the Accountant can add; view-only staff can't; the bill shows the fee on its own line and the calculation page its description. All earlier suites pass.
+
+---
+
 ## [3.29.0] – 2026-11-25 – Payments reported by members, verified by the Treasurer / Accountant
 
 ### Added
@@ -17,34 +71,7 @@ Every change to how an amount is calculated is listed under **Billing rules** so
   - **Verify…**: the payment form filled from the report (correct the date or amount to what the bank shows); a warning when a receipt with the same reference, or the same amount within 5 days, is already recorded for the unit; *I have found this amount in the Society's bank statement* must be ticked; then the receipt is made as for any payment (balance, ledger, interest cleared first, public dues), linked to the report (`claimId`), and the member is emailed the receipt number (the Society copied).
   - **Ask for details** (the question is emailed and shown to the member) or **Not found** (the reason is emailed).
 
----
-
-added it in version 3.29.0. A new test suite (22 checks), all 27 earlier suites and 191 Drive script checks pass, but only against test data, not your live site.
-
-**What members do (their page → "Paid maintenance? Tell the Society")**
-
-- Anyone approved for the unit can report a payment: owner, family member or tenant, including tenants who can't see the unit's accounts.
-- They enter the date, amount, how they paid (NEFT, IMPS, UPI, cheque, cash deposit or demand draft), the UTR or cheque number, the bank, who paid, and optionally which bill it was against.
-- They must attach proof: up to 3 screenshots, bank slips or statement pages. These are saved in the unit's Drive folder under "Payments reported".
-- [sunshreesuntec@gmail.com](mailto:sunshreesuntec@gmail.com) gets an email right away, and the member gets an acknowledgement.
-- The payment does not reduce the balance until it is verified.
-- The member can follow the status: waiting, more details needed (they add details and send again), verified with the receipt number, or not found in the bank with the reason. The owner can also see payments reported by the tenant.
-
-**What the Treasurer or Accountant does (Payments → "Payments reported by members")**
-
-- A red count shows how many are waiting. Anyone who can record payments can act on them; committee members can too.
-- **Proof** opens the screenshot or slip.
-- **Verify…** opens the usual payment form, already filled in. You can correct the date or amount to match the bank statement, and you must tick "I have found this amount in the Society's bank statement".
-- Saving makes a normal receipt: the balance and ledger update as for any payment. The member is emailed the receipt number, with a copy to the Society.
-- **Duplicate warning:** the form warns you if a receipt with the same reference, or the same amount within 5 days, is already recorded for that unit.
-- **Ask for details** and **Not found** send the member an email with your note.
-
----
-
-
-
 ### Rules
-
 - `paymentClaims/{id}`: created by an approved member of the unit for themselves (status *submitted*, amount, date, mode, reference, up to 5 files, server time); read by the member who made it, the unit's members with full access and the team with *view*; the member changes or withdraws it while it is waiting or answers a question; those who record payments set *verified* (only with the receipt no.), *rejected* or *query*. Never deleted.
 
 ### Drive script (version 16)

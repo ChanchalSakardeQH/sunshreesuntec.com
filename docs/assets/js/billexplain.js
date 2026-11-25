@@ -55,7 +55,7 @@ export function yearTable(entries, interestByBill = {}) {
     const fy = financialYear(e.date);
     const y = years.get(fy) || years.set(fy, { fy, charged: 0, interest: 0, paid: 0, other: 0, otherText: new Set() }).get(fy);
     const net = (e.debit || 0) - (e.credit || 0);
-    if (e.kind === 'bill' || (e.source === 'audit' && net > 0)) { y.charged += net; y.interest += interestByBill[e.ref] || 0; }
+    if (e.kind === 'bill' || e.kind === 'charge' || (e.source === 'audit' && net > 0)) { y.charged += net; y.interest += interestByBill[e.ref] || 0; }
     else if (e.kind === 'payment') y.paid += (e.credit || 0) - (e.debit || 0);
     else {
       y.other += net;

@@ -451,3 +451,13 @@ fieldset.lib-guide { border: 1px solid var(--line); border-radius: 8px; padding:
 .pcl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .5rem 1rem; }
 .pcl-dup { background: #fff4e0; border: 1px solid #f0c27a; border-radius: 8px; padding: .45rem .7rem; }
 #pcl-dialog { width: min(44rem, 94vw); }
+
+/* 3.30: charges to recover from units */
+#ch-box > summary { cursor: pointer; }
+.ch-grid { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: .5rem 1rem; }
+.ch-fill { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: end; margin: .6rem 0; }
+.ch-fill label { display: grid; gap: .2rem; }
+.ch-scroll { max-height: 26rem; overflow: auto; }
+.ch-table input { width: 7.5rem; text-align: right; }
+.ch-table tr.on td { background: #f1f8f3; }
+@media (max-width: 640px) { .ch-grid { grid-template-columns: 1fr; } }
