@@ -6,6 +6,21 @@ Every change to how an amount is calculated is listed under **Billing rules** so
 
 ---
 
+## [3.36.0] – 2026-11-28 – Sort any table by clicking a column heading
+
+### Added
+- **Every table on the accounts page and the member page can be sorted** — by Date, Unit, Name, Amount, Receipt no. or any other column. Click a heading: first ascending (oldest date, A→Z, C 101 → C 1001, smallest amount), again descending, a third time back to the page's own order. ▲ / ▼ shows the column in use; ⇅ marks the headings you can click. Enter or Space on a heading does the same from the keyboard.
+  - Dates (02/11/2026, 25 Nov 2026 07:43 pm, November 2026), amounts (10,000, ₹1,19,793/-, 5,000 Cr) and unit numbers sort as dates, numbers and units, not as plain text.
+  - The order stays when a table is redrawn (month changed, filters, after recording or cancelling).
+  - Totals in the footer stay at the bottom; detail lines opened under a row move with that row; row buttons (Cancel, Open, View) keep working.
+  - Not offered where order matters or the table is a form: ledgers (running balance), rate and area tables, bill item editors.
+- New file `assets/js/tablesort.js`; heading styles in `style.css`.
+
+### Tested
+- New suite t336 (16 checks): receipt register sortable on six columns, not on the button column; units in numeric order, descending, back to page order; dates and amounts as values; name with arrow; footer total untouched; order kept after a redraw; buttons stay with their rows; keyboard; units by balance; ledgers and rate tables not sortable; activity trail by unit. 15 value-reading checks in Node. All earlier suites pass.
+
+---
+
 ## [3.35.1] – 2026-11-25 – Printed bills: no false “The page didn't start” box; one A4 page; Annexure A month table
 
 ### Fixed (found in the C 201 December 2026 bill printed from 3.34.1)

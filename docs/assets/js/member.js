@@ -1,6 +1,7 @@
 // Member access: register (mobile + email) → committee approves in admin.html → member sees own unit's
 // balance, bills, receipts and account entries. Enforced by the server's access rules.
 import { initFirebase, errorText, inApp, saveBlob, signOutUser } from './firebase.js';
+import { enableTableSort } from './tablesort.js';
 import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, logSignIn, showMsg, setSignInWho } from './signin.js';
 import { initOfflineUi, markSaved, saveForOffline } from './offline.js';
 import { getDues, fmt, esc, ownerCell, RELATIONS, relationLabel } from './data.js';
@@ -1125,3 +1126,6 @@ document.addEventListener('click', async (e) => {
     msg.textContent = '';
   } catch (err) { if (win) win.close(); msg.className = 'form-msg'; msg.textContent = errorText(err); }
 });
+
+// 3.36: sortable tables (click a column heading)
+enableTableSort(document.getElementById('main') || document.body);

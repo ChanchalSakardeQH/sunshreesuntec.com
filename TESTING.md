@@ -203,6 +203,17 @@ Tick each line. If anything differs from **Expected**, note the step and send a 
 | 1 | Bills → Charges to recover → Deemed Conveyance Legal Fee → ₹6,500 for all → on the bills of next month | Listed as waiting; next month's bills have the line |
 | 2 | Legal Notice & Recovery Expenses → the units of a notice at ₹350 → debit now | Ledger entries; balances up by ₹350 |
 
+### Sortable tables (3.36)
+| # | Do | Expected |
+|---|---|---|
+| 1 | Payments → receipt register → click **Unit** | C 101, C 102, … in number order; ▲ on Unit |
+| 2 | Click **Unit** again, then a third time | Reversed (▼); then the original order (by date) |
+| 3 | Click **Date**, **Amount**, **Name** | Oldest date first; smallest amount first (9,500 before 10,000); names A→Z |
+| 4 | Change the month and come back | Same column and direction kept |
+| 5 | Sort, then press **Cancel** on a row | The receipt on that row is the one cancelled |
+| 6 | Units, Members, Activity, Expenses, Directory, Library | Headings sortable the same way |
+| 7 | Unit file ledger; Settings rates | Headings not clickable (order matters) |
+
 ### Bills for posting (3.35)
 | # | Do | Expected |
 |---|---|---|

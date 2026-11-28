@@ -474,3 +474,11 @@ dl.lib-guide dd { margin: 0; }
 .pc-st.rejected { color: #a3261d; }
 .pc-st.query { color: #8a5300; }
 .pc-st.withdrawn { color: var(--muted, #666); font-weight: 400; }
+
+/* 3.36: sortable table headings (click: ascending, descending, page order) */
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover, th.sortable:focus-visible { text-decoration: underline; outline: none; }
+th.sortable::after { content: '⇅'; margin-left: .3em; font-size: .8em; opacity: .35; }
+th.sortable[aria-sort="ascending"]::after { content: '▲'; opacity: .9; }
+th.sortable[aria-sort="descending"]::after { content: '▼'; opacity: .9; }
+@media print { th.sortable::after { content: none; } }

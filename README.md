@@ -8,6 +8,7 @@ Website and maintenance accounting for **Sunshree Suntec Co-op. Hsg. Soc. Ltd.**
 - **Accounts (`/admin.html`, committee only):** monthly bills in the Society's bill format, payments with numbered digital receipts, unit ledgers, corrections, member access approvals, notices and contact details.
 - **Test copy:** try every role (owner, tenant, staff, committee) on a separate test project and Drive folder, with a red TEST banner; see `TESTING.md` (3.21).
 - **Membership transfers:** the documents each unit submits on a member's death or on sale, tracked unit by unit with scans, the committee resolution and the share certificate endorsement; members see their unit's list and print the Society's letters (3.23).
+- **Sortable tables (3.36):** click any column heading — Date, Unit, Name, Amount… — to sort; again to reverse; a third time for the original order.
 - **Ledger with the bill (3.35):** each unit's full ledger printed after its bill and calculation, for posting; revised bills not yet sent print without the “Revised bill” note.
 - **Activity trail (3.34):** every money change in the accounts — by committee or staff — with who, when, unit, amount, balance before and after, and the reason; filters, CSV, a balance check against the ledgers, and one-click correction of a mistaken entry. Entries can't be changed or deleted from the website.
 - **App Google sign-in refused (3.33.1):** “[16] Account reauth failed” is shown as a failure with the fix (the app's SHA-1 in Firebase) instead of looking like nothing happened; the phone offers the website in Chrome.

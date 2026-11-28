@@ -1,6 +1,7 @@
 // Committee accounts: dashboard, monthly bills, payments + receipts, unit ledgers, member access, website content, settings.
 import { initFirebase, errorText, inApp, saveBlob, signOutUser, SITE_VERSION, PROJECT_ID } from './firebase.js';
 import { signInWithGoogle, finishGoogleRedirect, signInWithPassword, showMsg, REFUSED_RE } from './signin.js';
+import { enableTableSort } from './tablesort.js';
 import { setAuditActor, auditIn, auditNow, diffFields, ACTIONS, GROUPS, actionLabel, actionGroup, loadAudit, loadUnitAudit, undoneMap, fixFor, balanceMismatches, auditCsv as trailCsv, ms as auMs } from './audit.js';
 import { initExpenses, loadExpenses, openExpenseById } from './expenses.js';
 import { initOfflineUi, requireOnline } from './offline.js';
@@ -317,6 +318,7 @@ function wireOnce() {
   wireCommittee();
   wireLibraryAdmin();
   wireActivity();
+  enableTableSort(document.querySelector('main') || document.body);
   initExpenses({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units, lastBilled: () => lastBilled(),
     reloadBilling: async () => { billing = await loadBilling(fb); return lastBilled(); } });
   initCorrespondence({ fb, uid: () => uid, me: () => me, canDo, busy, setMsg, saveBlob, errorText, units: () => units });
